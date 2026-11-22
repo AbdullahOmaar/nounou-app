@@ -725,6 +725,20 @@ def main():
                     body={"p_token": raw_valid})
         check("anon cannot call the internal portal_token_resolve",
               s in (401, 403, 404), f"got {s}")
+        # إنفاذ الاحتفاظ بالصور (0011 — 3A-335): دالتا الخدمة فقط،
+        # فلا المجهول ولا حتى المالك يستدعيهما من العميل أبداً.
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/expired_child_photos",
+                    body={"p_limit": 1})
+        check("anon cannot call expired_child_photos (service_role only)",
+              s in (401, 403, 404), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/expired_child_photos",
+                    jwt=owner_a_jwt, body={"p_limit": 1})
+        check("even the owner cannot call expired_child_photos",
+              s in (401, 403, 404), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/delete_expired_child_photo",
+                    body={"p_photo_id": a_child1})
+        check("anon cannot call delete_expired_child_photo (service_role only)",
+              s in (401, 403, 404), f"got {s} {str(b)[:80]}")
     finally:
         # ---------- cleanup ----------
         ids = [u for u in (owner_a_uid, owner_b_uid, staff_uid) if u]

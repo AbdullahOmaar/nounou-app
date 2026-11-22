@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Suspense, lazy, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { Camera, Check, Clock, Home, QrCode, Undo2, X } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
@@ -15,7 +15,12 @@ import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { useNurserySettings } from '../settings/hooks'
 import * as api from './api'
 import { useAttendanceWriter, useClassDay, useDayChildren } from './hooks'
-import { QrScannerSheet } from './QrScannerSheet'
+// ماسح QR يُحمَّل كسولاً عند أول فتح فقط (3A-335): مكتبة @zxing/browser
+// كانت تضخّم حزمة شاشة اليوم (486KB) رغم أن المسح فعل اختياري نادر،
+// فصارت حزمة منفصلة لا تصل الجهاز إلا عند ضغط زر المسح.
+const QrScannerSheet = lazy(() =>
+  import('./QrScannerSheet').then((m) => ({ default: m.QrScannerSheet })),
+)
 
 /**
  * «وضع الفصل»: شاشة اليوم التشغيلية — بلاطات كبيرة لكل طفل، وصول بلمسة
@@ -367,11 +372,15 @@ export function ClassDayPage() {
         )}
       </Sheet>
 
-      <QrScannerSheet
-        open={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onCode={(code) => void handleScan(code)}
-      />
+      {scannerOpen && (
+        <Suspense fallback={null}>
+          <QrScannerSheet
+            open
+            onClose={() => setScannerOpen(false)}
+            onCode={(code) => void handleScan(code)}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }
