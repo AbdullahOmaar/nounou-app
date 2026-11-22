@@ -16,8 +16,13 @@
 ## تسلسل التشغيل (بعد الخطوتين)
 
 3. **الهجرات:** طبّق `supabase/migrations/0001` → `0010` بالترتيب،
-   statement-by-statement عبر `run_migration.py` فقط (قاعدة المشروع).
+   statement-by-statement عبر `run_migration.py` فقط (قاعدة المشروع) —
+   مكانه: `~/workspace/custom-connectors/custom.supabase/bin/run_migration.py`
+   ويُستدعى بـ `<project_ref> <sql_file>`.
    بعد كل ملف: تحقق سريع (أسماء الجداول/الدوال موجودة).
+   **بروفة موثقة (3A-334، 2026-11-22):** الهجرات العشر طُبقت كاملة
+   (288 بياناً) على PostgreSQL 16 خام + بذرة الديمو بخط أساس مطابق
+   لهذه الخطوة ٩ وإعادة تشغيل آمنة للبذرة — لم يتبقَّ إلا التطبيق الحي نفسه.
 4. **إعدادات Auth** (لوحة Supabase → Authentication): فعّل البريد/
    كلمة المرور، وأضف نطاق الإنتاج لقوائم Redirect URLs
    (`/reset-password`)، وعطّل تأكيد البريد إن طُبّق نفس إعداد المدرس

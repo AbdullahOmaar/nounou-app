@@ -9,11 +9,14 @@ Splinter الأوبن سورس وتُقرأ عبر Management API بنفس مو�
 نفسه: بوابة محلية صارمة، وتخطٍّ رشيق معلَن حيث لا موصّل (CI).
 
 الحكم: أي lint بمستوى ERROR = فشل (exit 1). ما عداه يُطبع عددياً مصنفاً —
-أغلبه عندنا مقصود بتصميمه وموثق في COMPREHENSIVE-REVIEW-2026-11.md
+أغلبه عندنا مقصود بتصميمه وموثق في STANDARDS-COMPLIANCE.md
 (أسطح توكنات SECURITY DEFINER محروسة بالهاش داخلياً + دوال مساعدة RLS)،
 وقيمة الفحص رحلة-سلكية: أي دالة/جدول جديد يظهر هنا يُدقَّق فوراً.
 
-التشغيل: python3 scripts/supabase_advisors.py [project_ref]
+التشغيل: python3 scripts/supabase_advisors.py <project_ref>
+الـ project_ref إلزامي بلا أي قيمة افتراضية (إصلاح بروفة 3A-334: الافتراضي
+القديم كان مرجع مشروع تطبيق المدرس — تشغيله بلا وسيط كان يفحص منتجاً آخر
+ويطبع OK باطمئنان زائف).
 """
 import importlib.util
 import os
@@ -23,7 +26,11 @@ from collections import Counter
 HELPER = os.path.expanduser(
     "~/workspace/custom-connectors/custom.supabase/bin/supabase_api.py"
 )
-REF = sys.argv[1] if len(sys.argv) > 1 else "qkwdyqocazwhojpyifbv"
+REF = sys.argv[1] if len(sys.argv) > 1 else ""
+if not REF:
+    print("USAGE: python3 scripts/supabase_advisors.py <project_ref> — "
+          "مرجع مشروع نونو صراحة؛ لا توجد قيمة افتراضية قصداً (3A-334).")
+    sys.exit(2)
 
 
 def main() -> int:
