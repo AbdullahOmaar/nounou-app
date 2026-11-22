@@ -1,0 +1,167 @@
+name: CI
+
+# بوابة جودة وأمان دائمة (§15 من معيار Engineering & Security Standards):
+# كل push وكل PR يمرّ بـ lint + typecheck (strict) + build + اختبارات
+# الوحدة + بوابة i18n (كلها داخل `npm run check`)، وبوابات أمان منفصلة:
+# Gitleaks (أسرار — التاريخ كله) + OSV (اعتماديات) + Semgrep (SAST).
+#
+# ملحوظات:
+# - اختبارات التفويض الحية (test:authz) جزء من `npm run check` أيضاً،
+#   لكنها تتخطى نفسها بنعومة في CI (لا بيئة موصّل محلية) وتعمل كاملة
+#   على جهاز المطوّر — تشغيلها داخل CI متابعة موثقة (R4).
+# - تصليب 3A-302: صلاحيات التوكن قراءة فقط، وكل الأكشنات مثبّتة ببصمة
+#   commit SHA (لا tags قابلة للتحريك)، وحزمة Gitleaks تُتحقق بصمتها
+#   SHA-256 قبل فكّها، وSemgrep مثبّت برقم إصدار.
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          # Puppeteer (اختبارات E2E — devDependency) ينزّل Chromium بعد
+          # التثبيت؛ هذه الوظيفة لا تحتاجه فتتخطى التنزيل (3A-311)
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+      - run: npm run check
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0 # gitleaks يفحص التاريخ كله
+      - name: Gitleaks (كشف أسرار في الكود والتاريخ)
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks_8.30.0_linux_x64.tar.gz -o /tmp/gitleaks.tar.gz
+          echo "79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e  /tmp/gitleaks.tar.gz" | sha256sum -c -
+          tar -xz -C /tmp -f /tmp/gitleaks.tar.gz gitleaks
+          /tmp/gitleaks detect --source=. --redact --no-banner
+      - name: OSV-Scanner (ثغرات الاعتماديات من package-lock)
+        uses: google/osv-scanner-action/osv-scanner-action@2a387edfbe02a11d856b89172f6e978100177eb4 # v2.3.2
+        with:
+          scan-args: |-
+            --lockfile=package-lock.json
+      - name: Semgrep (تحليل ثابت SAST — قواعد auto)
+        run: |
+          python3 -m pip install --quiet semgrep==1.186.0
+          semgrep scan --config auto --error --skip-unknown-extensions
+
+  architecture-graph:
+    # حارس معمارية معلوماتي (3A-310 — من خريطة الكود 3A-309): يكشف
+    # دوائر الاستيراد الجديدة في src دون أن يمنع الدمج — الوظيفة
+    # continue-on-error وقاعدة no-circular في .dependency-cruiser.cjs
+    # بدرجة warn. مترجم المشروع TypeScript 7.0.2 خارج نطاق دعم
+    # dependency-cruiser 18.8.0 (يدعم <7.0 أو >=7.1) فيجوب 0 موديولات
+    # بصمت؛ لذلك تثبّت الوظيفة typescript@5.9.3 داخل صندوقها فقط
+    # (--no-save: لا يمسّ المانيفستات ولا بقية الوظائف)، وتتحقق صراحة
+    # أن الموديولات المُجوبة ≥150 حتى لا يمرّ جوب فارغ كأنه نجاح.
+    # عند دعم الأداة لمترجم المشروع: تُرفع الدرجة إلى error ويُلغى
+    # continue-on-error وتثبيت المترجم البديل.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true' # كما في وظيفة الفحص (3A-311)
+      - run: npm i --no-save typescript@5.9.3 dependency-cruiser@18.8.0
+      - name: Depcruise (دوائر الاستيراد — تحذيرات فقط)
+        run: |
+          npx depcruise src --config .dependency-cruiser.cjs --output-type json > /tmp/depcruise.json || true
+          node -e "
+            const r = require('/tmp/depcruise.json');
+            const total = r.summary.totalCruised;
+            if (total < 150) { console.error('depcruise cruised only ' + total + ' modules — silent-empty trap (compiler mismatch?)'); process.exit(1); }
+            const circ = (r.summary.violations || []).filter(v => v.rule.name === 'no-circular');
+            for (const v of circ) console.log('::warning::circular dependency: ' + v.from + ' -> ' + v.to);
+            console.log('depcruise: ' + total + ' modules cruised, ' + circ.length + ' circular violations');
+          "
+
+  code-signals:
+    # إشارات جودة معلوماتية (3A-314 — تبنّي أدوات مراجعة أوبن سورس):
+    # ‏Knip (ملفات/صادرات/اعتماديات ميتة) + jscpd (تكرار) — بنمط
+    # architecture-graph وe2e-smoke نفسه: continue-on-error في هذه
+    # المرحلة، والترقية لوظيفة حاجبة قرار لاحق بالأدلة بعد أسابيع من
+    # الإشارات المستقرة. الأداتان تُثبّتان --no-save داخل صندوق الوظيفة
+    # فقط (مع typescript@5.9.3 — مترجم المشروع 7.0.2 خارج نطاق دعم
+    # Knip كما مع dependency-cruiser) فلا تُمسّ مانيفستات المشروع.
+    # حرّاس ضد «النجاح الصامت»: عدّادات ملفات مفحوصة صريحة لكل أداة —
+    # جوبٌ فارغ يُفشل الخطوة بصوت عالٍ بدل أن يمرّ كأنه نظيف.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true' # كما في بقية الوظائف
+      - run: npm i --no-save typescript@5.9.3 knip@5 jscpd@4
+      - name: Knip (كود ميت — إشارة)
+        run: |
+          npx knip --reporter json > /tmp/knip.json || true
+          node -e "
+            const r = require('/tmp/knip.json');
+            const files = new Set((r.issues || []).map(i => i.file));
+            const count = k => (r.issues || []).reduce((s, i) => s + ((i[k] || []).length), 0);
+            console.log('knip: unused files=' + (r.files || []).length +
+              ' exports=' + count('exports') + ' types=' + count('types') +
+              ' deps=' + (count('dependencies') + count('devDependencies')) +
+              ' across ' + files.size + ' files with issues');
+            for (const f of r.files || []) console.log('::warning::knip unused file: ' + f);
+            if (files.size < 30) { console.error('knip touched only ' + files.size + ' files — silent-empty trap (compiler mismatch?)'); process.exit(1); }
+          "
+      - name: jscpd (تكرار — إشارة)
+        run: |
+          npx jscpd src --min-lines 8 --reporters console 2>&1 | tee /tmp/jscpd.txt | tail -4
+          node -e "
+            const fs = require('fs');
+            const txt = fs.readFileSync('/tmp/jscpd.txt', 'utf8');
+            const m = txt.match(/Total:\s*│\s*(\d+)/);
+            const found = txt.match(/Found (\d+) clones/);
+            if (!m) { console.error('jscpd summary missing — scan did not complete'); process.exit(1); }
+            if (Number(m[1]) < 150) { console.error('jscpd analyzed only ' + m[1] + ' files — silent-empty trap'); process.exit(1); }
+            console.log('jscpd: ' + m[1] + ' files analyzed, ' + (found ? found[1] : '?') + ' clones');
+          "
+
+  e2e-smoke:
+    # اختبارات E2E دخانية معلوماتية (R1 — 3A-311): ستة تدفقات حرجة
+    # بـ Puppeteer على بناء معاينة محلي ضد Supabase الحي بحساب الديمو
+    # العام (بياناته عامة عمداً بقرار المالك — لا أسرار في الوظيفة).
+    # continue-on-error في هذه المرحلة: تكسب الحزمة الثقة بأسابيع من
+    # التشغيلات الخضراء قبل أي ترقية لوظيفة حاجبة (قرار مالك لاحق
+    # مرتبط بحماية الفرع B4) — التفاصيل في e2e/README.md.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci # بلا تخطي: الوظيفة تحتاج Chromium الخاص بـ Puppeteer
+      - run: npm run test:e2e
+        env:
+          # إعداد Supabase العام وقت البناء (محلياً من .env.local المحجوب) —
+          # متغيرات ريبو لا أسرار: مفتاح anon يُشحن أصلاً في حزمة الإنتاج
+          # العلنية والحماية الفعلية بسياسات RLS (3A-311)
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}

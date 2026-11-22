@@ -1,0 +1,70 @@
+import { useState } from 'react'
+import { CheckCircle2, Download, MonitorSmartphone, Share } from 'lucide-react'
+import { Card } from '../../components/ui/Card'
+import { Button } from '../../components/ui/Button'
+import { useInstallPrompt } from '../../lib/installPrompt'
+import { t } from '../../i18n'
+
+/**
+ * بطاقة «تثبيت التطبيق» في الإعدادات (خطوة 11 — PWA): المكان الوحيد
+ * لعرض التثبيت، بنمط غير مزعج (لا بانرات ولا منبثقات تلقائية):
+ * - لو المتصفح أتاح beforeinstallprompt: زر تثبيت مباشر.
+ * - لو مثبّت أصلاً: تأكيد حالة.
+ * - غير ذلك (خصوصاً iOS/Safari حيث لا يوجد الحدث): إرشاد يدوي قصير
+ *   (مشاركة ← إضافة إلى الشاشة الرئيسية).
+ * التطبيق قابل للتثبيت فعلياً بالـ manifest + الـ SW + الأيقونات
+ * بغض النظر عن هذه البطاقة — هي مجرد تلميح/اختصار.
+ */
+export function InstallAppCard() {
+  const { canPrompt, isInstalled, promptInstall } = useInstallPrompt()
+  const [msg, setMsg] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  const handleInstall = async () => {
+    setBusy(true)
+    setMsg(null)
+    try {
+      const outcome = await promptInstall()
+      if (outcome === 'accepted') setMsg(t('settings.installAccepted'))
+      else if (outcome === 'dismissed') setMsg(t('settings.installDismissed'))
+      else setMsg(t('settings.installUnavailable'))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card>
+      <h2 className="type-section mt-0 mb-3 flex items-center gap-2">
+        <MonitorSmartphone size={22} className="text-primary" /> {t('settings.installTitle')}
+      </h2>
+      {isInstalled ? (
+        <p className="text-[13.5px] bg-ok-soft text-ok-text rounded-xl px-3 py-2 mb-0 mt-0 flex items-center gap-2 font-semibold">
+          <CheckCircle2 size={18} className="shrink-0" />
+          {t('settings.installInstalled')}
+        </p>
+      ) : (
+        <>
+          <p className="text-muted text-[13.5px] mt-0 mb-3">
+            {t('settings.installIntro')}
+          </p>
+          {canPrompt && (
+            <Button full onClick={handleInstall} disabled={busy} className="mb-3">
+              <Download size={20} />
+              {busy ? t('settings.installing') : t('settings.installAction')}
+            </Button>
+          )}
+          {msg && (
+            <p className="text-[13.5px] bg-soft rounded-xl px-3 py-2 mb-3 mt-0">{msg}</p>
+          )}
+          <p className="text-muted text-[13.5px] mb-0 flex items-start gap-2">
+            <Share size={18} className="shrink-0 mt-0.5" />
+            <span>
+              {t('settings.installManualHint')}
+            </span>
+          </p>
+        </>
+      )}
+    </Card>
+  )
+}

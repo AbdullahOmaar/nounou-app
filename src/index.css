@@ -1,0 +1,385 @@
+@import "tailwindcss";
+
+/*
+ * ثيم التطبيق — الهوية البصرية «نيلي الثقة» (Phase 2، الخطوة 1)
+ * القيم الحرفية من UIUX-RESEARCH §4 (الاتجاه أ):
+ * فاتح: أساسي #4F46E5 / داكن #4338CA / حاويات #EEF2FF، خلفية #F7F8FC،
+ * سطح #FFFFFF، حدود #E3E6F0، نص #141A2E، ثانوي #5B6478.
+ * داكن: خلفية #0E1120، سطح #171B2E، حدود #262C47، أساسي #8B85F7،
+ * حاويات #232046، نص #F2F4FA، ثانوي #A3AAC2.
+ * ألوان الحالات بنسختين (بحث §5): حشوة/خلفية (-soft) + نصية (-text)
+ * بتباين ≥4.5:1 على السطح وعلى خلفيتها — القيم الأساسية (--ok/--warn/--bad)
+ * للحشوات والأشرطة، و -text للنصوص والشارات النصية.
+ * اللهجة الكهرمانية (--accent #F59E0B) للحظات الإنجاز فقط.
+ * Tailwind v4: نربط ألوان الأدوات بمتغيرات CSS عبر @theme inline
+ * فيعمل تبديل الثيم الداكن بتغيير المتغيرات فقط.
+ *
+ * انضباط التوكنز (W6 — R-3): ممنوع هكس يدوي في مكوّنات الواجهة خارج
+ * هذا الملف — كل لون واجهة من توكن. الاستثناءات الموثقة حصراً:
+ * • lib/brand.ts — لوحة ألوان هوية السنتر (بيانات يختارها المدرس).
+ * • brand/Logo.tsx — العلامة التجارية الثابتة (أصل SVG).
+ * • students/StudentCardSheet — بطاقة طالب مطبوعة (لا تتبع ثيم التطبيق).
+ * • analytics/charts.tsx — يقرأ التوكنز فعلياً وقيمه الاحتياطية هي
+ *   قيم الفاتح (الكانفس يحتاج لوناً محسوساً).
+ * • settings: قيمة '#4f46e5' الاحتياطية لبيانات brand_accent (بيانات).
+ */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-elevated: var(--elevated);
+  --color-border: var(--border);
+  --color-border-interactive: var(--border-interactive);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-d: var(--primary-d);
+  --color-on-primary: var(--on-primary);
+  --color-soft: var(--soft);
+  --color-accent: var(--accent);
+  --color-ok: var(--ok);
+  --color-ok-text: var(--ok-text);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-text: var(--warn-text);
+  --color-warn-soft: var(--warn-soft);
+  --color-bad: var(--bad);
+  --color-bad-text: var(--bad-text);
+  --color-bad-soft: var(--bad-soft);
+  --font-sans: "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
+}
+
+:root {
+  --bg: #f7f8fc;
+  --card: #ffffff;
+  /* سطح مرتفع (W6 — R-1): أفتح درجة فوق البطاقة للـ Sheets والمنبثقات */
+  --elevated: #ffffff;
+  /* حدود زخرفية فقط (W6 — R-2): فواصل وفواصل بطاقات لا تحمل معنى
+     تفاعلياً — أي عنصر يُلمس أو يُدخَل فيه يستخدم --border-interactive */
+  --border: #e3e6f0;
+  /* حدود تفاعلية (W6 — R-2): حقول وأزرار مفرّغة ورقائق — 3.41:1 على
+     البطاقة و3.22:1 على الخلفية (WCAG 1.4.11 ≥ 3:1) */
+  --border-interactive: #7e8ab0;
+  --text: #141a2e;
+  --muted: #5b6478;
+  --primary: #4f46e5;
+  --primary-d: #4338ca;
+  /* نص الزر الأساسي في الفاتح: أبيض (5.9:1 على #4F46E5) */
+  --on-primary: #ffffff;
+  --soft: #eef2ff;
+  --accent: #f59e0b;
+  /* ظلال موحدة (بحث §5): بطاقة واحد + مرتفع واحد فقط */
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-raised: 0 8px 24px rgba(15, 23, 42, 0.16);
+  /* حالات فاتح: حشوة #0E9F6E (3.39:1 كنص — للحشوات فقط)،
+     نصية #047857 (5.48:1 على الأبيض، 5.21:1 على خلفيتها) */
+  --ok: #0e9f6e;
+  --ok-text: #047857;
+  --ok-soft: #ecfdf5;
+  /* تحذير: حشوة كهرمانية #F59E0B، نصية #B45309 (5.02:1 أبيض، 4.51:1 على #FEF3C7) */
+  --warn: #f59e0b;
+  --warn-text: #b45309;
+  --warn-soft: #fef3c7;
+  /* خطر: حشوة #DC2626، نصية #B91C1C (6.47:1 أبيض، 5.91:1 على خلفيتها) */
+  --bad: #dc2626;
+  --bad-text: #b91c1c;
+  --bad-soft: #fef2f2;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e1120;
+  --card: #171b2e;
+  /* سطح مرتفع داكن (W6 — R-1): #1E2438 — نصه الأساسي عليه 13.99:1
+     والثانوي 6.66:1، ويُستخدم في الـ Sheets والمنبثقات فقط */
+  --elevated: #1e2438;
+  /* حدود زخرفية فقط في الداكن أيضاً (R-2) */
+  --border: #262c47;
+  /* حدود تفاعلية داكنة (R-2): 3.36:1 على البطاقة و3.70:1 على الخلفية */
+  --border-interactive: #5d6ca3;
+  --text: #f2f4fa;
+  --muted: #a3aac2;
+  --primary: #8b85f7;
+  --primary-d: #a09bf8;
+  /* إصلاح تباين الداكن (خطوة 2): الأبيض على #8B85F7 كان 3.09:1 فقط —
+     نص داكن #141A2E عليه = 5.58:1 (≥ AA) */
+  --on-primary: #141a2e;
+  --soft: #232046;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --accent: #fbbf24;
+  /* حالات داكن مفتّحة: تصلح حشوةً ونصاً على الأسطح الداكنة (≥5.9:1) */
+  --ok: #34d399;
+  --ok-text: #34d399;
+  --ok-soft: #0f2e23;
+  --warn: #fbbf24;
+  --warn-text: #fbbf24;
+  --warn-soft: #33270e;
+  --bad: #f87171;
+  --bad-text: #f87171;
+  --bad-soft: #33161a;
+}
+
+/*
+ * سلم الخط الموحد (بحث §5) كأدوات Tailwind:
+ * شاشة 20/800 · قسم 16/700 · جسم 15–16 بسطر 1.75 · ثانوي 13.5 بسطر 1.7 · شارة 12/600.
+ * حظر نص تفاعلي تحت 13.5px — الشارة (12px) للعرض غير التفاعلي فقط.
+ */
+@utility type-screen {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.6;
+}
+@utility type-section {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+@utility type-body {
+  font-size: 15px;
+  line-height: 1.75;
+}
+@utility type-secondary {
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+@utility type-badge {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+/* ظلال التوكنز الموحدة */
+@utility shadow-card {
+  box-shadow: var(--shadow-card);
+}
+@utility shadow-raised {
+  box-shadow: var(--shadow-raised);
+}
+
+/*
+ * أزرار مبدّل الحضور النشطة (خطوة 3): حشوة بلون الحالة «النصي» المصحح
+ * التباين مع نص أبيض في الفاتح (≥5:1) ونص داكن في الداكن على الحشوات
+ * المفتّحة (≥5.9:1) — بدل STATUS_COLORS الخام ذات التباين الفاشل.
+ */
+.att-active-p { background-color: var(--ok-text); border-color: var(--ok-text); color: #fff; }
+.att-active-a { background-color: var(--bad-text); border-color: var(--bad-text); color: #fff; }
+.att-active-l { background-color: var(--warn-text); border-color: var(--warn-text); color: #fff; }
+.att-active-m { background-color: var(--primary-d); border-color: var(--primary-d); color: #fff; }
+:root[data-theme="dark"] .att-active-p,
+:root[data-theme="dark"] .att-active-a,
+:root[data-theme="dark"] .att-active-l,
+:root[data-theme="dark"] .att-active-m { color: #141a2e; }
+
+/*
+ * ماسح QR للحضور (Phase 2 — خطوة 4): خط مسح متحرك داخل إطار التوجيه،
+ * دخول رسالة التغذية الراجعة، ووميض صف الطالب بعد تسجيله بالمسح.
+ * (قاعدة prefers-reduced-motion العامة أسفل الملف توقفها كلها.)
+ */
+@keyframes qr-scan-move {
+  0%, 100% { top: 5%; }
+  50% { top: calc(95% - 3px); }
+}
+.qr-scanline { animation: qr-scan-move 2.2s ease-in-out infinite; }
+@keyframes qr-feedback-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.qr-feedback-in { animation: qr-feedback-in 180ms ease-out; }
+@keyframes att-row-flash {
+  0% { background-color: var(--ok-soft); }
+  100% { background-color: transparent; }
+}
+.att-row-flash { animation: att-row-flash 2s ease-out; }
+
+/*
+ * حركات الماسكوت «دُفّي» الخفيفة (MASCOT-PLAN §٤): تلويح الترحيب، قفزة
+ * الاحتفال، تنفّس النوم في الحالات الفارغة، هزّة جرس التنبيهات (دفعة
+ * قصيرة في أول الحلقة ثم سكون طويل حتى لا تُزعج)، وتمايل النجاحات
+ * الصغيرة. كلها transform فقط (لا إعادة رسم تخطيط)، وقاعدة
+ * prefers-reduced-motion العامة أسفل الملف توقفها كلها تلقائياً.
+ */
+@keyframes mascot-wave-kf {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-3.5deg); }
+  75% { transform: rotate(3.5deg); }
+}
+.mascot-wave { transform-origin: 50% 92%; animation: mascot-wave-kf 2.4s ease-in-out infinite; }
+@keyframes mascot-jump-kf {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  30% { transform: translateY(-9px) scale(0.98, 1.03); }
+  55% { transform: translateY(0) scale(1.04, 0.95); }
+  75% { transform: translateY(-4px) scale(1, 1.01); }
+}
+.mascot-jump { transform-origin: 50% 95%; animation: mascot-jump-kf 0.95s ease-in-out infinite; }
+@keyframes mascot-breathe-kf {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.025) translateY(-1.5px); }
+}
+.mascot-breathe { transform-origin: 50% 90%; animation: mascot-breathe-kf 3.6s ease-in-out infinite; }
+@keyframes mascot-nudge-kf {
+  0%, 100% { transform: rotate(0deg); }
+  2% { transform: rotate(-2.6deg); }
+  4% { transform: rotate(2.6deg); }
+  6% { transform: rotate(-1.8deg); }
+  8% { transform: rotate(1.2deg); }
+  10% { transform: rotate(0deg); }
+}
+.mascot-nudge { transform-origin: 50% 88%; animation: mascot-nudge-kf 4.5s ease-in-out infinite; }
+@keyframes mascot-bob-kf {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3.5px); }
+}
+.mascot-bob { animation: mascot-bob-kf 2.8s ease-in-out infinite; }
+
+/*
+ * حركات دخول التنقّل والمحتوى (3A-312 — بند ٤): انتقال صفحة خفيف عند
+ * كل تنقّل (route-in على غلاف المحتوى في AppShell) وظهور متدرج لكتل
+ * المحتوى (rise-in بتأخيرات animation-delay على الحاويات الطرفية).
+ * قراران مقصودان:
+ *  • route-in عتامة فقط بلا transform: الغلاف أبٌ لعناصر ثابتة الموضع
+ *    (أوفرلاي التحميل ومؤشر السحب-للتحديث) وأي transform على سلف يعيد
+ *    تأصيل fixed إليه فيزيحها أثناء الأنيميشن — العتامة لا تعيد
+ *    التأصيل فتبقى الطبقات الثابتة في مكانها الصحيح دائماً.
+ *  • rise-in (انزلاق خفيف) على كتل طرفية فقط لا تحتوي عناصر ثابتة،
+ *    وحاوية السكرول التي يتتبّعها السحب-للتحديث لا تُلمس إطلاقاً.
+ * قاعدة prefers-reduced-motion العامة أسفل الملف تُسطّحها كلها.
+ */
+@keyframes route-in-kf {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.route-in { animation: route-in-kf 200ms ease-out; }
+@keyframes rise-in-kf {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise-in { animation: rise-in-kf 280ms ease-out both; }
+
+/* حركة موحدة (بحث §5): انتقالات 150–250ms ease-out للعناصر التفاعلية */
+button,
+a {
+  transition:
+    background-color 180ms ease-out,
+    border-color 180ms ease-out,
+    color 180ms ease-out,
+    opacity 180ms ease-out;
+}
+
+/* احترام تفضيل تقليل الحركة */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  /*
+   * منع تحديث المتصفح الأصلي بالسحب من القمة (خطة الهوية P-11):
+   * كروم أندرويد يعيد تحميل الصفحة بإيماءة overscroll — والتطبيق
+   * يملك سحباً للتحديث خاصاً به (PullToRefresh) فيُعطَّل الأصلي حتى
+   * لا يتصارعا. لا أثر له على التمرير نفسه ولا على أي إيماءة أخرى.
+   */
+  overscroll-behavior-y: none;
+  /*
+   * منع التضخيم التلقائي للنصوص على متصفحات الموبايل (إصلاح فيض الموبايل):
+   * كروم أندرويد وSafari iOS بيكبّروا النصوص تلقائياً (font boosting /
+   * text autosizing) في بعض الحاويات، فصفوف مظبوطة على 360px بتفيض على
+   * أجهزة حقيقية رغم سلامتها في المعاينة. 100% = النص بحجمه المصمم فقط.
+   */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  /*
+   * شبكة أمان أخيرة فقط (ليست الحل): أي عنصر شارد مستقبلاً لا يحوّل الصفحة
+   * كلها لتمرير أفقي. القيمة clip لا تنشئ حاوية تمرير فلا تكسر sticky،
+   * والإصلاحات الحقيقية في المكونات نفسها (min-w-0/التفاف/قصّ موضعي).
+   */
+  overflow-x: clip;
+}
+
+/* صفوف الرقائق: تمرير أفقي مقصود بلا شريط تمرير ظاهر */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/*
+ * تدرّج تلاشٍ عند حافة التمرير لصفوف الرقائق: في اتجاه RTL المحتوى
+ * المخفي يمتد نحو اليسار، فالتلاشي على الحافة اليسرى يدلّ أن هناك
+ * المزيد يُمرَّر إليه — بدل رقاقة مقصوصة بلا أي إشارة.
+ */
+.chip-row-fade {
+  -webkit-mask-image: linear-gradient(to left, transparent 0, black 30px);
+  mask-image: linear-gradient(to left, transparent 0, black 30px);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  /* ارتفاع السطر العربي الأساسي 1.75 (بحث §5 — العربية تحتاج 1.6–1.9) */
+  line-height: 1.75;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * لمس فوري بلا انتظار (ملاحظات المالك — نقطة ٣): manipulation على كل
+ * العناصر التفاعلية يلغي تكبير اللمس المزدوج وتأخير النقرة (~300ms)
+ * الذي تستخدمه متصفحات أندرويد للتمييز بين اللمسة والتكبير — بدونه
+ * تُحتجَز النقرة الأولى وتلغيها لمسة ثانية سريعة فيُضطر المستخدم
+ * للضغط أكثر من مرة (شكوى قائمة «المزيد»). بالقاعدة دي النقرة تُسلَّم
+ * فوراً ولا يمكن للمسة لاحقة إلغاؤها.
+ */
+button,
+a,
+[role='button'] {
+  touch-action: manipulation;
+}
+
+/*
+ * الطباعة — المرجع §6.8: إخفاء كل شيء عدا منطقة الطباعة (.print-area)
+ * بتقنية visibility، ومنطقة الطباعة بيضاء دائماً في الثيمين.
+ * الإيصال الحراري (.paper-thermal) بعرض 80mm وخط 12px.
+ */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    top: 0;
+    inset-inline: 0;
+    background: #fff !important;
+    color: #0f172a !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+  .print-area.paper-thermal {
+    width: 80mm;
+    margin: 0 auto;
+    font-size: 12px;
+  }
+}
