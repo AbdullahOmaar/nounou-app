@@ -8,8 +8,10 @@
 
 begin;
 
-insert into public.users (id, email, display_name)
-values ('{{DEMO_USER_ID}}', 'demo@nounou-app.com', 'مالك تجريبي')
+-- ملحوظة بروفة 3A-334: البريد يعيش في auth.users فقط — جدول public.users
+-- بلا عمود email؛ إدراجه هنا كان يوقف البذرة كلها عند أول بيان.
+insert into public.users (id, display_name)
+values ('{{DEMO_USER_ID}}', 'مالك تجريبي')
 on conflict (id) do nothing;
 
 insert into public.nurseries (id, name, phone, address, created_by)
@@ -69,10 +71,20 @@ values
   ('33333333-3333-4333-8333-333333333332', '44444444-4444-4444-8444-444444444445', true)
 on conflict (guardian_id, child_id) do nothing;
 
+-- حارس not exists (لا قيد فريد طبيعياً على الجدول — بروفة 3A-334 أثبتت
+-- أن on conflict وحده يكرر الصف عند إعادة تشغيل البذرة)
 insert into public.pickup_persons (nursery_id, child_id, full_name, relation, phone)
-values
-  ('11111111-1111-4111-8111-111111111111', '44444444-4444-4444-8444-444444444441', 'جدة تجريبية', 'grandparent', '01001112226')
-on conflict do nothing;
+select
+  '11111111-1111-4111-8111-111111111111',
+  '44444444-4444-4444-8444-444444444441',
+  'جدة تجريبية',
+  'grandparent'::public.pickup_relation,
+  '01001112226'
+where not exists (
+  select 1 from public.pickup_persons p
+  where p.child_id = '44444444-4444-4444-8444-444444444441'
+    and p.phone = '01001112226'
+);
 
 -- تسجيلات نشطة في الفصول
 insert into public.enrollments (nursery_id, child_id, class_id, status, starts_on)
@@ -107,11 +119,18 @@ values (
 )
 on conflict (id) do nothing;
 
+-- حارس not exists لكل سطر (لا قيد فريد على بنود الفاتورة — بروفة 3A-334
+-- أثبتت أن إعادة التشغيل كانت تضاعف إجمالي الفاتورة 1000 ← 2000)
 insert into public.invoice_lines (nursery_id, invoice_id, type, label, amount)
-values
-  ('11111111-1111-4111-8111-111111111111', '66666666-6666-4666-8666-666666666661', 'base', 'باقة فصل البراعم', 700),
-  ('11111111-1111-4111-8111-111111111111', '66666666-6666-4666-8666-666666666661', 'bus', 'باص: خط المعادي التجريبي', 300)
-on conflict do nothing;
+select v.nursery_id, v.invoice_id, v.type, v.label, v.amount
+from (values
+  ('11111111-1111-4111-8111-111111111111'::uuid, '66666666-6666-4666-8666-666666666661'::uuid, 'base'::public.invoice_line_type, 'باقة فصل البراعم', 700::numeric),
+  ('11111111-1111-4111-8111-111111111111'::uuid, '66666666-6666-4666-8666-666666666661'::uuid, 'bus'::public.invoice_line_type, 'باص: خط المعادي التجريبي', 300::numeric)
+) as v(nursery_id, invoice_id, type, label, amount)
+where not exists (
+  select 1 from public.invoice_lines l
+  where l.invoice_id = v.invoice_id and l.type = v.type and l.label = v.label
+);
 
 insert into public.receipt_counters (nursery_id, last_no)
 values ('11111111-1111-4111-8111-111111111111', 1)
