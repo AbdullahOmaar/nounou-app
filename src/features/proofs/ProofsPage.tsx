@@ -8,6 +8,7 @@ import { ErrorState, LoadingState } from '../../components/ui/states'
 import { Field, TextInput } from '../../components/ui/form'
 import { Sheet } from '../../components/ui/Sheet'
 import { useT } from '../../i18n'
+import { fmtPeriod } from '../../i18n/format'
 import { formatDateTimeAr, formatMoney } from '../../lib/format'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { useAuth } from '../../lib/AuthProvider'
@@ -30,7 +31,7 @@ export function ProofsPage() {
     invalidatePrefixes(qc, ['proofs', 'invoices', 'invoice', 'child-payments', 'overdue', 'home'])
   const approve = useMutation({
     mutationFn: (proof: api.ProofItem) =>
-      api.approveProof(nurseryId!, user?.id ?? null, proof),
+      api.approveProof(user?.id ?? null, proof),
     onSuccess: refresh,
   })
   const reject = useMutation({
@@ -80,6 +81,17 @@ export function ProofsPage() {
                 <div className="type-badge text-muted">
                   {t('paymentProofs.claimedAmount')}: {formatMoney(proof.amount)} —{' '}
                   {methodLabel(proof.method)} — {formatDateTimeAr(proof.created_at)}
+                </div>
+                <div className="type-badge text-muted">
+                  {t('paymentProofs.childBalance', {
+                    amount: formatMoney(proof.childBalance),
+                  })}
+                  {proof.invoicePeriod
+                    ? ` — ${t('paymentProofs.invoiceBalance', {
+                        period: fmtPeriod(proof.invoicePeriod),
+                        amount: formatMoney(proof.invoiceBalance ?? 0),
+                      })}`
+                    : ''}
                 </div>
               </div>
               {proof.proof_path && (

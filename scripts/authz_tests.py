@@ -403,6 +403,42 @@ def main():
                     jwt=owner_a_jwt, body={"p_nursery": nursery_a})
         check("owner gets a receipt number via next_receipt_no",
               s == 200 and int(b) >= 1, f"got {s} {str(b)[:80]}")
+        # سلامة المال (3A-363): رقم إيصال تلقائي لكل المسارات + حارس الإلغاء
+        s, b = rest(url, anon, "POST", "/rest/v1/payments", jwt=owner_a_jwt,
+                    body={"nursery_id": nursery_a, "invoice_id": owner_invoice,
+                          "child_id": a_child2, "amount": 200, "method": "cash"})
+        check("owner inserts a payment on the 2026-12 invoice",
+              s in (200, 201), f"got {s} {str(b)[:120]}")
+        inv_payment = one(ref, "select id, receipt_no from payments where "
+                               f"invoice_id = '{owner_invoice}' "
+                               "and reverses_id is null")
+        check("payment inserted without receipt_no gets one from the trigger",
+              inv_payment.get("receipt_no") is not None
+              and int(inv_payment["receipt_no"]) >= 1,
+              f"got {inv_payment.get('receipt_no')}")
+        s, b = rest(url, anon, "PATCH", f"/rest/v1/invoices?id=eq.{owner_invoice}",
+                    jwt=owner_a_jwt, body={"status": "cancelled"})
+        check("cancelling an invoice with a live payment is rejected",
+              s >= 400 and "invoice_has_payments" in str(b),
+              f"got {s} {str(b)[:120]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/payments", jwt=owner_a_jwt,
+                    body={"nursery_id": nursery_a, "invoice_id": owner_invoice,
+                          "child_id": a_child2, "amount": 200, "method": "cash",
+                          "reverses_id": inv_payment["id"]})
+        check("owner inserts a reversal payment", s in (200, 201),
+              f"got {s} {str(b)[:120]}")
+        reversal = one(ref, "select id, receipt_no from payments where "
+                            f"reverses_id = '{inv_payment['id']}'")
+        check("reversal payment also gets a receipt number",
+              reversal.get("receipt_no") is not None,
+              f"got {reversal.get('receipt_no')}")
+        one(ref, "update payments set reversed_by_id = "
+                 f"'{reversal['id']}' where id = '{inv_payment['id']}' "
+                 "returning id")
+        s, b = rest(url, anon, "PATCH", f"/rest/v1/invoices?id=eq.{owner_invoice}",
+                    jwt=owner_a_jwt, body={"status": "cancelled"})
+        check("cancelling succeeds once the payment is reversed",
+              s in (200, 204), f"got {s} {str(b)[:120]}")
         s, b = rest(url, anon, "GET",
                     f"/rest/v1/nursery_settings?select=nursery_id&nursery_id=eq.{nursery_a}",
                     jwt=owner_a_jwt)
