@@ -33,6 +33,9 @@ export const reports = {
   editChild: 'Edit {name}',
   publish: 'Publish reports to parents',
   publishConfirm: 'Publish {count} reports? Parents will see them in their portal right away',
+  publishMissingWarning:
+    'Heads up: {count} present children have no report ({names}) — nothing will appear in their parents’ portal today.',
+  publishAnyway: 'Publish anyway',
   publishedOk: 'Reports published ✅',
   publishedBadge: 'Published',
   draftBadge: 'Draft',

@@ -33,6 +33,9 @@ export const reports = {
   editChild: 'تعديل {name}',
   publish: 'نشر التقارير للأهالي',
   publishConfirm: 'نشر {count} تقرير؟ الأهالي هيشوفوهم في بوابتهم فوراً',
+  publishMissingWarning:
+    'تنبيه: {count} أطفال حاضرون بلا تقرير ({names}) — مش هيظهر لهم حاجة في بوابة أهاليهم النهارده.',
+  publishAnyway: 'انشر على أي حال',
   publishedOk: 'اتنشرت التقارير ✅',
   publishedBadge: 'منشور',
   draftBadge: 'مسودة',
