@@ -21,6 +21,7 @@ import { useNurserySettings } from '../settings/hooks'
 import type { AteAmount, MealEntry, MealKind, Mood } from '../../types/database'
 import * as api from './api'
 import { childrenWithoutReports } from './publishLogic'
+import { MAX_PHOTO_BYTES } from './photoUtils'
 
 const MEALS: MealKind[] = ['breakfast', 'snack', 'lunch']
 const ATE: AteAmount[] = ['all', 'most', 'some', 'none']
@@ -427,7 +428,7 @@ export function ReportsPage() {
             ? ' ' +
               t('reports.publishMissingWarning', {
                 count: missingReports.length,
-                names: missingReports.map((c) => c.name).join('، '),
+                names: missingReports.map((c) => c.name).join(', '),
               })
             : '')
         }
@@ -477,6 +478,13 @@ function PhotosSection({
     if (files.length === 0) return
     setUploading(true)
     try {
+      // W3 (3A-374): سقف حجم صارم قبل أي رفع — رسالة ودية باسم الملف
+      const tooBig = files.find((f) => f.size > MAX_PHOTO_BYTES)
+      if (tooBig) {
+        showToast(t('reports.photoTooLarge', { name: tooBig.name, max: 8 }), 'error')
+        setUploading(false)
+        return
+      }
       if (cap !== null) {
         for (const childId of tagged) {
           const count = await api.countChildPhotosToday(childId, classDayId)

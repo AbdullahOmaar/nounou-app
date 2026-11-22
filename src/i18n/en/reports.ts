@@ -49,6 +49,7 @@ export const reports = {
   uploading: 'Uploading…',
   uploadedOk: 'Uploaded {count} photos',
   dailyCapReached: "You've reached today's limit ({cap} photos per child)",
+  photoTooLarge: 'The photo “{name}” is larger than {max}MB — please pick a smaller one',
   deletePhoto: 'Delete photo',
   noPhotosYet: 'No photos for this day yet',
   consentBlocked: '"{name}" has no photo consent — they will not appear in the portal',

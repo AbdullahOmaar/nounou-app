@@ -49,6 +49,7 @@ export const reports = {
   uploading: 'جارٍ الرفع…',
   uploadedOk: 'اترفعت {count} صورة',
   dailyCapReached: 'وصلت لحد النهارده ({cap} صورة/طفل)',
+  photoTooLarge: 'الصورة «{name}» أكبر من {max} ميجا — اختار صورة أصغر',
   deletePhoto: 'حذف الصورة',
   noPhotosYet: 'لا صور لليوم ده لسه',
   consentBlocked: '«{name}» معندوش موافقة تصوير — مش هيظهر في البوابة',
