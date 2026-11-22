@@ -139,7 +139,7 @@ export function InvoiceDetailPage() {
                 </span>
                 {invoice.status === 'issued' && (
                   <button
-                    className="text-bad-text cursor-pointer bg-transparent border-0"
+                    className="text-bad-text cursor-pointer bg-transparent border-0 min-w-[44px] min-h-[44px] inline-flex items-center justify-center p-2 rounded-lg hover:bg-bad-soft"
                     aria-label={t('common.delete')}
                     onClick={() => void mutations.deleteLine.mutateAsync(line.id)}
                   >
