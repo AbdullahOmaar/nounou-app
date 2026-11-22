@@ -13,7 +13,14 @@ export interface PluralForms {
 /** قيمة رسالة: نص مباشر أو صيغ جمع تُختار بـ Intl.PluralRules */
 export type Msg = string | PluralForms
 
-export type Dict = typeof ar
+/** توسيع القيم الحرفية العربية إلى string عامة (قواميس اللغات الأخرى بنفس البنية) */
+type DeepString<T> = T extends string
+  ? string
+  : T extends object
+    ? { [K in keyof T]: DeepString<T[K]> }
+    : T
+
+export type Dict = DeepString<typeof ar>
 
 /** كل مسارات المفاتيح المنقّطة في القاموس (مشتقة من بنيته فعلياً) */
 export type I18nKey = DotPaths<Dict>

@@ -1,120 +1,124 @@
 import { t } from '../i18n'
-import type { BillingType } from '../types/database'
+import { currentLocale } from '../i18n/locale'
 
-/** أسماء الأيام — الفهرس مطابق لـ Date.getDay() ‏(0 = الأحد) ولأعمدة groups.days */
-export const DAY_NAMES = [
-  t('format.daySunday'),
-  t('format.dayMonday'),
-  t('format.dayTuesday'),
-  t('format.dayWednesday'),
-  t('format.dayThursday'),
-  t('format.dayFriday'),
-  t('format.daySaturday'),
-]
-
-export const BILLING_LABELS: Record<BillingType, string> = {
-  monthly_fixed: t('format.billingMonthlyFixed'),
-  per_session_prepaid: t('format.billingPerSessionPrepaid'),
-  per_session_attended: t('format.billingPerSessionAttended'),
-  weekly_package: t('format.billingWeeklyPackage'),
-}
-
-export const BILLING_TYPES = Object.keys(BILLING_LABELS) as BillingType[]
-
-/** تنسيق مبلغ: فواصل آلاف + «ج» كما في المرجع */
+/** تنسيق مبلغ: فواصل آلاف + عملة القاموس */
 export function formatMoney(value: number | string | null | undefined): string {
   const n = typeof value === 'string' ? parseFloat(value) : (value ?? 0)
-  return t('format.moneyAmount', {
-    amount: (Number.isFinite(n) ? n : 0).toLocaleString('en-US'),
+  const safe = Number.isFinite(n) ? n : 0
+  return t('format.egp', {
+    amount: (Math.round(safe * 100) / 100).toLocaleString('en-US', {
+      maximumFractionDigits: 2,
+    }),
   })
 }
 
 /** "HH:MM:SS" → "HH:MM" */
-export function shortTime(t: string): string {
-  return t.slice(0, 5)
+export function shortTime(v: string): string {
+  return v.slice(0, 5)
 }
 
-/** لاحقتا ص/م كثوابت وحدة — لأن وسيط formatTime12 نفسه اسمه t */
-const AM_SUFFIX = t('format.amSuffix')
-const PM_SUFFIX = t('format.pmSuffix')
-
-/**
- * عرض الوقت بصيغة 12 ساعة موحّدة في كل الواجهات: "16:00" → "4:00 م"،
- * "09:30" → "9:30 ص"، "00:15" → "12:15 ص". الأرقام لاتينية دائماً
- * (تتسق مع tabular-nums في بقية الشاشات المالية).
- */
-export function formatTime12(t: string): string {
-  const [hRaw, mRaw] = shortTime(t).split(':').map(Number)
-  const h = Number.isFinite(hRaw) ? hRaw : 0
-  const m = Number.isFinite(mRaw) ? mRaw : 0
-  const suffix = h < 12 ? AM_SUFFIX : PM_SUFFIX
+/** "HH:MM(:SS)" 24h → 12h بلاحقة القاموس */
+export function formatTime12(v: string): string {
+  const [hRaw, mRaw] = v.split(':')
+  const h = parseInt(hRaw, 10)
+  const m = parseInt(mRaw ?? '0', 10)
+  if (Number.isNaN(h)) return v
+  const suffix = h < 12 ? t('format.amSuffix') : t('format.pmSuffix')
   const h12 = h % 12 === 0 ? 12 : h % 12
   return `${h12}:${String(m).padStart(2, '0')} ${suffix}`
 }
 
-/** نفس صيغة formatTime12 لكن من كائن Date (أوقات لحظية مثل الانصراف) */
-export function formatClock12(d: Date): string {
+/** وقت لحظة ISO → 12h */
+export function formatClock12(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
   return formatTime12(
     `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
   )
 }
 
-export function timeToMin(t: string): number {
-  const [h, m] = shortTime(t).split(':').map(Number)
-  return h * 60 + (m || 0)
+/** "HH:MM" → دقائق من منتصف الليل */
+export function timeToMin(v: string): number {
+  const [h, m] = v.split(':').map((x) => parseInt(x, 10))
+  return (h || 0) * 60 + (m || 0)
 }
 
-/** أسماء أيام مجموعة بصيغة مختصرة للعرض */
-export function daysLabel(days: number[]): string {
-  if (!days.length) return '—'
-  return [...days]
-    .sort((a, b) => a - b)
-    .map((d) => DAY_NAMES[d])
-    .join(t('format.daysSeparator'))
+/** تاريخ اليوم المحلي بصيغة YYYY-MM-DD (بلا انحراف منطقة زمنية) */
+export function todayISO(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/** فترة الشهر الحالي 'YYYY-MM' */
+export function currentPeriod(): string {
+  return todayISO().slice(0, 7)
+}
+
+/** إزاحة تاريخ ISO بعدد أيام (للتنقل بين الأيام في البوابة/اليوم) */
+export function shiftISODate(iso: string, days: number): string {
+  const d = new Date(`${iso}T12:00:00`)
+  d.setDate(d.getDate() + days)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
 /**
- * رابط خارجي آمن للعرض كـ href (روابط المجموعات): يُقبل http/https فقط.
- * أي scheme آخر (javascript:/data:/…) أو نص غير صالح كرابط يُرفض (null) —
- * حماية من XSS مخزّن عبر روابط حرة النص تصل لبوابات عامة (مراجعة أمان C-01).
+ * سن الطفل من تاريخ الميلاد: «٤ سنوات» / «سنتان و٣ شهور» بصيغ جمع القاموس.
+ * يعيد null بلا تاريخ ميلاد.
  */
+export function ageLabel(birthDate: string | null, now = new Date()): string | null {
+  if (!birthDate) return null
+  const b = new Date(`${birthDate}T12:00:00`)
+  if (Number.isNaN(b.getTime())) return null
+  let months =
+    (now.getFullYear() - b.getFullYear()) * 12 + (now.getMonth() - b.getMonth())
+  if (now.getDate() < b.getDate()) months -= 1
+  if (months < 0) return null
+  const years = Math.floor(months / 12)
+  const rest = months % 12
+  if (years === 0) return t('format.monthsOld', { count: rest })
+  const yearPart = t('format.yearsOld', { count: years })
+  if (rest === 0) return yearPart
+  return `${yearPart} ${t('format.andWord')} ${t('format.monthsOld', { count: rest })}`
+}
+
+/** رابط خارجي آمن: http/https فقط (مراجعة أمان موروثة C-01) */
 export function safeExternalUrl(raw: string): string | null {
-  const t = raw.trim()
-  if (!t) return null
   try {
-    const u = new URL(t)
-    return u.protocol === 'https:' || u.protocol === 'http:' ? t : null
+    const u = new URL(raw)
+    return u.protocol === 'https:' || u.protocol === 'http:' ? raw : null
   } catch {
     return null
   }
 }
 
-/** تحويل رقم هاتف مصري لصيغة wa.me الدولية (افتراضي +20) */
+/** رابط واتساب من رقم مصري/دولي — يعيد null لرقم غير صالح */
 export function waLink(phone: string | null | undefined): string | null {
   if (!phone) return null
   let digits = phone.replace(/\D/g, '')
-  if (!digits) return null
   if (digits.startsWith('00')) digits = digits.slice(2)
-  if (digits.startsWith('0')) digits = '20' + digits.slice(1)
+  if (digits.length === 11 && digits.startsWith('0')) digits = `20${digits.slice(1)}`
+  if (digits.length < 10 || digits.length > 15) return null
   return `https://wa.me/${digits}`
 }
 
-/**
- * نسبة الحضور الموحّدة في كل الواجهات (PAT-4ب): عُشر واحد دائماً —
- * الرئيسية كانت تقرّب لعدد صحيح والتحليلات لعُشر لنفس البسط/المقام
- * (attended/marked) فاختلف الرقم المعروض لنفس البيانات. null عند
- * غياب أي تعليم (marked = 0) بدل قسمة على صفر.
- */
-export function attendanceRatePct(attended: number, marked: number): number | null {
-  return marked > 0 ? Math.round((attended / marked) * 1000) / 10 : null
+/** رابط واتساب بنص جاهز */
+export function waLinkWithText(
+  phone: string | null | undefined,
+  text: string,
+): string | null {
+  const base = waLink(phone)
+  return base ? `${base}?text=${encodeURIComponent(text)}` : null
 }
 
-/**
- * تاريخ+وقت بصيغة عربية متوسطة (COD-3: كانت 3 نسخ محلية). عند قيمة
- * غير صالحة يُعاد البديل — افتراضياً أول 10 أحرف من النص كما هو.
- */
-export function formatDateTimeAr(iso: string, fallback?: string): string {
+/** تاريخ/وقت ISO → عرض محلي قصير */
+export function formatDateTimeAr(iso: string, fallback = ''): string {
   const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return fallback ?? iso.slice(0, 10)
-  return d.toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' })
+  if (Number.isNaN(d.getTime())) return fallback
+  const date = new Intl.DateTimeFormat(
+    currentLocale() === 'ar' ? 'ar-EG-u-nu-latn' : 'en-US',
+    { day: 'numeric', month: 'numeric', year: 'numeric' },
+  ).format(d)
+  return `${date} — ${formatClock12(iso)}`
 }

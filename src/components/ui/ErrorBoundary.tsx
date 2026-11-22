@@ -3,8 +3,7 @@ import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { Card } from './Card'
 import { Button } from './Button'
 import { t } from '../../i18n'
-import { readMascotMirror } from '../mascot/useMascotVisible'
-import oopsImg from '../../assets/mascot/oops.webp'
+import { Mascot } from '../mascot/Mascot'
 
 interface ErrorBoundaryProps {
   children: ReactNode
@@ -12,8 +11,6 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   failed: boolean
-  /** فشل تحميل رسمة الأوبس نفسها — السقوط يرجع لدائرة الأيقونة */
-  oopsFailed: boolean
 }
 
 /**
@@ -29,7 +26,7 @@ interface ErrorBoundaryState {
  * نمط سبلاش الإقلاع الموثّق في 3A-303)، وسطر الخطأ من §٨ حرفياً.
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { failed: false, oopsFailed: false }
+  state: ErrorBoundaryState = { failed: false }
 
   static getDerivedStateFromError(): Partial<ErrorBoundaryState> {
     return { failed: true }
@@ -41,28 +38,17 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render(): ReactNode {
     if (!this.state.failed) return this.props.children
-    const showOops = readMascotMirror() !== false && !this.state.oopsFailed
     return (
       <div className="min-h-screen bg-bg text-text flex items-center justify-center p-4">
         <Card className="text-center py-8 max-w-sm w-full">
-          {showOops ? (
-            <img
-              src={oopsImg}
-              alt=""
-              aria-hidden="true"
-              width={92}
-              draggable={false}
-              onError={() => this.setState({ oopsFailed: true })}
-              className="select-none mx-auto mb-2"
-              style={{ width: 92, height: 'auto', display: 'block' }}
-            />
-          ) : (
-            <div className="mx-auto mb-3 w-14 h-14 rounded-full bg-bad-soft text-bad-text flex items-center justify-center">
-              <AlertTriangle size={28} />
-            </div>
-          )}
+          <div className="mx-auto mb-2 flex justify-center">
+            <Mascot state="error" size={72} />
+          </div>
+          <div className="mx-auto mb-3 w-14 h-14 rounded-full bg-bad-soft text-bad-text flex items-center justify-center">
+            <AlertTriangle size={28} />
+          </div>
           <div className="type-section text-bad-text mb-1">{t('common.crashTitle')}</div>
-          <p className="type-secondary mb-1">{t('mascot.error')}</p>
+          <p className="type-secondary mb-1">{t('common.crashLine')}</p>
           <p className="text-muted type-secondary mb-4">{t('common.crashBody')}</p>
           <Button variant="soft" onClick={() => window.location.reload()}>
             <RotateCcw size={18} />

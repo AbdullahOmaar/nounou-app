@@ -1,19 +1,26 @@
 import { useQuery } from '@tanstack/react-query'
-import { HOME } from '../home/hooks'
-import { todayStr } from '../home/api'
-import { fetchAlerts } from './api'
+import { useCurrentNursery } from '../../hooks/useCurrentNursery'
+import * as api from './api'
 
-/**
- * التنبيهات المشتقة — نفس مفتاح كاش بطاقة تنبيهات الرئيسية بالحرف
- * ([HOME, 'alerts', …]) ونفس دالة الاشتقاق (fetchAlerts)، فالشاشتان
- * تقرآن نتيجة واحدة: العدد وأول تنبيه لا يمكن أن يختلفا بينهما،
- * وأي إبطال لكاش الرئيسية (حضور/درجات/دفعات…) يحدّث الإشعارات معها.
- */
-export function useAlerts(teacherId: string | undefined, isOwner: boolean) {
-  const today = todayStr()
+export function useAlerts() {
+  const nursery = useCurrentNursery()
+  const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : null
+  const isOwner = nursery.status === 'ready' && nursery.isOwner
   return useQuery({
-    queryKey: [HOME, 'alerts', teacherId, today, isOwner],
-    enabled: Boolean(teacherId),
-    queryFn: () => fetchAlerts(teacherId!, today, isOwner),
+    queryKey: ['alerts', nurseryId, isOwner],
+    enabled: Boolean(nurseryId),
+    queryFn: () => api.fetchAlerts(nurseryId!, isOwner),
+    refetchInterval: 60_000,
+  })
+}
+
+/** شارة الجرس: عدد أنواع التنبيهات النشطة المتميزة (قاعدة المدرس: بحد أقصى ٦) */
+export function useAlertSummary(nurseryId: string | null, isOwner: boolean) {
+  return useQuery({
+    queryKey: ['alerts', nurseryId, isOwner],
+    enabled: Boolean(nurseryId),
+    queryFn: () => api.fetchAlerts(nurseryId!, isOwner),
+    refetchInterval: 60_000,
+    select: (alerts) => Math.min(alerts.length, 6),
   })
 }

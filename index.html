@@ -6,80 +6,53 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <!-- PWA (خطوة 11): manifest + لون ثيم من توكن «نيلي الثقة» الأساسي -->
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#4F46E5" />
-    <meta name="description" content="إدارة الحصص والحضور والطلاب والفواتير للمدرس — تسجيل الحضور يعمل أوفلاين ويتزامن تلقائياً" />
+    <meta name="theme-color" content="#3B3FA3" />
+    <meta
+      name="description"
+      content="نونو — نظام إدارة الحضانات: تقرير يومي وصور خاصة لكل طفل، رسوم وإثباتات دفع، وحضور واستلام آمن."
+    />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="المدرس" />
+    <meta name="apple-mobile-web-app-title" content="نونو" />
     <script>
-      // تهيئة الثيم قبل أول رسم (إصلاح QA الخطوة 14): خطاف useTheme راكب
-      // داخل AppShell فقط، فالصفحات العامة (الدخول/البوابة) كانت تظهر
-      // بالفاتح دائماً مهما كان الثيم المحفوظ أو النظامي. نفس منطق
-      // resolveDark في src/hooks/useTheme.ts ونفس مفتاح التخزين حرفياً،
-      // وبلا وميض لأنها تعمل قبل تصيير أي محتوى.
+      // تهيئة الثيم قبل أول رسم: نفس منطق useTheme ونفس مفتاح التخزين
       try {
-        var savedTheme = localStorage.getItem('teacher-app-theme')
+        var savedTheme = localStorage.getItem('nounou-theme')
         var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
         document.documentElement.dataset.theme =
           savedTheme === 'dark' || (savedTheme !== 'light' && prefersDark) ? 'dark' : 'light'
-        // مرآة إظهار الماسكوت (0028): يكتبها التطبيق عند كل قراءة/حفظ
-        // لإعداد «إظهار دُفّي» (useMascotVisible) — قراءتها هنا قبل أول
-        // رسم تجعل سبلاش الإقلاع يختار لوجو الكتاب بدل دُفّي بلا وميض
-        // عندما أوقف المالك الماسكوت.
-        if (localStorage.getItem('teacher-app-show-mascot') === '0') {
-          document.documentElement.dataset.mascot = 'off'
-        }
       } catch (e) {
         /* بلا وصول للتخزين: يبقى الافتراضي الفاتح من CSS */
       }
     </script>
-    <title>تطبيق المدرس</title>
-    <!-- الخط (IBM Plex Sans Arabic) مضمّن محلياً عبر @fontsource في main.tsx — لا روابط خطوط خارجية -->
+    <title>نونو — إدارة الحضانات</title>
+    <!-- الخط (IBM Plex Sans Arabic) مضمّن محلياً عبر @fontsource في main.tsx -->
   </head>
   <body>
     <div id="root">
-      <!-- سبلاش إقلاع ثابت (MASCOT-PLAN §٦): دُفّي هو لوجو التحميل بقرار
-           المالك — يُرسم قبل وصول حزمة JS ويستبدله React عند تركيبه.
-           عند إيقاف الماسكوت (data-mascot=off من سكربت التهيئة) يظهر
-           لوجو الكتاب الأصلي. الألوان هي توكنات --bg/--text نفسها. -->
       <div id="boot-splash">
-        <img id="boot-doffy" src="/mascot/doffy-splash.webp" alt="" width="150" height="154" />
-        <img id="boot-logo" src="/logo.svg" alt="" width="92" height="92" />
-        <div class="boot-name">تطبيق المدرس</div>
+        <svg id="boot-mark" width="92" height="92" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <circle cx="32" cy="32" r="30" fill="#3B3FA3" />
+          <path d="M32 46c0-10 0-16 0-22" stroke="#00D2FF" stroke-width="4" stroke-linecap="round" />
+          <path d="M32 28c-7 1-11-3-12-10 7-1 11 3 12 10Z" fill="#FFA726" />
+          <path d="M32 24c1-7 6-10 12-10 0 7-4 11-12 10Z" fill="#00D2FF" />
+        </svg>
+        <div class="boot-name">نونو</div>
       </div>
       <style>
         #boot-splash { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: #f7f8fc; }
         :root[data-theme="dark"] #boot-splash { background: #0e1120; }
-        /* دخلة الإقلاع (خطة الهوية P-2): دُفّي يهبط بنطّة + انضغاطة هبوط
-           + تمايلة كوفية، ثم يكمل نبضه الهادئ القائم — CSS خالص على نفس
-           الأصل بلا ملفات جديدة ولا حجب لأول رسم (السبلاش هو أول رسم) */
-        #boot-doffy { transform-origin: 50% 100%; animation: boot-enter 0.8s cubic-bezier(0.22, 0.9, 0.32, 1) both, boot-bounce 1.2s ease-in-out 0.8s infinite; }
-        #boot-logo { display: none; }
-        :root[data-mascot="off"] #boot-doffy { display: none; }
-        :root[data-mascot="off"] #boot-logo { display: block; }
-        .boot-name { font-family: "IBM Plex Sans Arabic", system-ui, sans-serif; font-weight: 800; font-size: 21px; color: #141a2e; animation: boot-name-in 0.55s ease-out 0.35s both; }
+        #boot-mark { animation: boot-bounce 1.2s ease-in-out infinite; }
+        .boot-name { font-family: "IBM Plex Sans Arabic", system-ui, sans-serif; font-weight: 800; font-size: 24px; color: #141a2e; }
         :root[data-theme="dark"] .boot-name { color: #f2f4fa; }
-        @keyframes boot-enter {
-          0% { transform: translateY(-52px) scale(0.96, 1.04); opacity: 0; }
-          35% { opacity: 1; }
-          62% { transform: translateY(0) scale(1.07, 0.9); opacity: 1; }
-          78% { transform: translateY(-9px) scale(0.99, 1.02) rotate(-1.6deg); }
-          100% { transform: translateY(0) scale(1, 1) rotate(0deg); }
-        }
-        @keyframes boot-name-in {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
         @keyframes boot-bounce {
           0%, 100% { transform: translateY(0) scale(1, 1); }
           30% { transform: translateY(-10px) scale(0.98, 1.03); }
           55% { transform: translateY(0) scale(1.04, 0.95); }
           75% { transform: translateY(-4px) scale(1, 1.01); }
         }
-        @media (prefers-reduced-motion: reduce) { #boot-doffy, .boot-name { animation: none; } }
       </style>
     </div>
     <script type="module" src="/src/main.tsx"></script>

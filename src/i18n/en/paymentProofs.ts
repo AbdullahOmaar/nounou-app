@@ -1,0 +1,25 @@
+/** Reviewing payment proofs sent from the portal */
+export const paymentProofs = {
+  title: 'Review payment proofs',
+  pendingCount: {
+    zero: 'No payment proofs awaiting review',
+    one: 'One payment proof awaiting review',
+    two: 'Two payment proofs awaiting review',
+    few: '{count} payment proofs awaiting review',
+    many: '{count} payment proofs awaiting review',
+    other: '{count} payment proofs awaiting review',
+  },
+  fromGuardian: 'From {guardian} for {child}',
+  claimedAmount: 'Claimed amount',
+  approve: 'Approve as payment',
+  reject: 'Reject',
+  rejectReason: 'Rejection reason',
+  rejectReasonPlaceholder: 'Example: the photo is unclear / the amount differs',
+  approvedOk: 'Approved and recorded as a real payment',
+  rejectedOk: 'Rejected — the parent will see the reason in their portal',
+  emptyTitle: 'No pending proofs',
+  emptyBody: 'Transfer proofs parents send from the portal will appear here for review',
+  viewProof: 'View proof photo',
+  methodLabel: 'Method',
+  sentAt: 'Sent {date}',
+}

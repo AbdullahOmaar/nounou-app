@@ -1,36 +1,38 @@
-/** نصوص التنسيق المشتركة: أسماء الأيام والشهور وتسميات الدورات */
+/** تنسيقات: عملة وتواريخ وأعداد — القيم تُبنى في lib/format */
 export const format = {
-  /** أسماء الأيام — الفهرس مطابق لـ Date.getDay() ‏(0 = الأحد) */
-  daySunday: 'الأحد',
-  dayMonday: 'الاثنين',
-  dayTuesday: 'الثلاثاء',
-  dayWednesday: 'الأربعاء',
-  dayThursday: 'الخميس',
-  dayFriday: 'الجمعة',
-  daySaturday: 'السبت',
-  /** أسماء الشهور — الفهرس 0 = يناير */
-  monthJanuary: 'يناير',
-  monthFebruary: 'فبراير',
-  monthMarch: 'مارس',
-  monthApril: 'أبريل',
-  monthMay: 'مايو',
-  monthJune: 'يونيو',
-  monthJuly: 'يوليو',
-  monthAugust: 'أغسطس',
-  monthSeptember: 'سبتمبر',
-  monthOctober: 'أكتوبر',
-  monthNovember: 'نوفمبر',
-  monthDecember: 'ديسمبر',
-  /** تسميات دورات فوترة المجموعات (قيم BillingType الإنجليزية تبقى مفاتيح) */
-  billingMonthlyFixed: 'شهري ثابت',
-  billingPerSessionPrepaid: 'بالحصة (مدفوعة مسبقاً)',
-  billingPerSessionAttended: 'بالحصة (حسب الحضور)',
-  billingWeeklyPackage: 'باقة أسبوعية',
-  /** مبلغ منسّق: فواصل آلاف + لاحقة العملة «ج» */
-  moneyAmount: '{amount} ج',
-  /** لاحقتا صباحاً/مساءً لعرض الوقت بصيغة 12 ساعة */
+  egp: '{amount} ج.م',
+  andWord: 'و',
+  listSep: '، ',
   amSuffix: 'ص',
   pmSuffix: 'م',
-  /** فاصلة تعداد أسماء الأيام */
-  daysSeparator: '، ',
+  childCount: {
+    zero: 'لا أطفال',
+    one: 'طفل واحد',
+    two: 'طفلان',
+    few: '{count} أطفال',
+    many: '{count} طفلاً',
+    other: '{count} طفل',
+  },
+  memberCount: {
+    zero: 'لا أعضاء',
+    one: 'عضو واحد',
+    two: 'عضوان',
+    few: '{count} أعضاء',
+    many: '{count} عضواً',
+    other: '{count} عضو',
+  },
+  yearsOld: {
+    one: 'سنة',
+    two: 'سنتان',
+    few: '{count} سنوات',
+    many: '{count} سنة',
+    other: '{count} سنة',
+  },
+  monthsOld: {
+    one: 'شهر',
+    two: 'شهران',
+    few: '{count} شهور',
+    many: '{count} شهراً',
+    other: '{count} شهر',
+  },
 } as const

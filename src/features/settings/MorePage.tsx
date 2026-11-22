@@ -1,73 +1,132 @@
-import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { prefetchRoute, prefetchRoutesIdle } from '../../lib/routePrefetch'
 import {
-  BookOpenCheck,
-  CalendarDays,
-  ChartColumn,
-  ChevronLeft,
+  Bell,
+  Bus,
+  ClipboardList,
   Download,
-  HardDriveDownload,
-  History,
-  Landmark,
-  NotebookPen,
-  Settings,
-  Upload,
+  FileText,
+  LayoutGrid,
+  Link2,
+  LogOut,
+  Megaphone,
+  ReceiptText,
+  Settings as SettingsIcon,
+  ShieldCheck,
   Users,
-  UserSquare2,
-  type LucideIcon,
 } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
-import { t } from '../../i18n'
+import { useT } from '../../i18n'
+import { useLocale, setLocale } from '../../i18n/locale'
+import { prefetchRoutesIdle } from '../../lib/routePrefetch'
+import { useEffect } from 'react'
+import { useAuth } from '../../lib/AuthProvider'
+import { useCurrentNursery } from '../../hooks/useCurrentNursery'
+import { setActiveNurseryId } from '../../lib/workspace'
 
-const MENU: { icon: LucideIcon; label: string; path: string }[] = [
-  { icon: CalendarDays, label: t('settings.moreSchedule'), path: '/schedule' },
-  { icon: Users, label: t('settings.moreGroups'), path: '/groups' },
-  { icon: NotebookPen, label: t('settings.moreGrades'), path: '/grades' },
-  { icon: BookOpenCheck, label: t('settings.moreHomework'), path: '/homework' },
-  { icon: Landmark, label: t('settings.moreMoney'), path: '/money' },
-  { icon: ChartColumn, label: t('settings.moreAnalytics'), path: '/analytics' },
-  { icon: UserSquare2, label: t('settings.morePortal'), path: '/portal-links' },
-  // استيراد الطلاب انتقل هنا من أعلى صفحة الطلاب (و-8): كان يدفع
-  // القائمة 64px في كل زيارة؛ الرابط العميق يفتح شيت الاستيراد مباشرة
-  { icon: Upload, label: t('settings.moreImportStudents'), path: '/students?import=1' },
-  { icon: History, label: t('settings.moreActivity'), path: '/activity-log' },
-  { icon: HardDriveDownload, label: t('settings.backup'), path: '/backup' },
-  { icon: Download, label: t('settings.moreExport'), path: '/export' },
-  { icon: Settings, label: t('settings.moreSettings'), path: '/settings' },
-]
-
-/** قائمة «المزيد» — صفوف تنقّل لبقية الأقسام (المرجع: renderMore) */
+/** «المزيد»: كل وجهات نونو الثانوية + مبدّل الحضانة + اللغة + الخروج */
 export function MorePage() {
+  const t = useT()
+  const locale = useLocale()
   const navigate = useNavigate()
-  // تسخين وجهات القائمة عند الخمول (3A-312 — بند ٢): أول ضغطة على أي
-  // صف كانت تدفع ثمن جلب حزمة الوجهة وتحليلها بعد الضغطة (مقاساً حتى
-  // 1207ms للتحليلات)؛ الآن تُسخَّن الحزم تسلسلياً أثناء وقوف المستخدم
-  // على هذه الصفحة، وبدء لمس أي صف يُسخّن وجهته فوراً احتياطاً
-  // مفاتيح سجل الجلب المسبق بلا باراميترات (مسار الحزمة فقط)
-  useEffect(() => prefetchRoutesIdle(MENU.map((m) => m.path.split('?')[0])), [])
+  const { signOut } = useAuth()
+  const nursery = useCurrentNursery()
+  const isOwner = nursery.status === 'ready' && nursery.isOwner
+
+  useEffect(() => {
+    return prefetchRoutesIdle([
+      '/classes',
+      '/reports',
+      '/bus',
+      '/announcements',
+      '/portal-links',
+      '/activity',
+      '/settings',
+      '/members',
+    ])
+  }, [])
+
+  const items: {
+    icon: typeof LayoutGrid
+    label: string
+    path: string
+    ownerOnly?: boolean
+  }[] = [
+    { icon: LayoutGrid, label: t('shell.more.classes'), path: '/classes' },
+    { icon: FileText, label: t('shell.more.reports'), path: '/reports' },
+    { icon: Bus, label: t('shell.more.bus'), path: '/bus' },
+    { icon: Megaphone, label: t('shell.more.announcements'), path: '/announcements' },
+    { icon: Link2, label: t('shell.more.portalLinks'), path: '/portal-links' },
+    {
+      icon: ShieldCheck,
+      label: t('shell.more.proofs'),
+      path: '/proofs',
+      ownerOnly: true,
+    },
+    { icon: ClipboardList, label: t('shell.more.activity'), path: '/activity' },
+    { icon: Users, label: t('shell.more.members'), path: '/members', ownerOnly: true },
+    { icon: Bell, label: t('shell.title.notifications'), path: '/notifications' },
+    { icon: SettingsIcon, label: t('shell.more.settings'), path: '/settings' },
+    { icon: Download, label: t('shell.more.export'), path: '/export' },
+    { icon: ReceiptText, label: t('shell.nav.invoices'), path: '/invoices', ownerOnly: true },
+  ]
+
   return (
-    <Card className="p-0 overflow-hidden">
-      {MENU.map((item, i) => {
-        const Icon = item.icon
-        return (
-          <button
-            key={item.path}
-            onClick={() => navigate(item.path)}
-            onPointerDown={() => prefetchRoute(item.path.split('?')[0])}
-            style={{ animationDelay: `${Math.min(i, 8) * 35}ms` }}
-            className={`rise-in w-full flex items-center gap-3 px-4 min-h-[64px] bg-transparent border-0 cursor-pointer text-text text-start hover:bg-soft active:bg-soft ${
-              i < MENU.length - 1 ? 'border-b border-border' : ''
-            }`}
-          >
-            <span className="w-10 h-10 rounded-xl bg-soft text-primary flex items-center justify-center shrink-0">
-              <Icon size={24} />
-            </span>
-            <span className="flex-1 font-semibold text-[15px]">{item.label}</span>
-            <ChevronLeft size={20} className="text-muted" />
-          </button>
-        )
-      })}
-    </Card>
+    <div className="flex flex-col gap-2">
+      {nursery.status === 'ready' && nursery.memberships.length > 1 && (
+        <Card>
+          <div className="type-section mb-2">{t('shell.switchNursery')}</div>
+          <div className="flex flex-col gap-1">
+            {nursery.memberships.map((m) => (
+              <button
+                key={m.id}
+                className={`text-start rounded-xl px-3 py-2 type-body cursor-pointer border-0 ${
+                  m.nursery_id === nursery.nurseryId
+                    ? 'bg-soft text-primary font-semibold'
+                    : 'bg-transparent text-text'
+                }`}
+                onClick={() => setActiveNurseryId(m.nursery_id)}
+              >
+                {m.nursery.name}
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+      {items
+        .filter((i) => !i.ownerOnly || isOwner)
+        .map((item) => {
+          const Icon = item.icon
+          return (
+            <Card
+              key={item.path}
+              className="flex items-center gap-3 cursor-pointer py-3"
+              onClick={() => navigate(item.path)}
+            >
+              <span className="w-10 h-10 rounded-full bg-soft text-primary flex items-center justify-center">
+                <Icon size={20} />
+              </span>
+              <span className="type-body">{item.label}</span>
+            </Card>
+          )
+        })}
+      <Card
+        className="flex items-center gap-3 cursor-pointer py-3"
+        onClick={() => setLocale(locale === 'ar' ? 'en' : 'ar')}
+      >
+        <span className="w-10 h-10 rounded-full bg-soft text-primary flex items-center justify-center type-body font-bold">
+          {locale === 'ar' ? 'EN' : t('common.langAr')}
+        </span>
+        <span className="type-body">{t('shell.more.language')}</span>
+      </Card>
+      <Card
+        className="flex items-center gap-3 cursor-pointer py-3"
+        onClick={() => void signOut()}
+      >
+        <span className="w-10 h-10 rounded-full bg-bad-soft text-bad-text flex items-center justify-center">
+          <LogOut size={20} />
+        </span>
+        <span className="type-body">{t('shell.more.signOut')}</span>
+      </Card>
+    </div>
   )
 }

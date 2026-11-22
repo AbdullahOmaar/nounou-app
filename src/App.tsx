@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './lib/AuthProvider'
@@ -10,401 +10,309 @@ import { HomePage } from './features/home/HomePage'
 import { LoginPage } from './features/auth/LoginPage'
 import { ResetPasswordPage } from './features/auth/ResetPasswordPage'
 import { RequireAuth } from './features/auth/RequireAuth'
+import { useLocale, localeDir } from './i18n/locale'
 
 /*
- * تقسيم المسارات (Phase 2 — الخطوة 12): كل شاشة غير أولية تُحمَّل كسولاً
- * بـ React.lazy فتخرج في chunk مستقل يُجلب عند أول زيارة فقط.
- * يبقى في الحزمة الأولية عمداً: القشرة (AppShell) + الدخول (أول ما يراه
- * غير المسجّل) + الرئيسية (وجهة ما بعد الدخول) — أصغر سطح إقلاع ممكن
- * بلا أي وميض تحميل في أهم مسارين. باقي الشاشات (الحضور، الطلاب،
- * الفواتير، الفلوس، الدرجات، الجدول، الإعدادات/التصدير/النسخ، البوابة…)
- * كسولة كلها، والثقيلة منها أول المستفيدين.
- * السقوط الموحّد: LoadingState (Skeleton البطاقات من نظام المكونات)،
- * ويظهر داخل منطقة محتوى القشرة فقط فتبقى الترويسة والشريط السفلي ثابتة.
+ * تقسيم المسارات (نمط المدرس): الشاشات غير الأولية كسولة في chunks
+ * مستقلة. في الحزمة الأولية: القشرة + الدخول + الرئيسية فقط.
+ * البوابة العامة /p/:token خارج القشرة والمصادقة تماماً (وصول بالتوكن).
  */
-const AttendancePage = lazy(() =>
-  import('./features/attendance/AttendancePage').then((m) => ({ default: m.AttendancePage })),
+const ChildrenPage = lazy(() =>
+  import('./features/children/ChildrenPage').then((m) => ({ default: m.ChildrenPage })),
 )
-const HomeworkPage = lazy(() =>
-  import('./features/homework/HomeworkPage').then((m) => ({ default: m.HomeworkPage })),
+const ChildDetailPage = lazy(() =>
+  import('./features/children/ChildDetailPage').then((m) => ({
+    default: m.ChildDetailPage,
+  })),
 )
-const StudentsPage = lazy(() =>
-  import('./features/students/StudentsPage').then((m) => ({ default: m.StudentsPage })),
+const ClassesPage = lazy(() =>
+  import('./features/classes/ClassesPage').then((m) => ({ default: m.ClassesPage })),
 )
-const StudentDetailPage = lazy(() =>
-  import('./features/students/StudentDetailPage').then((m) => ({ default: m.StudentDetailPage })),
+const ClassDetailPage = lazy(() =>
+  import('./features/classes/ClassDetailPage').then((m) => ({
+    default: m.ClassDetailPage,
+  })),
 )
-const GroupsPage = lazy(() =>
-  import('./features/groups/GroupsPage').then((m) => ({ default: m.GroupsPage })),
+const TodayPage = lazy(() =>
+  import('./features/classday/TodayPage').then((m) => ({ default: m.TodayPage })),
 )
-const GroupDetailPage = lazy(() =>
-  import('./features/groups/GroupDetailPage').then((m) => ({ default: m.GroupDetailPage })),
+const ClassDayPage = lazy(() =>
+  import('./features/classday/ClassDayPage').then((m) => ({ default: m.ClassDayPage })),
 )
 const InvoicesPage = lazy(() =>
   import('./features/invoices/InvoicesPage').then((m) => ({ default: m.InvoicesPage })),
 )
 const InvoiceDetailPage = lazy(() =>
-  import('./features/invoices/InvoiceDetailPage').then((m) => ({ default: m.InvoiceDetailPage })),
-)
-const SchedulePage = lazy(() =>
-  import('./features/schedule/SchedulePage').then((m) => ({ default: m.SchedulePage })),
-)
-const GradesPage = lazy(() =>
-  import('./features/grades/GradesPage').then((m) => ({ default: m.GradesPage })),
-)
-const AssessmentDetailPage = lazy(() =>
-  import('./features/grades/AssessmentDetailPage').then((m) => ({
-    default: m.AssessmentDetailPage,
+  import('./features/invoices/InvoiceDetailPage').then((m) => ({
+    default: m.InvoiceDetailPage,
   })),
 )
-const MoneyPage = lazy(() =>
-  import('./features/money/MoneyPage').then((m) => ({ default: m.MoneyPage })),
+const ProofsPage = lazy(() =>
+  import('./features/proofs/ProofsPage').then((m) => ({ default: m.ProofsPage })),
+)
+const ReportsPage = lazy(() =>
+  import('./features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })),
+)
+const BusPage = lazy(() =>
+  import('./features/bus/BusPage').then((m) => ({ default: m.BusPage })),
+)
+const AnnouncementsPage = lazy(() =>
+  import('./features/announcements/AnnouncementsPage').then((m) => ({
+    default: m.AnnouncementsPage,
+  })),
+)
+const PortalLinksPage = lazy(() =>
+  import('./features/portal/PortalLinksPage').then((m) => ({
+    default: m.PortalLinksPage,
+  })),
+)
+const PortalPage = lazy(() =>
+  import('./features/portal/PortalPage').then((m) => ({ default: m.PortalPage })),
 )
 const NotificationsPage = lazy(() =>
   import('./features/notifications/NotificationsPage').then((m) => ({
     default: m.NotificationsPage,
   })),
 )
-const PortalPage = lazy(() =>
-  import('./features/portal/PortalPage').then((m) => ({ default: m.PortalPage })),
-)
-const ExamPage = lazy(() =>
-  import('./features/exams/ExamPage').then((m) => ({ default: m.ExamPage })),
-)
-const StudentPortalPage = lazy(() =>
-  import('./features/student-portal/StudentPortalPage').then((m) => ({
-    default: m.StudentPortalPage,
+const ActivityLogPage = lazy(() =>
+  import('./features/activity/ActivityLogPage').then((m) => ({
+    default: m.ActivityLogPage,
   })),
-)
-const EnrolPage = lazy(() =>
-  import('./features/enrol/EnrolPage').then((m) => ({ default: m.EnrolPage })),
-)
-const PortalManagePage = lazy(() =>
-  import('./features/portal/PortalManagePage').then((m) => ({ default: m.PortalManagePage })),
 )
 const SettingsPage = lazy(() =>
   import('./features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 )
+const MembersPage = lazy(() =>
+  import('./features/settings/MembersPage').then((m) => ({ default: m.MembersPage })),
+)
 const ExportPage = lazy(() =>
   import('./features/settings/ExportPage').then((m) => ({ default: m.ExportPage })),
 )
-const BackupPage = lazy(() =>
-  import('./features/settings/BackupPage').then((m) => ({ default: m.BackupPage })),
-)
 const MorePage = lazy(() =>
   import('./features/settings/MorePage').then((m) => ({ default: m.MorePage })),
-)
-const ActivityLogPage = lazy(() =>
-  import('./features/activity/ActivityLogPage').then((m) => ({ default: m.ActivityLogPage })),
-)
-const AnalyticsPage = lazy(() =>
-  import('./features/analytics/AnalyticsPage').then((m) => ({ default: m.AnalyticsPage })),
-)
-const AtRiskPage = lazy(() =>
-  import('./features/atrisk/AtRiskPage').then((m) => ({ default: m.AtRiskPage })),
 )
 const NotFoundPage = lazy(() =>
   import('./features/notfound/NotFoundPage').then((m) => ({ default: m.NotFoundPage })),
 )
 
-/*
- * تسخين الحزم (3A-312 — بند ٢): تسجيل نفس import() الخاص بكل مسار
- * كسول في سجلّ الجلب المقدم (lib/routePrefetch) — عناصر التنقّل
- * (صفوف «المزيد» وتبويبات الشريط السفلي) تُسخّن وجهتها عند بدء اللمس،
- * وصفحة «المزيد» تُسخّن وجهاتها كلها عند الخمول، فلا تدفع أول ضغطة
- * ثمن الجلب والتحليل. نفس محمّلات الصفحات العامة (البوابات/الامتحان/
- * الحجز) غير مسجّلة عمداً: لا تُفتح من تنقّل داخلي.
- */
 registerRouteLoaders({
-  '/attendance': () => import('./features/attendance/AttendancePage'),
-  '/homework': () => import('./features/homework/HomeworkPage'),
-  '/students': () => import('./features/students/StudentsPage'),
-  '/groups': () => import('./features/groups/GroupsPage'),
+  '/children': () => import('./features/children/ChildrenPage'),
+  '/today': () => import('./features/classday/TodayPage'),
   '/invoices': () => import('./features/invoices/InvoicesPage'),
-  '/schedule': () => import('./features/schedule/SchedulePage'),
-  '/grades': () => import('./features/grades/GradesPage'),
-  '/money': () => import('./features/money/MoneyPage'),
-  '/notifications': () => import('./features/notifications/NotificationsPage'),
-  '/settings': () => import('./features/settings/SettingsPage'),
-  '/export': () => import('./features/settings/ExportPage'),
-  '/backup': () => import('./features/settings/BackupPage'),
   '/more': () => import('./features/settings/MorePage'),
-  '/activity-log': () => import('./features/activity/ActivityLogPage'),
-  '/analytics': () => import('./features/analytics/AnalyticsPage'),
-  '/at-risk': () => import('./features/atrisk/AtRiskPage'),
-  '/portal-links': () => import('./features/portal/PortalManagePage'),
+  '/classes': () => import('./features/classes/ClassesPage'),
+  '/reports': () => import('./features/reports/ReportsPage'),
+  '/bus': () => import('./features/bus/BusPage'),
+  '/announcements': () => import('./features/announcements/AnnouncementsPage'),
+  '/portal-links': () => import('./features/portal/PortalLinksPage'),
+  '/proofs': () => import('./features/proofs/ProofsPage'),
+  '/activity': () => import('./features/activity/ActivityLogPage'),
+  '/settings': () => import('./features/settings/SettingsPage'),
+  '/members': () => import('./features/settings/MembersPage'),
+  '/export': () => import('./features/settings/ExportPage'),
+  '/notifications': () => import('./features/notifications/NotificationsPage'),
 })
 
-/** غلاف Suspense بسقوط Skeleton الموحّد — يُستخدم لكل مسار كسول */
-function LazyRoute({ children }: { children: ReactNode }) {
-  return <Suspense fallback={<LoadingState />}>{children}</Suspense>
-}
-
-// إعدادات الكاش (3A-296، بعد إصلاح خريطة الإبطال PAT-1): staleTime
-// ‏30 ثانية آمن الآن لأن كل طفرة تُبطل الوحدات المشتقة منها مركزياً
-// (lib/invalidate) — التنقّل بين الشاشات خلال النافذة يعيد استخدام
-// الكاش بدل إعادة جلب كل شيء عند كل تركيب (السلوك القديم staleTime=0
-// كان سبباً رئيسياً في تضخّم عدد الطلبات). retry مرة واحدة يقلّل
-// إعادة محاولات الشبكة المتقطعة بلا إخفاء للأخطاء الحقيقية.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 30_000, retry: 1 },
-    mutations: { retry: 0 },
   },
 })
+
+function LocaleEffect() {
+  const locale = useLocale()
+  useEffect(() => {
+    document.documentElement.lang = locale
+    document.documentElement.dir = localeDir(locale)
+  }, [locale])
+  return null
+}
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ToastProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            {/* بوابة ولي الأمر: صفحة عامة بلا جلسة مدرس — الاعتماد هو
-                الرابط الموقّع في الاستعلام (?student=&t=) عبر RPC فقط */}
-            <Route
-              path="/portal"
-              element={
-                <LazyRoute>
-                  <PortalPage />
-                </LazyRoute>
-              }
-            />
-            <Route
-              path="/portal/:studentId"
-              element={
-                <LazyRoute>
-                  <PortalPage />
-                </LazyRoute>
-              }
-            />
-            {/* الامتحان الإلكتروني: صفحة عامة بلا جلسة — الاعتماد هو
-                رابط الامتحان الموقّع (?t=) + كود الطالب عبر RPC فقط */}
-            <Route
-              path="/exam"
-              element={
-                <LazyRoute>
-                  <ExamPage />
-                </LazyRoute>
-              }
-            />
-            {/* بوابة الطالب: صفحة عامة بلا جلسة — الاعتماد هو رابط
-                الطالب الموقّع (?t=) وحده عبر RPC قراءة فقط */}
-            <Route
-              path="/student-portal"
-              element={
-                <LazyRoute>
-                  <StudentPortalPage />
-                </LazyRoute>
-              }
-            />
-            {/* صفحة الحجز العامة: بلا جلسة — الاعتماد هو رابط السنتر
-                (?t=) وحده عبر دالتي RPC مقيدتين، والطلبات تهبط في
-                قوائم انتظار المجموعات بمصدر «صفحة الحجز» (0019) */}
-            <Route
-              path="/book"
-              element={
-                <LazyRoute>
-                  <EnrolPage />
-                </LazyRoute>
-              }
-            />
-            <Route element={<RequireAuth />}>
-            <Route element={<AppShell />}>
-              <Route index element={<HomePage />} />
+          <BrowserRouter>
+            <LocaleEffect />
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route
-                path="attendance"
+                path="/p/:token"
                 element={
-                  <LazyRoute>
-                    <AttendancePage />
-                  </LazyRoute>
+                  <Suspense fallback={<LoadingState />}>
+                    <PortalPage />
+                  </Suspense>
                 }
               />
-              <Route
-                path="homework"
-                element={
-                  <LazyRoute>
-                    <HomeworkPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="students"
-                element={
-                  <LazyRoute>
-                    <StudentsPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="students/:id"
-                element={
-                  <LazyRoute>
-                    <StudentDetailPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="invoices"
-                element={
-                  <LazyRoute>
-                    <InvoicesPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="invoices/:id"
-                element={
-                  <LazyRoute>
-                    <InvoiceDetailPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="more"
-                element={
-                  <LazyRoute>
-                    <MorePage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="schedule"
-                element={
-                  <LazyRoute>
-                    <SchedulePage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="groups"
-                element={
-                  <LazyRoute>
-                    <GroupsPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="groups/:id"
-                element={
-                  <LazyRoute>
-                    <GroupDetailPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="grades"
-                element={
-                  <LazyRoute>
-                    <GradesPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="assessments/:id"
-                element={
-                  <LazyRoute>
-                    <AssessmentDetailPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="money"
-                element={
-                  <LazyRoute>
-                    <MoneyPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="notifications"
-                element={
-                  <LazyRoute>
-                    <NotificationsPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="export"
-                element={
-                  <LazyRoute>
-                    <ExportPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="backup"
-                element={
-                  <LazyRoute>
-                    <BackupPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="settings"
-                element={
-                  <LazyRoute>
-                    <SettingsPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="portal-links"
-                element={
-                  <LazyRoute>
-                    <PortalManagePage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="activity-log"
-                element={
-                  <LazyRoute>
-                    <ActivityLogPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="analytics"
-                element={
-                  <LazyRoute>
-                    <AnalyticsPage />
-                  </LazyRoute>
-                }
-              />
-              <Route
-                path="at-risk"
-                element={
-                  <LazyRoute>
-                    <AtRiskPage />
-                  </LazyRoute>
-                }
-              />
-              {/* catch-all داخل الجلسة (خطة الهوية P-5): أي مسار مجهول
-                  داخل القشرة يعرض صفحة 404 بدُفّي الأوبس بدل الفراغ */}
-              <Route
-                path="*"
-                element={
-                  <LazyRoute>
-                    <NotFoundPage />
-                  </LazyRoute>
-                }
-              />
-            </Route>
-            </Route>
-            {/* catch-all علوي: مسارات مجهولة خارج شجرة الجلسة أصلاً */}
-            <Route
-              path="*"
-              element={
-                <LazyRoute>
-                  <NotFoundPage standalone />
-                </LazyRoute>
-              }
-            />
-          </Routes>
-        </BrowserRouter>
+              <Route element={<RequireAuth />}>
+                <Route element={<AppShell />}>
+                  <Route index element={<HomePage />} />
+                  <Route
+                    path="/children"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <ChildrenPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/children/:childId"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <ChildDetailPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/classes"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <ClassesPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/classes/:classId"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <ClassDetailPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/today"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <TodayPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/today/:classId"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <ClassDayPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/invoices"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <InvoicesPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/invoices/:invoiceId"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <InvoiceDetailPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/proofs"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <ProofsPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/reports"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <ReportsPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/bus"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <BusPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/announcements"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <AnnouncementsPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/portal-links"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <PortalLinksPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/notifications"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <NotificationsPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/activity"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <ActivityLogPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/settings"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <SettingsPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/members"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <MembersPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/export"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <ExportPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/more"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <MorePage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="*"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <NotFoundPage />
+                      </Suspense>
+                    }
+                  />
+                </Route>
+              </Route>
+            </Routes>
+          </BrowserRouter>
         </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>

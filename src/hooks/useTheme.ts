@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 export type ThemeMode = 'auto' | 'light' | 'dark'
 
-const STORAGE_KEY = 'teacher-app-theme'
+const STORAGE_KEY = 'nounou-theme'
 
 function resolveDark(mode: ThemeMode): boolean {
   if (mode === 'dark') return true

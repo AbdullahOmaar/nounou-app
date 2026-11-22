@@ -174,7 +174,7 @@ export function PullToRefresh({
           {mascotVisible ? (
             <>
               <Mascot state="thinking" size={26} still />
-              <span className="text-[12.5px] font-semibold text-muted">{t('mascot.loading')}</span>
+              <span className="text-[12.5px] font-semibold text-muted">{t('common.loading')}</span>
             </>
           ) : (
             <RefreshCw

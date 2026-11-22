@@ -1,0 +1,20 @@
+/** Shared UI component library strings (components/ui) */
+export const components = {
+  emptyStateDefault: 'Nothing here yet',
+  errorTitle: 'Something went wrong while loading',
+  errorBody: 'Check your connection and try again',
+  pullToRefresh: 'Pull to refresh',
+  releaseToRefresh: 'Release to refresh',
+  refreshing: 'Refreshing…',
+  toastDismiss: 'Dismiss notification',
+  sheetClose: 'Close',
+  installTitle: 'Install Nounou on your phone',
+  installBody: 'Open Nounou from your home screen, just like any app',
+  installAction: 'Install',
+  installLater: 'Later',
+  fabCollapse: 'Collapse',
+  avatarFallback: '?',
+  dangerTypeNameLabel: 'Type the item name to confirm',
+  dangerExecuting: 'Working…',
+  dangerCancel: 'Cancel',
+}

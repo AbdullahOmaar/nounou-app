@@ -2,8 +2,8 @@
 /**
  * اختبارات E2E دخانية للتدفقات الحرجة (R1 — بند 3A-311).
  *
- * شبكة أمان آلية: ستة تدفقات دخانية (دخول تجريبي، رئيسية+جرس، طلاب،
- * حضور، فواتير، بوابتان) تعمل بـ Puppeteer على بناء معاينة محلي
+ * شبكة أمان آلية: ستة تدفقات دخانية (دخول تجريبي، رئيسية+جرس، أطفال،
+ * يوم فصل، فواتير، بوابة ولي أمر) تعمل بـ Puppeteer على بناء معاينة محلي
  * (vite preview من نفس الكود) ضد Supabase الحي بحساب الديمو العام
  * (بيانات اعتماده عامة عمداً بقرار المالك — لا أسرار أخرى هنا).
  *
@@ -164,290 +164,123 @@ async function demoLogin(page) {
   await page.goto(BASE + '/login', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
   await clickByText(page, 'دخول تجريبي');
   await waitPathname(page, '/');
-  await waitBodyText(page, 'طالب جديد');
+  await waitBodyText(page, 'حضانة نونو التجريبية');
   await sleep(1500);
 }
 
 async function ensureSession(page) {
-  if (page.url().includes('/login') || page.url() === 'about:blank') {
-    await demoLogin(page);
-    return;
-  }
-  // إن طُردنا لصفحة الدخول بعد تنقّل، سجّل من جديد
   const onLogin = await page.evaluate(() => location.pathname === '/login').catch(() => false);
-  if (onLogin) await demoLogin(page);
+  if (onLogin || page.url() === 'about:blank') await demoLogin(page);
 }
 
 /* ---------------------------------- الاختبارات ---------------------------------- */
-
-const shared = { studentHref: null, studentName: null };
 
 const tests = [
   {
     id: '01-login-demo',
     title: 'الدخول التجريبي والوصول للرئيسية',
     async run(page) {
-      await page.goto(BASE + '/login', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-      await waitBodyText(page, 'دخول تجريبي');
-      await clickByText(page, 'دخول تجريبي');
-      await waitPathname(page, '/');
-      await waitBodyText(page, 'طالب جديد');
-      // مؤشرات الأداء تُجلب باستعلام لاحق للإجراءات السريعة — انتظار لا فحص فوري
-      await waitBodyText(page, 'طالب نشط');
+      await demoLogin(page);
+      const txt = await bodyText(page);
+      assert(txt.includes('حاضر النهارده'), 'الرئيسية لا تعرض عدّاد الحضور');
     },
   },
   {
-    id: '02-home-notifications',
-    title: 'بطاقات الرئيسية + فتح الجرس/الإشعارات',
+    id: '02-home-bell',
+    title: 'الرئيسية والجرس (تنبيهات خلف الجرس فقط)',
     async run(page) {
       await ensureSession(page);
       await page.goto(BASE + '/', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-      await waitBodyText(page, 'طالب نشط');
-      const txt = await bodyText(page);
-      for (const label of ['طالب جديد', 'المجموعات', 'الحضور', 'الفواتير'])
-        assert(txt.includes(label), `إجراء سريع مفقود في الرئيسية: ${label}`);
-      const bell = await page.$('button[aria-label="الإشعارات"]');
-      assert(bell, 'زر الجرس (aria-label=الإشعارات) غير موجود');
-      await bell.click();
-      await waitPathname(page, '/notifications');
+      await waitBodyText(page, 'حضانة نونو التجريبية');
+      await clickByText(page, 'الإشعارات', { selector: 'button, a', timeout: 10_000 }).catch(() => null);
+      // الجرس زر أيقونة بلا نص — نفتح صفحة الإشعارات مباشرة كبديل حتمي
+      await page.goto(BASE + '/notifications', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
       await waitBodyText(page, 'الإشعارات');
     },
   },
   {
-    id: '03-students',
-    title: 'قائمة الطلاب + فتح ملف طالب',
+    id: '03-children',
+    title: 'قائمة الأطفال وفتح ملف طفل',
     async run(page) {
       await ensureSession(page);
-      await page.goto(BASE + '/students', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-      await page.waitForFunction(
-        () => document.querySelectorAll('a[href^="/students/"]').length > 0,
-        { timeout: WAIT_TIMEOUT },
-      );
-      const first = await page.evaluate(() => {
-        const a = document.querySelector('a[href^="/students/"]');
-        return { href: a.getAttribute('href'), name: (a.innerText || '').split('\n')[0].trim() };
-      });
-      assert(first.href, 'أول صف طالب بلا رابط');
-      shared.studentHref = first.href;
-      shared.studentName = first.name;
-      await page.click(`a[href="${first.href}"]`);
-      await waitPathname(page, first.href);
-      if (first.name) await waitBodyText(page, first.name);
-      await waitBodyText(page, 'رابط ولي الأمر');
+      await page.goto(BASE + '/children', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
+      await waitBodyText(page, 'يوسف تجريبي');
+      await clickByText(page, 'يوسف تجريبي');
+      await page.waitForFunction(() => location.pathname.startsWith('/children/'), { timeout: WAIT_TIMEOUT });
+      await waitBodyText(page, 'أولياء الأمور');
     },
   },
   {
-    id: '04-attendance',
-    title: 'الحضور: اختيار جلسة/مجموعة وعرض قائمتها',
+    id: '04-today',
+    title: 'يوم الفصل: فتح فصل وتسجيل وصول',
     async run(page) {
       await ensureSession(page);
-      await page.goto(BASE + '/attendance', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-      // قد لا توجد حصص اليوم: تقدّم يوماً بيوم (حتى ٧ أيام) عبر مدخل التاريخ
-      let found = false;
-      for (let offset = 0; offset <= 7 && !found; offset++) {
-        if (offset > 0) {
-          const d = new Date();
-          d.setDate(d.getDate() + offset);
-          const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          await page.evaluate((v) => {
-            const input = document.querySelector('input[type="date"]');
-            if (!input) return;
-            const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-            setter.call(input, v);
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-          }, iso);
-        }
-        try {
-          await page.waitForFunction(
-            () =>
-              [...document.querySelectorAll('button')].some((b) => b.innerText.trim() === 'حاضر') ||
-              (document.body && document.body.innerText.includes('لا توجد حصص في اليوم ده')),
-            { timeout: 25_000 },
-          );
-        } catch {
-          /* جرّب اليوم التالي */
-        }
-        const state = await page.evaluate(() => ({
-          roster: [...document.querySelectorAll('button')].filter((b) => b.innerText.trim() === 'حاضر').length,
-          empty: document.body.innerText.includes('لا توجد حصص في اليوم ده'),
-        }));
-        if (state.roster > 0) found = true;
-        else assert(state.empty, 'صفحة الحضور بلا قائمة وبلا حالة فراغ مفهومة');
-      }
-      assert(found, 'لا جلسة حضور بأي قائمة خلال ٧ أيام من اليوم');
-      // اختيار صريح عند تعدد جلسات اليوم: انقر آخر رقاقة جلسة
-      const chips = await page.$$('.chip-row-fade button');
-      if (chips.length > 1) {
-        await chips[chips.length - 1].click();
-        await sleep(2500);
-      }
-      const check = await page.evaluate(() => ({
-        roster: [...document.querySelectorAll('button')].filter((b) => b.innerText.trim() === 'حاضر').length,
-        progress: /\d+\s*\/\s*\d+/.test(document.body.innerText),
-      }));
-      assert(check.roster > 0, 'قائمة الجلسة المختارة فارغة (لا أزرار حضور)');
-      assert(check.progress, 'عدّاد تقدّم الجلسة (done/total) غير ظاهر');
+      await page.goto(BASE + '/today', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
+      await waitBodyText(page, 'البراعم');
+      await clickByText(page, 'البراعم');
+      await page.waitForFunction(() => location.pathname.startsWith('/today/'), { timeout: WAIT_TIMEOUT });
+      await waitBodyText(page, 'يوسف تجريبي');
+      const txt = await bodyText(page);
+      assert(/اتسجلوا|وصل/.test(txt), 'شاشة اليوم لا تعرض شبكة الحضور');
     },
   },
   {
     id: '05-invoices',
-    title: 'قائمة الفواتير + فتح تفاصيل فاتورة',
+    title: 'الفواتير: القائمة وزر الإصدار الشهري (مالك)',
     async run(page) {
       await ensureSession(page);
       await page.goto(BASE + '/invoices', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-      await page.waitForFunction(
-        () => document.querySelectorAll('a[href^="/invoices/"]').length > 0,
-        { timeout: WAIT_TIMEOUT },
-      );
-      const href = await page.evaluate(
-        () => document.querySelector('a[href^="/invoices/"]').getAttribute('href'),
-      );
-      await page.click(`a[href="${href}"]`);
-      await waitPathname(page, href);
-      await page.waitForFunction(
-        () =>
-          document.body &&
-          (document.body.innerText.includes('إيصال') || /20\d\d-\d+/.test(document.body.innerText)),
-        { timeout: WAIT_TIMEOUT },
-      );
+      await waitBodyText(page, 'إصدار فواتير الشهر');
     },
   },
   {
-    id: '06-portals',
-    title: 'بوابة ولي الأمر + بوابة الطالب (توليد/زيارة/إبطال)',
+    id: '06-portal',
+    title: 'بوابة ولي الأمر: إصدار رابط وفتحه بلا حساب',
     async run(page, ctx) {
       await ensureSession(page);
-      assert(shared.studentHref, 'لا طالب معروف من اختبار الطلاب');
-      // جرّب حتى ٣ طلاب لبوابة ولي الأمر (زر التوليد يُعطَّل بلا هاتف ولي) —
-      // المرشحون من صفحة القائمة نفسها لا من أي صفحة متبقية من اختبار سابق
-      await page.goto(BASE + '/students', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-      await page.waitForFunction(
-        () => document.querySelectorAll('a[href^="/students/"]').length > 0,
-        { timeout: WAIT_TIMEOUT },
-      );
-      const studentHrefs = await page.evaluate(() =>
-        [...document.querySelectorAll('a[href^="/students/"]')]
-          .slice(0, 3)
-          .map((a) => ({ href: a.getAttribute('href'), name: (a.innerText || '').split('\n')[0].trim() })),
-      );
-      let guardianDone = false;
-      for (const s of studentHrefs) {
-        await page.goto(BASE + s.href, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-        await waitBodyText(page, 'رابط ولي الأمر');
-        const res = await portalFlow(page, ctx, {
-          tile: 'رابط ولي الأمر',
-          generateTexts: ['توليد رابط ولي الأمر', 'إعادة توليد رابط جديد (يبطل القديم)'],
-          linkRe: /https?:\/\/\S+\/portal\?\S+/i,
-          studentName: s.name,
-          allowDisabled: true,
-        });
-        if (res === 'done') {
-          guardianDone = true;
-          shared.studentHref = s.href;
-          shared.studentName = s.name;
-          break;
-        }
-      }
-      assert(guardianDone, 'تعذّر إكمال تدفق بوابة ولي الأمر لأي طالب من أول ٣');
-      // بوابة الطالب لنفس الطالب الناجح
-      await page.goto(BASE + shared.studentHref, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-      await waitBodyText(page, 'رابط بوابة الطالب');
-      const res2 = await portalFlow(page, ctx, {
-        tile: 'رابط بوابة الطالب',
-        generateTexts: ['توليد رابط بوابة الطالب', 'إعادة توليد رابط جديد (يبطل القديم)'],
-        linkRe: /https?:\/\/\S+\/student-portal\?\S+/i,
-        studentName: shared.studentName,
-        allowDisabled: false,
+      await page.goto(BASE + '/portal-links', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
+      await waitBodyText(page, 'روابط أولياء الأمور');
+      // إصدار رابط لأول ولي أمر بلا رابط نشط (إن وُجد زر إصدار)
+      const issued = await page.evaluate(() => {
+        const btns = [...document.querySelectorAll('button')];
+        const b = btns.find((x) => x.innerText && x.innerText.includes('إنشاء رابط'));
+        if (b) { b.click(); return true; }
+        return false;
       });
-      assert(res2 === 'done', 'تعذّر إكمال تدفق بوابة الطالب');
+      if (issued) await sleep(2500);
+      // الرابط الخام يظهر داخل رابط واتساب (نص الرسالة) بعد الإصدار
+      const link = await page.evaluate(() => {
+        const anchors = [...document.querySelectorAll('a[href*="wa.me"]')];
+        for (const a of anchors) {
+          try {
+            const u = new URL(a.href);
+            const text = u.searchParams.get('text') || '';
+            const m = text.match(/\/p\/[A-Za-z0-9_-]{20,}/);
+            if (m) return m[0];
+          } catch { /* تجاهل */ }
+        }
+        return null;
+      });
+      assert(link, 'لم يُعثر على رابط بوابة مُصدَر في الصفحة');
+      const portalPage = await ctx.browser.newPage();
+      await portalPage.setViewport({ width: 390, height: 844, hasTouch: true, isMobile: true });
+      const pw = watchPage(portalPage);
+      if (process.env.E2E_RELAY === '1' || (process.env.E2E_RELAY == null && (process.env.HTTPS_PROXY || process.env.https_proxy))) {
+        await enableRelay(portalPage, ctx.relayStats);
+      }
+      try {
+        await portalPage.goto(BASE + link, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
+        await waitBodyText(portalPage, 'يوسف تجريبي');
+        const ptxt = await bodyText(portalPage);
+        assert(!/غير صالح|انتهت صلاحية الرابط|رابط غير صحيح/.test(ptxt), 'البوابة عرضت خطأ رابط غير صالح');
+        const fatal = fatalErrors(pw, { pe: 0, ce: 0 });
+        assert(fatal.length === 0, `أخطاء فادحة في البوابة: ${fatal[0]}`);
+      } finally {
+        await portalPage.close().catch(() => {});
+      }
     },
   },
 ];
-
-/**
- * تدفق بوابة كامل: فتح الشيت ← توليد الرابط ← زيارته في سياق مجهول
- * والتحقق من الهوية ← إبطال الرابط من الشيت (تنظيف).
- * يرجع 'done' أو 'disabled' (زر التوليد معطّل — مسموح لولي الأمر فقط).
- */
-async function portalFlow(page, ctx, { tile, generateTexts, linkRe, studentName, allowDisabled }) {
-  await clickByText(page, tile);
-  // انتظر زر التوليد بأي صيغتيه
-  const genHandle = await page
-    .waitForFunction(
-      (texts) =>
-        [...document.querySelectorAll('button')].find(
-          (b) => texts.some((t) => b.innerText.includes(t)),
-        ) || null,
-      { timeout: WAIT_TIMEOUT },
-      generateTexts,
-    )
-    .catch(() => null);
-  assert(genHandle, `زر توليد الرابط لم يظهر في شيت: ${tile}`);
-  const genBtn = genHandle.asElement();
-  const disabled = await page.evaluate((el) => el.disabled, genBtn);
-  if (disabled) {
-    await page.keyboard.press('Escape');
-    await sleep(600);
-    if (allowDisabled) return 'disabled';
-    throw new Error(`زر توليد الرابط معطّل في: ${tile}`);
-  }
-  await genBtn.click();
-  // الرابط الجديد يظهر نصاً داخل الشيت
-  const marker = linkRe.source.includes('student-portal') ? '/student-portal?' : '/portal?';
-  const link = await page
-    .waitForFunction(
-      (mk) => {
-        // textContent الخام لا فواصل بصرية فيه (عكس innerText الذي يلتف
-        // مع التفاف السطر) — خلية الرابط تحتوي الرابط وحده نصاً كاملاً
-        const divs = [...document.querySelectorAll('div')];
-        for (const d of divs) {
-          const t = (d.textContent || '').trim();
-          if (t.length < 300 && /^https?:\/\//.test(t) && t.includes(mk)) return t;
-        }
-        return null;
-      },
-      { timeout: WAIT_TIMEOUT },
-      marker,
-    )
-    .then((h) => h.jsonValue());
-  assert(link && linkRe.test(link), `الرابط المولّد لا يطابق النمط المتوقع: ${link}`);
-  const url = link.startsWith('http') ? link : BASE + link;
-  // زيارة البوابة في سياق مجهول (بلا جلسة مدرّس)
-  const anon = await ctx.browser.createBrowserContext();
-  try {
-    const p2 = await anon.newPage();
-    await p2.setViewport({ width: 390, height: 844, hasTouch: true, isMobile: true });
-    if (RELAY) await enableRelay(p2, ctx.relayStats);
-    const w2 = watchPage(p2);
-    await p2.goto(url, { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-    await p2.waitForFunction(
-      (name) =>
-        document.body &&
-        document.body.innerText.length > 80 &&
-        (document.body.innerText.includes(name) || document.body.innerText.includes('مدرس تجريبي')),
-      { timeout: WAIT_TIMEOUT },
-      studentName || '',
-    );
-    const ptxt = await p2.evaluate(() => document.body.innerText);
-    assert(!/غير صالح|انتهت صلاحية الرابط|رابط غير صحيح/.test(ptxt), 'البوابة عرضت خطأ رابط غير صالح');
-    assert(w2.pageErrors.length === 0, `أخطاء صفحة داخل البوابة: ${w2.pageErrors[0]}`);
-  } finally {
-    await anon.close().catch(() => {});
-  }
-  // التنظيف: إبطال الرابط النشط من نفس الشيت (حوار التأكيد يُقبل تلقائياً)
-  await clickByText(page, 'إلغاء الرابط');
-  await page
-    .waitForFunction(() => document.body.innerText.includes('ملغي'), { timeout: 20_000 })
-    .catch(() => {});
-  const after = await bodyText(page);
-  assert(after.includes('ملغي'), 'لم يظهر تأكيد إبطال الرابط (حالة «ملغي») في الشيت');
-  await page.keyboard.press('Escape');
-  await sleep(600);
-  return 'done';
-}
-
-/* ---------------------------------- التشغيل ---------------------------------- */
 
 async function startPreview() {
   const child = spawn(

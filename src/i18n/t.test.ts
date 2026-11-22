@@ -2,27 +2,41 @@ import { describe, expect, it } from 'vitest'
 import { t } from './t'
 import { pluralCategory } from './format'
 
-describe('t — قاموس i18n المنزلي (W7 — R-4/R-5)', () => {
+describe('t — قاموس i18n (عربي افتراضي)', () => {
   it('مفتاح بسيط يطابق النص القائم حرفياً', () => {
-    expect(t('common.retry')).toBe('إعادة المحاولة')
-    expect(t('common.loading')).toBe('بنحمّل…')
-    expect(t('shell.title.money')).toBe('المصروفات والأرباح')
+    expect(t('common.retry')).toBe('حاول تاني')
+    expect(t('common.loading')).toBe('جارٍ التحميل…')
     expect(t('shell.nav.invoices')).toBe('الفواتير')
+    expect(t('shell.nav.children')).toBe('الأطفال')
   })
   it('استيفاء {name} من الوسائط', () => {
     expect(t('common.resultsCount', { count: 0 })).toBe('0 نتيجة')
+    expect(t('home.greeting', { name: 'أم يوسف' })).toBe('أهلاً، أم يوسف')
   })
-  it('صيغ جمع CLDR لعدّاد النتائج (PAT-7)', () => {
-    expect(t('common.resultsCount', { count: 1 })).toBe('نتيجة واحدة')
-    expect(t('common.resultsCount', { count: 2 })).toBe('نتيجتان')
-    expect(t('common.resultsCount', { count: 7 })).toBe('7 نتائج')
-    expect(t('common.resultsCount', { count: 50 })).toBe('50 نتيجة')
-    expect(t('common.resultsCount', { count: 100 })).toBe('100 نتيجة')
+  it('صيغ جمع CLDR لعدّاد الإثباتات', () => {
+    expect(t('paymentProofs.pendingCount', { count: 0 })).toBe(
+      'لا إثباتات بانتظار المراجعة',
+    )
+    expect(t('paymentProofs.pendingCount', { count: 1 })).toBe(
+      'إثبات واحد بانتظار المراجعة',
+    )
+    expect(t('paymentProofs.pendingCount', { count: 2 })).toBe(
+      'إثباتان بانتظار المراجعة',
+    )
+    expect(t('paymentProofs.pendingCount', { count: 7 })).toBe(
+      '7 إثباتات بانتظار المراجعة',
+    )
+    expect(t('paymentProofs.pendingCount', { count: 50 })).toBe(
+      '50 إثباتاً بانتظار المراجعة',
+    )
+    expect(t('paymentProofs.pendingCount', { count: 100 })).toBe(
+      '100 إثبات بانتظار المراجعة',
+    )
   })
   it('وسيط مفقود يبقى ظاهراً بدل فراغ صامت', () => {
     expect(t('common.resultsCount')).toBe('{count} نتيجة')
   })
-  it('أجزاء بروتوتايب لا تتسرب من سلسلة الوراثة (تصليب 3A-302)', () => {
+  it('أجزاء بروتوتايب لا تتسرب من سلسلة الوراثة (تصليب موروث)', () => {
     const raw = t as unknown as (k: string) => string
     expect(raw('__proto__')).toBe('__proto__')
     expect(raw('common.__proto__')).toBe('common.__proto__')

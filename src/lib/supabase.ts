@@ -22,6 +22,11 @@ export const supabase: SupabaseClient | null = isSupabaseConfigured
  * لملفات api بدل نسخة `db()` مكررة في كل وحدة. في الوضع التجريبي
  * (بلا متغيرات بيئة) يرمي بدل إرجاع null حتى لا تتسرب استعلامات فارغة.
  */
+/** اسم صريح لنفس العميل — تستخدمه طبقات API (يرمي عند غياب الإعداد) */
+export function requireSupabase(): SupabaseClient {
+  return db()
+}
+
 export function db(): SupabaseClient {
   if (!supabase) throw new Error(t('common.supabaseNotConnected'))
   return supabase

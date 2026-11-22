@@ -1,99 +1,71 @@
 import { useState, type FormEvent } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Check, GraduationCap } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
-import { Field, TextInput } from '../../components/ui/form'
+import { Field, FormError, TextInput } from '../../components/ui/form'
+import { Mascot } from '../../components/mascot/Mascot'
 import { useAuth } from '../../lib/AuthProvider'
-import { ensureTeacherProfile } from './api'
-import { t } from '../../i18n'
+import { useT } from '../../i18n'
+import { createNursery } from './api'
 
 /**
- * شاشة إكمال الإعداد (Onboarding): تظهر لمستخدم مسجل دخوله لكن لا يوجد
- * له صف teachers بعد — غالباً لأن تأكيد البريد أجّل إنشاء الملف، أو
- * الحساب أُنشئ قبل بناء خطوة Auth. تُنشئ صف المدرس + إعداداته
- * الافتراضية بمعرّف المستخدم الحالي فقط (متوافق مع RLS).
+ * الإعداد الأول: مستخدم مسجل بلا أي عضوية حضانة — إما إنشاء حضانته
+ * الأولى (RPC ذرّي)، أو انتظار دعوة (الادعاء يحدث تلقائياً عند حلّ
+ * الهوية التالي/إعادة التحميل).
  */
 export function Onboarding() {
-  const { user, signOut } = useAuth()
-  const qc = useQueryClient()
-  const meta = (user?.user_metadata ?? {}) as { display_name?: string; phone?: string | null }
-
-  const [displayName, setDisplayName] = useState(meta.display_name ?? '')
-  // حسابات الهاتف (P5-3): الرقم هوية الحساب نفسه فيُعبَّأ منه مباشرة
-  const [phone, setPhone] = useState(meta.phone ?? user?.phone ?? '')
+  const t = useT()
+  const { signOut } = useAuth()
+  const queryClient = useQueryClient()
+  const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = async (e: FormEvent) => {
+  async function handleCreate(e: FormEvent) {
     e.preventDefault()
-    if (!user) return
-    if (!displayName.trim()) {
-      setError(t('auth.nameRequired'))
-      return
-    }
     setError(null)
     setBusy(true)
     try {
-      await ensureTeacherProfile(user.id, displayName, phone || null)
-      await qc.invalidateQueries({ queryKey: ['current-teacher'] })
+      await createNursery(name)
+      await queryClient.invalidateQueries({ queryKey: ['current-nursery'] })
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('auth.profileCreateFailed'))
+      setError(err instanceof Error ? err.message : t('common.errorGeneric'))
     } finally {
       setBusy(false)
     }
   }
 
   return (
-    <Card className="text-center py-6">
-      <div className="mx-auto mb-3 w-14 h-14 rounded-full bg-soft text-primary flex items-center justify-center">
-        <GraduationCap size={28} />
+    <div className="min-h-dvh bg-bg text-text flex items-start justify-center">
+      <div className="w-full max-w-[640px] px-4 pt-14 pb-10">
+        <div className="text-center mb-6 rise-in">
+          <div className="flex justify-center mb-3">
+            <Mascot size={84} className="rounded-[22px] shadow-card select-none" />
+          </div>
+          <h1 className="type-title mb-1">{t('auth.onboardingTitle')}</h1>
+          <p className="text-muted type-secondary">{t('auth.onboardingBody')}</p>
+        </div>
+        <Card className="rise-in">
+          <form onSubmit={handleCreate} className="flex flex-col gap-3">
+            <Field label={t('auth.nurseryName')}>
+              <TextInput
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={t('auth.nurseryNamePlaceholder')}
+                required
+              />
+            </Field>
+            {error && <FormError message={error} />}
+            <Button type="submit" disabled={busy} full>
+              {busy ? t('auth.creatingNursery') : t('auth.createNursery')}
+            </Button>
+          </form>
+          <p className="type-secondary text-muted mt-4">{t('auth.waitingInvite')}</p>
+          <Button variant="ghost" onClick={() => void signOut()} className="mt-2">
+            {t('auth.signOut')}
+          </Button>
+        </Card>
       </div>
-      <div className="type-section mb-1">{t('auth.onboardingTitle')}</div>
-      <p className="text-muted text-[13.5px] mb-4">
-        {/* البريد داخل جملة عربية: عزل اتجاه (bdi + dir=ltr) حتى لا
-            ينكسر ترتيب أجزائه عبر الأسطر (تدقيق أول استخدام — M2) */}
-        {t('auth.onboardingBodyBefore')}
-        <bdi dir="ltr">{user?.email ?? user?.phone ?? ''}</bdi>
-        {t('auth.onboardingBodyAfter')}
-      </p>
-      {error && (
-        <p className="bg-bad-soft text-bad-text text-[13.5px] rounded-xl px-3 py-2 mb-3" role="alert">
-          {error}
-        </p>
-      )}
-      <form onSubmit={handleSubmit} className="text-start">
-        <Field label={t('auth.teacherNameLabel')}>
-          <TextInput
-            autoComplete="name"
-            placeholder={t('auth.teacherNamePlaceholder')}
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            required
-          />
-        </Field>
-        <Field label={t('auth.phoneLabel')}>
-          <TextInput
-            type="tel"
-            dir="ltr"
-            autoComplete="tel"
-            placeholder="01xxxxxxxxx"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-        </Field>
-        <Button full type="submit" disabled={busy}>
-          <Check size={18} />
-          {busy ? t('auth.creatingProfile') : t('auth.createProfileSubmit')}
-        </Button>
-      </form>
-      <button
-        type="button"
-        onClick={() => void signOut()}
-        className="mt-2 inline-flex items-center min-h-[48px] bg-transparent border-0 text-muted text-[13.5px] cursor-pointer underline"
-      >
-        {t('auth.signOut')}
-      </button>
-    </Card>
+    </div>
   )
 }

@@ -1,102 +1,66 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  attendanceRatePct,
-  daysLabel,
-  formatClock12,
+  ageLabel,
+  currentPeriod,
   formatMoney,
-  formatTime12,
-  safeExternalUrl,
-  shortTime,
-  timeToMin,
+  shiftISODate,
+  todayISO,
   waLink,
+  waLinkWithText,
 } from './format'
 
-describe('attendanceRatePct — نسبة الحضور الموحّدة (PAT-4ب)', () => {
-  it('عُشر واحد دائماً لنفس البسط/المقام', () => {
-    expect(attendanceRatePct(7, 8)).toBe(87.5)
-    expect(attendanceRatePct(1, 3)).toBe(33.3)
-    expect(attendanceRatePct(2, 3)).toBe(66.7)
-    expect(attendanceRatePct(200, 226)).toBe(88.5)
-  })
-  it('الطرفان: الكل ولا أحد', () => {
-    expect(attendanceRatePct(10, 10)).toBe(100)
-    expect(attendanceRatePct(0, 10)).toBe(0)
-  })
-  it('null عند غياب أي تعليم', () => {
-    expect(attendanceRatePct(0, 0)).toBeNull()
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+describe('formatMoney — تنسيق العملة من القاموس', () => {
+  it('أعداد صحيحة وكسور معروضة بقروش صحيحة', () => {
+    expect(formatMoney(800)).toBe('800 ج.م')
+    expect(formatMoney(80.125)).toBe('80.13 ج.م')
+    expect(formatMoney(0)).toBe('0 ج.م')
+    expect(formatMoney(null)).toBe('0 ج.م')
   })
 })
 
-describe('formatMoney', () => {
-  it('يفصّل الآلاف ويلحق «ج»', () => {
-    expect(formatMoney(1200)).toBe('1,200 ج')
-    expect(formatMoney(75)).toBe('75 ج')
+describe('ageLabel — عمر الطفل من تاريخ الميلاد', () => {
+  it('سنوات وشهور بصيغ الجمع العربية', () => {
+    const now = new Date('2026-11-22T00:00:00')
+    expect(ageLabel('2022-11-22', now)).toBe('4 سنوات')
+    expect(ageLabel('2025-11-22', now)).toBe('سنة')
+    expect(ageLabel('2026-05-22', now)).toBe('6 شهور')
   })
-  it('يقبل نصاً رقمياً', () => {
-    expect(formatMoney('250.5')).toBe('250.5 ج')
-  })
-  it('القيم الغائبة/الفاسدة = صفر', () => {
-    expect(formatMoney(null)).toBe('0 ج')
-    expect(formatMoney(undefined)).toBe('0 ج')
-    expect(formatMoney('abc')).toBe('0 ج')
-  })
-})
-
-describe('أوقات 12 ساعة', () => {
-  it('shortTime يقصّ الثواني', () => {
-    expect(shortTime('16:00:30')).toBe('16:00')
-  })
-  it('formatTime12 يحوّل مساءً وصباحاً ومنتصف الليل/النهار', () => {
-    expect(formatTime12('16:00')).toBe('4:00 م')
-    expect(formatTime12('09:30')).toBe('9:30 ص')
-    expect(formatTime12('00:15')).toBe('12:15 ص')
-    expect(formatTime12('12:00')).toBe('12:00 م')
-    expect(formatTime12('13:05')).toBe('1:05 م')
-  })
-  it('formatClock12 من كائن Date', () => {
-    expect(formatClock12(new Date(2026, 10, 20, 18, 5))).toBe('6:05 م')
-    expect(formatClock12(new Date(2026, 10, 20, 0, 0))).toBe('12:00 ص')
-  })
-  it('timeToMin', () => {
-    expect(timeToMin('01:30')).toBe(90)
-    expect(timeToMin('00:00')).toBe(0)
+  it('تاريخ مستقبلي أو فارغ: null', () => {
+    const now = new Date('2026-11-22T00:00:00')
+    expect(ageLabel('2027-01-01', now)).toBeNull()
+    expect(ageLabel(null, now)).toBeNull()
+    expect(ageLabel('', now)).toBeNull()
   })
 })
 
-describe('daysLabel', () => {
-  it('يرتّب الأيام ويصلها بفاصلة عربية', () => {
-    expect(daysLabel([5, 1])).toBe('الاثنين، الجمعة')
-    expect(daysLabel([0])).toBe('الأحد')
+describe('تواريخ ISO وفترات', () => {
+  it('todayISO/currentPeriod مع ساعة مثبّتة', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-22T15:00:00'))
+    expect(todayISO()).toBe('2026-11-22')
+    expect(currentPeriod()).toBe('2026-11')
   })
-  it('الفارغ = شرطة', () => {
-    expect(daysLabel([])).toBe('—')
-  })
-})
-
-describe('safeExternalUrl (مراجعة أمان C-01)', () => {
-  it('يقبل http/https فقط', () => {
-    expect(safeExternalUrl('https://example.com/x')).toBe('https://example.com/x')
-    expect(safeExternalUrl('http://example.com')).toBe('http://example.com')
-  })
-  it('يرفض schemes خطرة ونصوصاً غير صالحة', () => {
-    expect(safeExternalUrl('javascript:alert(1)')).toBeNull()
-    expect(safeExternalUrl('data:text/html;base64,xx')).toBeNull()
-    expect(safeExternalUrl('  ')).toBeNull()
-    expect(safeExternalUrl('not a url')).toBeNull()
+  it('shiftISODate عبر حدود الشهور والسنوات', () => {
+    expect(shiftISODate('2026-11-22', -1)).toBe('2026-11-21')
+    expect(shiftISODate('2026-01-01', -1)).toBe('2025-12-31')
+    expect(shiftISODate('2024-02-28', 1)).toBe('2024-02-29')
   })
 })
 
-describe('waLink', () => {
-  it('يحوّل الرقم المصري المحلي لصيغة دولية', () => {
-    expect(waLink('01012345678')).toBe('https://wa.me/201012345678')
+describe('waLink — روابط واتساب آمنة', () => {
+  it('يبني رابطاً من رقم مصري محلي ويشفر النص', () => {
+    expect(waLink('01001234567')).toBe('https://wa.me/201001234567')
+    expect(waLinkWithText('01001234567', 'أهلاً')).toBe(
+      'https://wa.me/201001234567?text=%D8%A3%D9%87%D9%84%D8%A7%D9%8B',
+    )
   })
-  it('يبقي الدولي كما هو ويتجاهل الرموز', () => {
-    expect(waLink('+20 101 234 5678')).toBe('https://wa.me/201012345678')
-    expect(waLink('00201012345678')).toBe('https://wa.me/201012345678')
-  })
-  it('غياب الرقم = null', () => {
+  it('رقم دولي يبقى كما هو وأرقام قصيرة تُرفض', () => {
+    expect(waLink('+201001234567')).toBe('https://wa.me/201001234567')
+    expect(waLink('123')).toBeNull()
     expect(waLink(null)).toBeNull()
-    expect(waLink('')).toBeNull()
-    expect(waLink('لا أرقام')).toBeNull()
   })
 })

@@ -1,0 +1,22 @@
+/** الفصول وباقاتها ومشرفاتها */
+export const classes = {
+  title: 'الفصول',
+  addClass: 'إضافة فصل',
+  editClass: 'تعديل الفصل',
+  name: 'اسم الفصل',
+  monthlyFee: 'الباقة الشهرية',
+  capacity: 'السعة',
+  ageFrom: 'السن من',
+  ageTo: 'السن إلى',
+  ageRange: '{from}–{to} سنة',
+  napEnabled: 'فيه قيلولة',
+  staff: 'مشرفات الفصل',
+  addStaff: 'إضافة مشرفة',
+  childrenCount: 'أطفال الفصل',
+  occupancy: '{count} / {capacity}',
+  emptyTitle: 'لا فصول لسه',
+  emptyBody: 'أنشئ أول فصل بباقته الشهرية وابدأ تسجيل الأطفال',
+  deleteConfirm: 'حذف الفصل «{name}»؟ لا يُحذف وفوقه تسجيلات.',
+  openToday: 'يوم النهارده',
+  sortOrder: 'الترتيب',
+} as const

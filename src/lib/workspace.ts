@@ -1,16 +1,14 @@
 import { useSyncExternalStore } from 'react'
 
-const STORAGE_KEY = 'teacher-app-active-teacher'
-const EVENT = 'teacher-workspace-changed'
+const STORAGE_KEY = 'nounou-active-nursery'
+const EVENT = 'nounou-workspace-changed'
 
 /**
- * مساحة العمل النشطة: معرّف المدرس الذي يعمل المستخدم تحت حسابه الآن.
- * الافتراضي null = حساب المستخدم نفسه (المدرس المالك). عند اختيار عضوية
- * فريق (مساعد عند مدرس آخر) يُحفظ teacher_id الخاص بذلك المدرس هنا،
- * وكل الهوكس تقرأ البيانات بهذا المعرّف — فتعمل وحدتا الطلاب والمجموعات
- * في الحالتين دون أي تغيير.
+ * الحضانة النشطة: معرّف الحضانة التي يعمل المستخدم في سياقها الآن.
+ * الافتراضي null = أول حضانة يملكها/يعمل بها (يختارها حلّ الهوية).
+ * كل الهوكس تقرأ البيانات بهذا المعرّف — نمط مساحة عمل المدرس نفسه.
  */
-function getActiveTeacherId(): string | null {
+function getActiveNurseryId(): string | null {
   try {
     return localStorage.getItem(STORAGE_KEY)
   } catch {
@@ -18,9 +16,9 @@ function getActiveTeacherId(): string | null {
   }
 }
 
-export function setActiveTeacherId(teacherId: string | null) {
+export function setActiveNurseryId(nurseryId: string | null) {
   try {
-    if (teacherId) localStorage.setItem(STORAGE_KEY, teacherId)
+    if (nurseryId) localStorage.setItem(STORAGE_KEY, nurseryId)
     else localStorage.removeItem(STORAGE_KEY)
   } catch {
     // تجاهل: التخزين المحلي غير متاح
@@ -37,7 +35,7 @@ function subscribe(onChange: () => void) {
   }
 }
 
-/** قراءة تفاعلية لمساحة العمل النشطة (تتحدث فوراً عند التبديل) */
-export function useActiveTeacherId(): string | null {
-  return useSyncExternalStore(subscribe, getActiveTeacherId, () => null)
+/** قراءة تفاعلية للحضانة النشطة (تتحدث فوراً عند التبديل) */
+export function useActiveNurseryId(): string | null {
+  return useSyncExternalStore(subscribe, getActiveNurseryId, () => null)
 }

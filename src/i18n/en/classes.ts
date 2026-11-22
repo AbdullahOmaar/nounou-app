@@ -1,0 +1,22 @@
+/** Classes, their packages and their staff */
+export const classes = {
+  title: 'Classes',
+  addClass: 'Add a class',
+  editClass: 'Edit class',
+  name: 'Class name',
+  monthlyFee: 'Monthly package',
+  capacity: 'Capacity',
+  ageFrom: 'Age from',
+  ageTo: 'Age to',
+  ageRange: '{from}–{to} years',
+  napEnabled: 'Has a nap time',
+  staff: 'Class staff',
+  addStaff: 'Add a staff member',
+  childrenCount: 'Children in class',
+  occupancy: '{count} / {capacity}',
+  emptyTitle: 'No classes yet',
+  emptyBody: 'Create your first class with its monthly package and start enrolling children',
+  deleteConfirm: 'Delete the class "{name}"? A class with enrollments cannot be deleted.',
+  openToday: "Today's day",
+  sortOrder: 'Order',
+}

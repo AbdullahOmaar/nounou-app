@@ -4,9 +4,7 @@ import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Field, TextInput } from '../../components/ui/form'
 import { useAuth } from '../../lib/AuthProvider'
-import { Logo } from '../../components/brand/Logo'
-import { useMascotVisible } from '../../components/mascot/useMascotVisible'
-import doffyIcon from '../../assets/mascot/icon.webp'
+import { Mascot } from '../../components/mascot/Mascot'
 import { Check } from 'lucide-react'
 import { updatePassword } from './api'
 import { t } from '../../i18n'
@@ -26,10 +24,6 @@ export function ResetPasswordPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
-  // نفس لوك أب الدخول (خطة الهوية P-1، توحيد 3A-310): وش دُفّي حين
-  // يظهر الماسكوت ولوجو الكتاب عند إيقافه — صفحة الاسترداد سطح مصادقة
-  // كالدخول تماماً فتأخذ نفس الوجه بدل اللوجو المنفرد
-  const mascotVisible = useMascotVisible()
   // مهلة قصيرة لالتقاط جلسة الاستعادة من مقطع الرابط قبل إعلان فشلها
   const [waited, setWaited] = useState(false)
   useEffect(() => {
@@ -64,19 +58,7 @@ export function ResetPasswordPage() {
       <div className="relative w-full max-w-[640px] px-4 pt-14 pb-10">
         <div className="text-center mb-6 rise-in">
           <div className="flex justify-center mb-3">
-            {mascotVisible ? (
-              <img
-                src={doffyIcon}
-                alt=""
-                aria-hidden="true"
-                width={84}
-                height={84}
-                draggable={false}
-                className="rounded-[22px] shadow-card select-none"
-              />
-            ) : (
-              <Logo size={76} />
-            )}
+            <Mascot size={84} className="rounded-[22px] shadow-card select-none" />
           </div>
           <h1 className="type-screen m-0">{t('auth.resetTitle')}</h1>
         </div>

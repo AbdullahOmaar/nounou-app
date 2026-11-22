@@ -57,7 +57,7 @@ export function PageLoadingOverlay({ label }: { label?: string }) {
     >
       <MascotLoader size={96} />
       <span className="text-muted type-secondary">
-        {visible ? t('mascot.loading') : (label ?? t('common.loading'))}
+        {visible ? t('common.loading') : (label ?? t('common.loading'))}
       </span>
     </div>
   )
@@ -108,16 +108,16 @@ export function SignInRequired() {
   )
 }
 
-/** مسجل دخول لكن لا يوجد ملف مدرس مرتبط بالحساب بعد */
-export function NoTeacherProfile() {
+/** مسجل دخول لكن لا توجد حضانة مرتبطة بالحساب بعد */
+export function NoNurseryProfile() {
   return (
     <Card className="text-center py-8">
       <div className="mx-auto mb-3 w-14 h-14 rounded-full bg-soft text-primary flex items-center justify-center">
         <GraduationCap size={28} />
       </div>
-      <div className="type-section mb-1">{t('common.noTeacherTitle')}</div>
+      <div className="type-section mb-1">{t('common.noNurseryTitle')}</div>
       <p className="text-muted type-secondary mb-0">
-        {t('common.noTeacherBody')}
+        {t('common.noNurseryBody')}
       </p>
     </Card>
   )

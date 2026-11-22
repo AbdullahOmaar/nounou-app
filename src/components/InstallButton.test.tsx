@@ -49,48 +49,48 @@ describe('InstallButton — سلوك ذكي', () => {
 
   it('يظهر عندما يعرض المتصفح التثبيت والتطبيق غير مثبّت', () => {
     renderAt()
-    expect(screen.getByRole('button', { name: 'تثبيت التطبيق' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'ثبّت نونو' })).toBeTruthy()
   })
 
   it('لا يظهر عندما لا يوجد عرض تثبيت', () => {
     state.canPrompt = false
     renderAt()
-    expect(screen.queryByRole('button', { name: 'تثبيت التطبيق' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'ثبّت نونو' })).toBeNull()
   })
 
   it('لا يظهر عندما يكون التطبيق مثبّتاً', () => {
     state.isInstalled = true
     renderAt()
-    expect(screen.queryByRole('button', { name: 'تثبيت التطبيق' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'ثبّت نونو' })).toBeNull()
   })
 
   it('يختفي عند التنقّل لصفحة أخرى دون ضغط، ولا يعود في نفس الجلسة', () => {
     const { unmount } = renderAt()
     fireEvent.click(screen.getByRole('button', { name: 'انتقل' }))
-    expect(screen.queryByRole('button', { name: 'تثبيت التطبيق' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'ثبّت نونو' })).toBeNull()
     // إعادة تركيب داخل الجلسة نفسها (sessionStorage محفوظ) — يبقى مخفياً
     unmount()
     renderAt()
-    expect(screen.queryByRole('button', { name: 'تثبيت التطبيق' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'ثبّت نونو' })).toBeNull()
   })
 
   it('يعود في جلسة جديدة (sessionStorage فارغ)', () => {
     sessionStorage.setItem('pwa-install-cta-hidden', '1')
     const first = renderAt()
-    expect(screen.queryByRole('button', { name: 'تثبيت التطبيق' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'ثبّت نونو' })).toBeNull()
     first.unmount()
     sessionStorage.clear()
     renderAt()
-    expect(screen.getByRole('button', { name: 'تثبيت التطبيق' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'ثبّت نونو' })).toBeTruthy()
   })
 
   it('الضغط يستدعي promptInstall ثم يخفي الزر', async () => {
     renderAt()
-    fireEvent.click(screen.getByRole('button', { name: 'تثبيت التطبيق' }))
+    fireEvent.click(screen.getByRole('button', { name: 'ثبّت نونو' }))
     expect(state.promptInstall).toHaveBeenCalledTimes(1)
     // الإخفاء بعد استقرار الوعد
     await vi.waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'تثبيت التطبيق' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'ثبّت نونو' })).toBeNull()
     })
   })
 })

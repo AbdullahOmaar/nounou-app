@@ -1,26 +1,43 @@
+import { currentLocale } from './locale'
+
 /**
- * تنسيقات Intl للغة (W7 — R-6).
- *
- * قرار الأرقام الموثّق: التطبيق يستخدم أرقاماً لاتينية وفواصل آلاف
- * ASCII عبر lib/format منذ v1.0 (قرار عرض قائم في كل الشاشات)، فلا
- * يبدّل هذا الملف أرقاماً قائمة — يقدّم فئة الجمع CLDR (تستخدمها t)
- * وتنسيق تاريخ ar-EG بأرقام لاتينية (u-nu-latn) للاستخدامات الجديدة،
- * وأي توحيد شامل للأرقام قرار مرحلة مستقل لا تغيير صامت هنا.
+ * تنسيقات Intl حسب اللغة النشطة. قرار الأرقام الموثّق (موروث من المدرس):
+ * أرقام لاتينية وفواصل آلاف ASCII في كل الشاشات (u-nu-latn) — عرض موحّد
+ * في العربي والإنجليزي معاً.
  */
-const dateFmt = new Intl.DateTimeFormat('ar-EG-u-nu-latn', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-})
-
-const pluralRules = new Intl.PluralRules('ar-EG')
-
-/** فئة جمع CLDR لعدد — zero/one/two/few/many/other */
-export function pluralCategory(count: number): Intl.LDMLPluralRule {
-  return pluralRules.select(count)
+function intlLocale(): string {
+  return currentLocale() === 'ar' ? 'ar-EG-u-nu-latn' : 'en-US'
 }
 
-/** تاريخ طويل عربي بأرقام لاتينية (مثال: «21 نوفمبر 2026») */
+/** فئة جمع CLDR لعدد في اللغة النشطة */
+export function pluralCategory(count: number): Intl.LDMLPluralRule {
+  return new Intl.PluralRules(intlLocale()).select(count)
+}
+
+/** تاريخ طويل (مثال: «22 نوفمبر 2026» / "November 22, 2026") */
 export function fmtDateLong(date: Date): string {
-  return dateFmt.format(date)
+  return new Intl.DateTimeFormat(intlLocale(), {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date)
+}
+
+/** تاريخ قصير (يوم/شهر/سنة) */
+export function fmtDateShort(date: Date): string {
+  return new Intl.DateTimeFormat(intlLocale(), {
+    day: 'numeric',
+    month: 'numeric',
+    year: 'numeric',
+  }).format(date)
+}
+
+/** اسم الشهر + السنة لفترة فاتورة 'YYYY-MM' */
+export function fmtPeriod(period: string): string {
+  const [y, m] = period.split('-').map((x) => parseInt(x, 10))
+  if (!y || !m) return period
+  return new Intl.DateTimeFormat(intlLocale(), {
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(y, m - 1, 1))
 }

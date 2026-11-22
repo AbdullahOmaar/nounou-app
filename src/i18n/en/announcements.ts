@@ -1,0 +1,17 @@
+/** Nursery announcements for parents */
+export const announcements = {
+  title: 'Announcements',
+  add: 'New announcement',
+  edit: 'Edit announcement',
+  headline: 'Headline',
+  body: 'Announcement text',
+  audienceLabel: 'Who receives it?',
+  audienceAll: 'Whole nursery',
+  audienceClass: 'A specific class',
+  publish: 'Publish',
+  publishedBadge: 'Published',
+  draftBadge: 'Draft',
+  emptyTitle: 'No announcements yet',
+  emptyBody: 'Publish your first announcement — it will reach all parents in their portal instead of the group chaos',
+  deleteConfirm: 'Delete this announcement?',
+}

@@ -1,191 +1,85 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { AttendanceStatus, PaymentMethod, PaymentRow } from '../../types/database'
-import { HOME } from '../home/hooks'
-import { SG } from '../students/hooks'
-import { ATT } from '../attendance/hooks'
-import { ANALYTICS } from '../analytics/hooks'
-import { ATRISK } from '../atrisk/hooks'
-import { MONEY } from '../money/hooks'
+import { useCurrentNursery } from '../../hooks/useCurrentNursery'
+import { useAuth } from '../../lib/AuthProvider'
 import { invalidatePrefixes } from '../../lib/invalidate'
-import {
-  applyAttendanceAdjustment,
-  createPayment,
-  fetchInvoice,
-  fetchInvoiceLines,
-  fetchInvoiceMonthAttendance,
-  fetchInvoicePayments,
-  fetchInvoices,
-  fetchStudentInvoices,
-  fetchStudentPayments,
-  fetchTeacherDisplayName,
-  fetchWhatsappTemplate,
-  generateInvoices,
-  voidPayment,
-  type InvoiceListItem,
-  type InvoiceMonthSession,
-  type IssueOptions,
-} from './api'
+import * as api from './api'
 
-/** كل مفاتيح وحدة الفواتير تبدأ بـ 'invoices' */
-export const INV = 'invoices'
+const FINANCE_PREFIXES = ['invoices', 'invoice', 'child-payments', 'overdue', 'children', 'home', 'proofs']
 
-export function useInvoices(teacherId: string | undefined, enabled: boolean) {
+export function useInvoices(period: string) {
+  const nursery = useCurrentNursery()
+  const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : null
   return useQuery({
-    queryKey: [INV, 'list', teacherId],
-    enabled: Boolean(teacherId) && enabled,
-    queryFn: () => fetchInvoices(teacherId!),
+    queryKey: ['invoices', nurseryId, period],
+    enabled: Boolean(nurseryId),
+    queryFn: () => api.listInvoices(nurseryId!, period),
   })
 }
 
-export function useInvoice(
-  teacherId: string | undefined,
-  invoiceId: string | undefined,
-  enabled: boolean,
-) {
+export function useInvoice(invoiceId: string | undefined) {
   return useQuery({
-    queryKey: [INV, 'detail', teacherId, invoiceId],
-    enabled: Boolean(teacherId && invoiceId) && enabled,
-    queryFn: () => fetchInvoice(teacherId!, invoiceId!),
+    queryKey: ['invoice', invoiceId],
+    enabled: Boolean(invoiceId),
+    queryFn: () => api.getInvoiceBundle(invoiceId!),
   })
 }
 
-export function useInvoiceLines(
-  teacherId: string | undefined,
-  invoiceId: string | undefined,
-  enabled: boolean,
-) {
+export function useOverdue() {
+  const nursery = useCurrentNursery()
+  const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : null
+  const isOwner = nursery.status === 'ready' && nursery.isOwner
   return useQuery({
-    queryKey: [INV, 'lines', teacherId, invoiceId],
-    enabled: Boolean(teacherId && invoiceId) && enabled,
-    queryFn: () => fetchInvoiceLines(teacherId!, invoiceId!),
+    queryKey: ['overdue', nurseryId],
+    enabled: Boolean(nurseryId && isOwner),
+    queryFn: () => api.listOverdue(nurseryId!),
   })
 }
 
-export function useInvoicePayments(
-  teacherId: string | undefined,
-  invoiceId: string | undefined,
-  enabled: boolean,
-) {
+export function useChildPayments(childId: string | undefined, enabled: boolean) {
   return useQuery({
-    queryKey: [INV, 'payments', teacherId, invoiceId],
-    enabled: Boolean(teacherId && invoiceId) && enabled,
-    queryFn: () => fetchInvoicePayments(teacherId!, invoiceId!),
+    queryKey: ['child-payments', childId],
+    enabled: Boolean(childId && enabled),
+    queryFn: () => api.listChildPayments(childId!),
   })
 }
 
-export function useStudentInvoices(
-  teacherId: string | undefined,
-  studentId: string | undefined,
-  enabled: boolean,
-) {
-  return useQuery({
-    queryKey: [INV, 'student-invoices', teacherId, studentId],
-    enabled: Boolean(teacherId && studentId) && enabled,
-    queryFn: () => fetchStudentInvoices(teacherId!, studentId!),
-  })
-}
-
-export function useStudentPayments(
-  teacherId: string | undefined,
-  studentId: string | undefined,
-  enabled: boolean,
-) {
-  return useQuery({
-    queryKey: [INV, 'student-payments', teacherId, studentId],
-    enabled: Boolean(teacherId && studentId) && enabled,
-    queryFn: () => fetchStudentPayments(teacherId!, studentId!),
-  })
-}
-
-export function useInvoiceMonthAttendance(
-  teacherId: string | undefined,
-  invoice: InvoiceListItem | null | undefined,
-  enabled: boolean,
-) {
-  return useQuery({
-    queryKey: [INV, 'month-attendance', teacherId, invoice?.invoice_id],
-    enabled: Boolean(teacherId && invoice) && enabled,
-    queryFn: () => fetchInvoiceMonthAttendance(teacherId!, invoice!),
-  })
-}
-
-export function useTeacherDisplayName(teacherId: string | undefined, enabled: boolean) {
-  return useQuery({
-    queryKey: [INV, 'teacher-name', teacherId],
-    enabled: Boolean(teacherId) && enabled,
-    queryFn: () => fetchTeacherDisplayName(teacherId!),
-  })
-}
-
-export function useWhatsappTemplate(teacherId: string | undefined, enabled: boolean) {
-  return useQuery({
-    queryKey: [INV, 'wa-template', teacherId],
-    enabled: Boolean(teacherId) && enabled,
-    queryFn: () => fetchWhatsappTemplate(teacherId!),
-  })
-}
-
-/**
- * أي عملية مالية تبطل كاش الفواتير والرئيسية والطلاب معاً:
- * الرئيسية تحسب محصّل الشهر وعدد الفواتير غير المسددة وهدف التحصيل منها،
- * والطلاب يعرضون شارات الأرصدة من student_balances.
- */
-function useInvalidateInvoices() {
+export function useInvoiceMutations() {
+  const nursery = useCurrentNursery()
+  const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : null
+  const { user } = useAuth()
   const qc = useQueryClient()
-  // الفلوس تغذي أيضاً: وحدة الفلوس (الربح)، التحليلات، والمعرّضين
-  // (سبب المتأخرات) — PAT-1
-  return () => invalidatePrefixes(qc, [INV, HOME, SG, MONEY, ANALYTICS, ATRISK])
-}
-
-export function useIssueInvoices(teacherId: string) {
-  const invalidate = useInvalidateInvoices()
-  return useMutation({
-    mutationFn: (opts: IssueOptions) => generateInvoices(teacherId, opts),
-    onSuccess: invalidate,
-  })
-}
-
-export function useCreatePayment(teacherId: string) {
-  const invalidate = useInvalidateInvoices()
-  return useMutation({
-    mutationFn: ({
-      invoiceId,
-      input,
-    }: {
-      invoiceId: string
-      input: { amount: number; method: PaymentMethod; paid_on: string }
-    }) => createPayment(teacherId, invoiceId, input),
-    onSuccess: invalidate,
-  })
-}
-
-export function useVoidPayment(teacherId: string) {
-  const invalidate = useInvalidateInvoices()
-  return useMutation({
-    mutationFn: (payment: PaymentRow) => voidPayment(teacherId, payment),
-    onSuccess: invalidate,
-  })
-}
-
-export function useApplyAdjustment(teacherId: string) {
-  const qc = useQueryClient()
-  const invalidateInvoices = useInvalidateInvoices()
-  return useMutation({
-    mutationFn: ({
-      invoice,
-      session,
-      newStatus,
-      reason,
-    }: {
-      invoice: InvoiceListItem
-      session: InvoiceMonthSession
-      newStatus: AttendanceStatus
-      reason: string
-    }) => applyAttendanceAdjustment(teacherId, invoice, session, newStatus, reason),
-    onSuccess: () => {
-      invalidateInvoices()
-      // التسوية تعدّل حالة حضور فعلية — كاش الحضور يتأثر أيضاً
-      void qc.invalidateQueries({ queryKey: [ATT] })
-    },
-  })
+  const refresh = () => invalidatePrefixes(qc, FINANCE_PREFIXES)
+  return {
+    nurseryId,
+    issue: useMutation({
+      mutationFn: (args: { period: string; dueDate: string | null }) =>
+        api.issueMonthlyInvoices(nurseryId!, args.period, args.dueDate, user?.id ?? null),
+      onSuccess: refresh,
+    }),
+    addLine: useMutation({
+      mutationFn: (args: {
+        invoiceId: string
+        line: Parameters<typeof api.addInvoiceLine>[2]
+      }) => api.addInvoiceLine(nurseryId!, args.invoiceId, args.line),
+      onSuccess: refresh,
+    }),
+    deleteLine: useMutation({
+      mutationFn: (lineId: string) => api.deleteInvoiceLine(lineId),
+      onSuccess: refresh,
+    }),
+    cancel: useMutation({
+      mutationFn: (invoiceId: string) => api.cancelInvoice(invoiceId),
+      onSuccess: refresh,
+    }),
+    recordPayment: useMutation({
+      mutationFn: (input: api.RecordPaymentInput) =>
+        api.recordPayment(nurseryId!, user?.id ?? null, input),
+      onSuccess: refresh,
+    }),
+    reversePayment: useMutation({
+      mutationFn: (payment: Parameters<typeof api.reversePayment>[2]) =>
+        api.reversePayment(nurseryId!, user?.id ?? null, payment),
+      onSuccess: refresh,
+    }),
+  }
 }

@@ -25,7 +25,7 @@
  *    للمستخدم في أول تحديث صفحة وهو متصل.
  */
 
-const CACHE_NAME = 'teacher-app-shell-v1'
+const CACHE_NAME = 'nounou-shell-v1'
 
 /** قشرة التطبيق المُخزّنة عند التثبيت — أصول ثابتة فقط، بلا أي بيانات */
 const SHELL_URLS = [
