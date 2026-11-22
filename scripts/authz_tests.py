@@ -775,6 +775,28 @@ def main():
                     body={"p_photo_id": a_child1})
         check("anon cannot call delete_expired_child_photo (service_role only)",
               s in (401, 403, 404), f"got {s} {str(b)[:80]}")
+        # استبدال رابط البوابة ذرياً (0014 — 3A-374/W1): الإصدار الجديد
+        # يُلغي القديم فوراً — لا رابطان حيّان لنفس الوصي أبداً.
+        raw_replaced = "authz-replaced-" + secrets.token_urlsafe(24)
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/replace_guardian_portal_token",
+                    body={"p_nursery": nursery_a, "p_guardian": a_guardian,
+                          "p_child": None, "p_token_hash": token_hash(raw_replaced)})
+        check("anon cannot replace a portal token",
+              s >= 400, f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/replace_guardian_portal_token",
+                    jwt=owner_a_jwt,
+                    body={"p_nursery": nursery_a, "p_guardian": a_guardian,
+                          "p_child": None, "p_token_hash": token_hash(raw_replaced)})
+        check("owner replaces the guardian portal token via the RPC",
+              s == 200, f"got {s} {str(b)[:120]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    body={"p_token": raw_valid})
+        check("the replaced (old) portal token is rejected immediately",
+              s >= 400, f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    body={"p_token": raw_replaced})
+        check("the replacement portal token works",
+              s == 200 and isinstance(b, dict), f"got {s} {str(b)[:120]}")
     finally:
         # ---------- cleanup ----------
         ids = [u for u in (owner_a_uid, owner_b_uid, staff_uid) if u]

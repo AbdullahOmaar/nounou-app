@@ -13,7 +13,6 @@ import { useToast } from '../../components/ui/toast'
 import { useT } from '../../i18n'
 import { ageLabel, formatClock12, waLink } from '../../lib/format'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
-import { useAuth } from '../../lib/AuthProvider'
 import { useClasses } from '../classes/hooks'
 import { useChildAttendance } from '../classday/hooks'
 import { ChildPaymentsTab } from '../invoices/ChildPaymentsTab'
@@ -47,7 +46,6 @@ export function ChildDetailPage() {
   const mutations = useChildMutations()
   const classes = useClasses()
   const settings = useNurserySettings()
-  const { user } = useAuth()
   const showToast = useToast()
   const [tab, setTab] = useState<Tab>('overview')
   const [guardianOpen, setGuardianOpen] = useState(false)
@@ -286,7 +284,6 @@ export function ChildDetailPage() {
                       nursery.status === 'ready' ? nursery.nurseryId : '',
                       payer.id,
                       null,
-                      user?.id ?? null,
                     )
                     setFreshLink(url)
                     void tokens.refetch()

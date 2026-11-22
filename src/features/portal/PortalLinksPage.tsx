@@ -10,7 +10,6 @@ import { useT } from '../../i18n'
 import { formatDateTimeAr, waLink } from '../../lib/format'
 import { requireSupabase } from '../../lib/supabase'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
-import { useAuth } from '../../lib/AuthProvider'
 import { invalidatePrefixes } from '../../lib/invalidate'
 import type { GuardianRow } from '../../types/database'
 import * as api from './api'
@@ -28,7 +27,6 @@ export function PortalLinksPage() {
   const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : null
   const canManage =
     nursery.status === 'ready' && nursery.can('can_manage_children')
-  const { user } = useAuth()
   const qc = useQueryClient()
   const showToast = useToast()
   const [freshLinks, setFreshLinks] = useState<Map<string, string>>(new Map())
@@ -83,7 +81,7 @@ export function PortalLinksPage() {
   const refresh = () => invalidatePrefixes(qc, ['portal-links', 'child'])
   const issue = useMutation({
     mutationFn: async (guardianId: string) => {
-      const url = await api.issueToken(nurseryId!, guardianId, null, user?.id ?? null)
+      const url = await api.issueToken(nurseryId!, guardianId, null)
       return { guardianId, url }
     },
     onSuccess: ({ guardianId, url }) => {
