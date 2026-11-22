@@ -15,7 +15,7 @@
 
 ## تسلسل التشغيل (بعد الخطوتين)
 
-3. **الهجرات:** طبّق `supabase/migrations/0001` → `0010` بالترتيب،
+3. **الهجرات:** طبّق `supabase/migrations/0001` → `0011` بالترتيب،
    statement-by-statement عبر `run_migration.py` فقط (قاعدة المشروع) —
    مكانه: `~/workspace/custom-connectors/custom.supabase/bin/run_migration.py`
    ويُستدعى بـ `<project_ref> <sql_file>`.
@@ -33,13 +33,15 @@
 6. **مستخدم الديمو + البذرة:** أنشئ مستخدم `demo@nounou-app.com`
    بكلمة `Demo123456` من لوحة Auth، ثم شغّل `supabase/demo_seed.sql`
    بعد استبدال `{{DEMO_USER_ID}}` بمعرّفه (بيانات وهمية واضحة فقط).
-7. **دالة البوابة:** انشر `supabase/functions/portal-media`
-   (`supabase functions deploy portal-media`) — تعتمد على سرّي
-   البيئة الافتراضيين SUPABASE_URL/SERVICE_ROLE_KEY في بيئة الدوال.
+7. **دوال الحافة:** انشر `supabase/functions/portal-media`
+   (`supabase functions deploy portal-media`) و`photo-retention`
+   (إنفاذ حذف الصور منتهية الاحتفاظ — تُستدعى بمفتاح الخدمة فقط) —
+   تعتمدان على سرّي البيئة الافتراضيين SUPABASE_URL/SERVICE_ROLE_KEY
+   في بيئة الدوال.
 8. **النشر:** اربط الريبو بمشروع Vercel جديد `nounou-app` (نفس
    إعدادات بناء المدرس: `npm run build`، الإخراج `dist`) وانشر.
 9. **بوابات حية بالترتيب:**
-   - `npm run test:authz` ضد المشروع الجديد — المتوقع ١٠٦/١٠٦.
+   - `npm run test:authz` ضد المشروع الجديد — المتوقع ١٠٩/١٠٩.
    - `npm run test:e2e` — المتوقع ٦/٦ على بذرة الديمو.
    - خط أساس الديمو: حضانة ١، فصول ٣، أطفال ٥، أوصياء ٣، فاتورة ١
      مدفوعة بالكامل، صفر توكنات بوابة نشطة بعد تنظيف E2E.
