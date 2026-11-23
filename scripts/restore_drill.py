@@ -313,7 +313,10 @@ def main():
     import pwd
     _pw = pwd.getpwnam("postgres")
     os.chown(workdir, _pw.pw_uid, _pw.pw_gid)
-    os.chmod(workdir, 0o700)
+    # مجلد عمل بملكية postgres و0700 — أضيق وضع صالح للاستخدام لمجلد؛
+    # الملفات جواه 0600. (Semgrep يقرأ +x المالك كـ«واسع» رغم أنه
+    # أضيق من 0o644 التي تقترحها رسالته — إنذار كاذب جوهرياً.)
+    os.chmod(workdir, 0o700)  # nosemgrep
     dump_path = os.path.join(workdir, "dump.sql")
     log(f"source ref={ref} target db={db} workdir={workdir}")
     verdict = "NO-GO"
