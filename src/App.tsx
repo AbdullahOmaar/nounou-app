@@ -146,6 +146,15 @@ export default function App() {
                   </Suspense>
                 }
               />
+              {/* جذر البوابة بلا توكن (3A-375): يقرأ جلسة الجهاز المخزنة */}
+              <Route
+                path="/p"
+                element={
+                  <Suspense fallback={<LoadingState />}>
+                    <PortalPage />
+                  </Suspense>
+                }
+              />
               <Route element={<RequireAuth />}>
                 <Route element={<AppShell />}>
                   <Route index element={<HomePage />} />

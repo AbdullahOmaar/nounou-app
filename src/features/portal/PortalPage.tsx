@@ -19,6 +19,7 @@ import {
 } from '../../lib/format'
 import type { PaymentMethod } from '../../types/database'
 import * as api from './api'
+import { capturePortalToken, getStoredPortalToken } from './session'
 
 /**
  * بوابة ولي الأمر العامة (/p/:token): بلا حساب وبلا تثبيت — الرابط
@@ -29,7 +30,16 @@ import * as api from './api'
 export function PortalPage() {
   const t = useT()
   const locale = useLocale()
-  const { token } = useParams()
+  const { token: urlToken } = useParams()
+  // جلسة الجهاز (3A-375): أول فتح يلتقط التوكن ويخزنه وينظف شريط
+  // العنوان؛ الزيارات اللاحقة بلا توكن تقرأ المخزن تلقائياً.
+  const [sessionToken, setSessionToken] = useState<string | null>(() =>
+    getStoredPortalToken(),
+  )
+  useEffect(() => {
+    if (urlToken) setSessionToken(capturePortalToken(urlToken))
+  }, [urlToken])
+  const token = urlToken ?? sessionToken
   const [childId, setChildId] = useState<string | null>(null)
   const [date, setDate] = useState(todayISO())
 
@@ -50,6 +60,22 @@ export function PortalPage() {
     queryFn: () => api.fetchPortalChildDay(token!, activeChild!.id, date),
     retry: false,
   })
+
+  // بلا توكن في الرابط ولا جلسة مخزنة: ليست حالة تحميل — اطلب رابطاً
+  // جديداً (قبل 375 كانت هذه الحالة عالق تحميل بلا نهاية).
+  if (!token) {
+    return (
+      <div className="min-h-dvh bg-bg text-text flex items-center justify-center p-4">
+        <Card className="text-center py-8 max-w-sm w-full">
+          <div className="flex justify-center mb-3">
+            <Mascot size={64} state="empty" />
+          </div>
+          <div className="type-section mb-1">{t('portal.invalidLink')}</div>
+          <p className="type-secondary text-muted">{t('portal.invalidLinkBody')}</p>
+        </Card>
+      </div>
+    )
+  }
 
   if (overview.isPending) return <LoadingState />
   if (overview.isError || !overview.data) {

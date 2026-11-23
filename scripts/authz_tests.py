@@ -941,6 +941,34 @@ def main():
                     body={"p_token": raw_replaced, "p_payment_id": x2_pay})
         check("cancelling an already-cancelled payment is rejected",
               s >= 400, f"got {s} {str(b)[:80]}")
+        # 3A-375: انتهاء منزلق (0019) + جلسة ملغاة تموت
+        # توكن جديد تماماً (بانتهاء افتراضي 30 يوماً — لم يُحلّ بعد)؛
+        # أي resolve ناجح يجب أن يمدده إلى ما بعد الآن + 170 يوماً.
+        # (لا يُعاد استخدام raw_replaced: حلّ مرتين من قبل فامتدّ أصلاً.)
+        raw_slide = "authz-slide-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', '{token_hash(raw_slide)}', 'authz slide')")
+        before = one(ref,
+                     "select (expires_at > now() + interval '170 days') as extended "
+                     "from guardian_access_tokens "
+                     f"where token_hash = '{token_hash(raw_slide)}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    body={"p_token": raw_slide})
+        after = one(ref,
+                    "select (expires_at > now() + interval '170 days') as extended "
+                    "from guardian_access_tokens "
+                    f"where token_hash = '{token_hash(raw_slide)}'")
+        check("successful portal resolve slides expiry to +180 days",
+              s == 200 and before.get("extended") is False
+              and after.get("extended") is True,
+              f"got {s} / {before} -> {after}")
+        sql(ref, "update guardian_access_tokens set revoked_at = now() "
+                 f"where token_hash = '{token_hash(raw_replaced)}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    body={"p_token": raw_replaced})
+        check("a revoked device session dies on the next call",
+              s >= 400, f"got {s} {str(b)[:80]}")
     finally:
         # ---------- cleanup ----------
         ids = [u for u in (owner_a_uid, owner_b_uid, staff_uid) if u]
