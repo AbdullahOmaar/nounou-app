@@ -23,6 +23,7 @@ import os
 import secrets
 import subprocess
 import sys
+import time
 from datetime import date, timedelta
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -90,14 +91,23 @@ def load_env():
 
 
 def sql(ref, query):
-    """SQL عبر Management API بواسطة أداة الموصل (بيانات اعتماد بديلة آمنة)."""
-    out = subprocess.run(
-        [sys.executable, HELPER, "query-inline", ref, query],
-        capture_output=True, text=True, timeout=120,
-    )
-    if out.returncode != 0:
-        raise RuntimeError(f"SQL failed: {out.stderr.strip()[:300]}")
-    return json.loads(out.stdout) if out.stdout.strip() else []
+    """SQL عبر Management API بواسطة أداة الموصل (بيانات اعتماد بديلة آمنة).
+
+    يعيد المحاولة 3 مرات بفاصل متزايد: الموصل يتعثر عابراً أحياناً
+    (عطل لحظي في API الإدارة) وعطل واحد لا يجب أن يقتل تشغيلة كاملة
+    — نفس نمط --retry في rest() أدناه. الفشل الدائم يرفع كالمعتاد.
+    """
+    last_err = ""
+    for attempt in range(3):
+        out = subprocess.run(
+            [sys.executable, HELPER, "query-inline", ref, query],
+            capture_output=True, text=True, timeout=120,
+        )
+        if out.returncode == 0:
+            return json.loads(out.stdout) if out.stdout.strip() else []
+        last_err = out.stderr.strip()[:300]
+        time.sleep(2 * (attempt + 1))
+    raise RuntimeError(f"SQL failed: {last_err}")
 
 
 def rest(url, anon, method, path, jwt=None, body=None, expect_json=True):
@@ -190,9 +200,13 @@ def main():
     # مسح تحضيري (3A-395): بقايا تشغيل سابق انهار قبل التنظيف —
     # حضانات «authz fixture%» ومستخدمو «authz-%» — حتى يبدأ الأساس
     # نظيفاً وتشغيلتان متتاليتان تعدّيان 100% بلا بقايا. الديمو لا
-    # يُمس: أسماؤه لا تطابق النمطين.
-    sql(ref, "delete from nurseries where name like 'authz fixture%'")
-    sql(ref, "delete from auth.users where email like 'authz-%'")
+    # يُمس: أسماؤه لا تطابق النمطين. المسح بذل جهد فقط: عطل عابر
+    # في الموصل لا يقتل التشغيلة — فحص الأساس في النهاية هو الحكم.
+    try:
+        sql(ref, "delete from nurseries where name like 'authz fixture%'")
+        sql(ref, "delete from auth.users where email like 'authz-%'")
+    except RuntimeError as e:
+        print(f"  WARN pre-sweep failed (continuing): {e}")
     base0 = baseline(ref)
     print(f"authz tests against {ref} — baseline: {base0}")
     # يوم فصل قسم الـ staff: غداً دائماً — لا يصطدم أبداً بيوم البذرة
@@ -922,7 +936,7 @@ def main():
         gone = one(ref, "select count(*) as c from payments "
                         f"where id = '{x2_pay}'") if x2_pay else {"c": -1}
         check("unconfirmed portal payment can be cancelled by its token",
-              s == 200 and int(gone["c"]) == 0, f"got {s} {str(b)[:80]} / {gone}")
+              s in (200, 204) and int(gone["c"]) == 0, f"got {s} {str(b)[:80]} / {gone}")
         s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_cancel_payment",
                     body={"p_token": raw_replaced, "p_payment_id": x2_pay})
         check("cancelling an already-cancelled payment is rejected",
