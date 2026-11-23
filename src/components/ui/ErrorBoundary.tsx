@@ -3,6 +3,7 @@ import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { Card } from './Card'
 import { Button } from './Button'
 import { t } from '../../i18n'
+import { reportError } from '../../lib/sentry'
 import { Mascot } from '../mascot/Mascot'
 
 interface ErrorBoundaryProps {
@@ -34,6 +35,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('[app] unhandled render error', error, info.componentStack)
+    // تتبّع الأخطاء (3A-350): يُرسَل لـ Sentry عند تهيئته فقط (DSN مضبوط)
+    reportError(error)
   }
 
   render(): ReactNode {

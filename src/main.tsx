@@ -9,6 +9,10 @@ import '@fontsource/ibm-plex-sans-arabic/700.css'
 import './index.css'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ui/ErrorBoundary.tsx'
+import { initSentry } from './lib/sentry.ts'
+
+// تتبّع الأخطاء (3A-350): خامل بلا VITE_SENTRY_DSN — انظر lib/sentry.ts
+initSentry()
 // التقاط beforeinstallprompt مبكراً لبطاقة التثبيت في الإعدادات (خطوة 11)
 import './lib/installPrompt'
 

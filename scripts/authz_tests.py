@@ -685,6 +685,18 @@ def main():
                         body={"p_token": raw})
             check(f"portal overview rejects a {label} token",
                   s >= 400, f"got {s} {str(b)[:80]}")
+        # عدّاد فتحات البوابة (3A-350): الاستدعاء الصالح حدّث last_used_at
+        # عبر portal_token_resolve، والتوكن الملغي لم يُلمس أبداً
+        valid_row = one(ref, "select last_used_at from guardian_access_tokens "
+                             f"where token_hash = '{token_hash(raw_valid)}'")
+        check("portal overview updates last_used_at for a valid token (3A-350)",
+              valid_row.get("last_used_at") is not None,
+              f"got {valid_row}")
+        revoked_row = one(ref, "select last_used_at from guardian_access_tokens "
+                               f"where token_hash = '{token_hash(raw_revoked)}'")
+        check("rejected token never updates last_used_at (3A-350)",
+              revoked_row.get("last_used_at") is None,
+              f"got {revoked_row}")
         s, b = rest(url, anon, "POST",
                     "/rest/v1/rpc/nursery_portal_child_day_by_token",
                     body={"p_token": raw_valid, "p_child_id": a_child1})
