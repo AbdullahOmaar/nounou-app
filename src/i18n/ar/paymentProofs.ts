@@ -11,6 +11,8 @@ export const paymentProofs = {
   },
   fromGuardian: 'من {guardian} عن {child}',
   claimedAmount: 'المبلغ المُدّعى',
+  childBalance: 'المتبقي على الطفل: {amount}',
+  invoiceBalance: 'فاتورة {period} — المتبقي {amount}',
   approve: 'اعتماد كدفعة',
   reject: 'رفض',
   rejectReason: 'سبب الرفض',

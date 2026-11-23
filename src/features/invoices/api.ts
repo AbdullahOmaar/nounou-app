@@ -254,7 +254,8 @@ export interface RecordPaymentInput {
 /**
  * تسجيل دفعة من الإدارة: نقدي بلا إثبات؛ إلكتروني يقبله المالك مباشرة
  * (proof_status='approved' إن أرفق صورة، وإلا not_required لأنه قبضٌ
- * موثّق من المالك نفسه). رقم الإيصال من عدّاد القاعدة الذرّي.
+ * موثّق من المالك نفسه). رقم الإيصال يملؤه مشغّل القاعدة عند الإدراج
+ * من العدّاد الذرّي (هجرة 0013) — لا إسناد يدوياً هنا.
  */
 export async function recordPayment(
   nurseryId: string,
@@ -262,11 +263,6 @@ export async function recordPayment(
   input: RecordPaymentInput,
 ): Promise<void> {
   const db = requireSupabase()
-  const { data: receiptNo, error: rErr } = await db.rpc('next_receipt_no', {
-    p_nursery: nurseryId,
-  })
-  if (rErr) throw rErr
-
   let proofPath: string | null = null
   const paymentId = crypto.randomUUID()
   if (input.proof_file) {
@@ -285,7 +281,6 @@ export async function recordPayment(
     child_id: input.child_id,
     amount: input.amount,
     method: input.method,
-    receipt_no: receiptNo as number,
     proof_path: proofPath,
     proof_status: input.method === 'cash' ? 'not_required' : 'approved',
     reviewed_by: input.method === 'cash' ? null : actorId,

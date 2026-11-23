@@ -39,6 +39,12 @@ export function InvoiceDetailPage() {
     )
   const { invoice, lines, payments, balance, childName } = bundle.data
   const settled = (balance?.balance ?? 0) <= 0 && invoice.status === 'issued'
+  // حارس إلغاء الفاتورة (3A-363): دفعة حيّة (فعّالة أو معلّقة، غير معكوسة
+  // وليست سطر عكس) تمنع الإلغاء — نفس قاعدة مشغّل القاعدة في هجرة 0013
+  const hasBlockingPayments = payments.some(
+    (p) =>
+      !p.reversed_by_id && !p.reverses_id && p.proof_status !== 'rejected',
+  )
 
   const lineTypeLabel = (type: InvoiceLineType): string =>
     type === 'base'
@@ -198,11 +204,16 @@ export function InvoiceDetailPage() {
         )}
       </section>
 
-      {invoice.status !== 'cancelled' && (
-        <Button variant="ghost" onClick={() => setCancelOpen(true)}>
-          {t('invoices.cancelInvoice')}
-        </Button>
-      )}
+      {invoice.status !== 'cancelled' &&
+        (hasBlockingPayments ? (
+          <p className="type-secondary text-muted">
+            {t('invoices.cancelBlockedHasPayments')}
+          </p>
+        ) : (
+          <Button variant="ghost" onClick={() => setCancelOpen(true)}>
+            {t('invoices.cancelInvoice')}
+          </Button>
+        ))}
 
       <RecordPaymentSheet
         open={payOpen}
