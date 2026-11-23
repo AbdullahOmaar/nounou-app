@@ -2,12 +2,18 @@
 // نونو — Edge Function: photo-retention
 // ----------------------------------------------------------------------------
 // إنفاذ سياسة الاحتفاظ بالصور (قرار ق٨ — هجرة 0011): تُستدعى بالـ
-// service role فقط (رأس Authorization يطابق مفتاح الخدمة نفسه)، فتجمع
-// الصور منتهية الاحتفاظ عبر expired_child_photos، وتحذف كل كائن تخزين
-// من حاوية child-media عبر واجهة التخزين، ثم تحذف سجله عبر
-// delete_expired_child_photo (التي تعيد فحص الانتهاء لحظة الحذف).
-// الترتيب آمن عند الفشل: ملف يُحذف وسجله يبقى = جولة قادمة تنظّفه؛
-// وسجل لا يُحذف أبداً قبل نجاح حذف ملفه.
+// service role فقط، فتجمع الصور منتهية الاحتفاظ عبر
+// expired_child_photos، وتحذف كل كائن تخزين من حاوية child-media عبر
+// واجهة التخزين، ثم تحذف سجله عبر delete_expired_child_photo (التي
+// تعيد فحص الانتهاء لحظة الحذف). الترتيب آمن عند الفشل: ملف يُحذف
+// وسجله يبقى = جولة قادمة تنظّفه؛ وسجل لا يُحذف أبداً قبل نجاح حذف ملفه.
+//
+// التفويض: البوابة (verify_jwt) تتحقق من توقيع الـ JWT أصلاً، والدالة
+// تفكّ حمولته وتقبل role === 'service_role' فقط. لا مقارنة سلسلة
+// بمفتاح بيئة — فحص 2026-11-23 أثبت أن SUPABASE_SERVICE_ROLE_KEY
+// المحقون في بيئة Edge لا يطابق أي مفتاح يرده API (JWT قديم ولا
+// sb_secret_*)، فكانت كل الاستدعاءات 401. المتصل المجدول (pg_cron)
+// يرسل JWT الـ service_role القديم لأنه الوحيد الذي تقبله البوابة.
 //
 // التشغيل: يدوياً من المشغّل (curl بقناع الخدمة) أو مجدولاً لاحقاً
 // (pg_cron + pg_net أو مجدول خارجي) — انظر docs/OPERATIONS.md.
@@ -34,6 +40,22 @@ function json(body: unknown, status: number): Response {
   });
 }
 
+// يفكّ دور الـ JWT من حمولته (base64url) بلا تحقق توقيع — التوقيع
+// تحققت منه البوابة أصلاً (verify_jwt). أي قيمة غير JWT صالح ترجع ''.
+function jwtRole(authorization: string | null): string {
+  if (!authorization || !authorization.startsWith("Bearer ")) return "";
+  const parts = authorization.slice(7).split(".");
+  if (parts.length !== 3) return "";
+  try {
+    const payload = JSON.parse(
+      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")),
+    ) as { role?: unknown };
+    return typeof payload.role === "string" ? payload.role : "";
+  } catch {
+    return "";
+  }
+}
+
 interface ExpiredPhoto {
   photo_id: string;
   nursery_id: string;
@@ -46,9 +68,10 @@ Deno.serve(async (req: Request) => {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return json({ error: "not_configured" }, 500);
   }
-  // بوابة الخدمة: لا يقبل إلا حامل مفتاح الخدمة نفسه — أي JWT مستخدم
-  // (مالك/مشرفة/مجهول) مرفوض هنا قبل أي عمل.
-  if (req.headers.get("Authorization") !== `Bearer ${SERVICE_ROLE_KEY}`) {
+  // بوابة الخدمة: لا يقبل إلا JWT بدور service_role — البوابة تحققت
+  // من التوقيع أصلاً (verify_jwt)، وهنا نتحقق من الدور فقط. أي JWT
+  // مستخدم (مالك/مشرفة/مجهول) مرفوض قبل أي عمل.
+  if (jwtRole(req.headers.get("Authorization")) !== "service_role") {
     return json({ error: "unauthorized" }, 401);
   }
 
