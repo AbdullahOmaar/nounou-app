@@ -30,7 +30,9 @@
     تُستعاد بيانات objects الوصفية فقط. تغطية الـblobs تتطلب هدفاً
     سحابياً (البديل الاحتياطي في 3A-347).
   - ملف التفريغ يحوي بيانات ديمو + هواتف أولياء — يعيش في /tmp
-    ويُحذف في النهاية دائماً؛ لا يُلتزم في git أبداً.
+    ويُحذف في النهاية دائماً؛ لا يُلتزم في git أبداً. الصلاحيات:
+    مجلد العمل 0700 وملفاته 0600 بملكية postgres (القارئ الوحيد
+    عبر psql) — بلا أي قراءة للجميع (Semgrep على PR #20).
 
 الاستخدام:  python3 scripts/restore_drill.py [--keep]
   --keep: يُبقي القاعدة المؤقتة وملف التفريغ للفحص اليدوي.
@@ -104,12 +106,18 @@ ORPHAN_CHECKS = {
 
 
 def write_file(path, content):
-    """اكتب ملفاً بصلاحيات قراءة للجميع: ملفات التدريب تُقرأ من
-    مستخدم postgres في النظام، وumask الجذر قد يجعلها 0600 فيموت
-    psql بـ Permission denied (درس أول تشغيلة 2026-11-23)."""
+    """اكتب ملف تدريب بملكية postgres وصلاحيات 0600: ملفات التدريب
+    تُقرأ من مستخدم postgres في النظام (psql)، وملف التفريغ يحوي
+    هواتف أولياء — فلا يقرؤها سوى postgres والجذر. درسا التشغيلات:
+    (1) umask الجذر يجعل الملفات 0600 بملكية الجذر فيموت psql بـ
+    Permission denied؛ (2) فتحها 0644/0755 للجميع حقيقي كثغرة
+    (Semgrep على PR #20) — الحل ملكية postgres لا فتح الصلاحيات."""
+    import pwd
+    pw = pwd.getpwnam("postgres")
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(content)
-    os.chmod(path, 0o644)
+    os.chown(path, pw.pw_uid, pw.pw_gid)
+    os.chmod(path, 0o600)
 
 
 def log(msg):
@@ -300,7 +308,12 @@ def main():
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     db = f"{DRILL_PREFIX}{stamp}"
     workdir = tempfile.mkdtemp(prefix="nounou-drill-")
-    os.chmod(workdir, 0o755)
+    # مجلد العمل بملكية postgres و0700: التفريغ فيه يحوي هواتف أولياء،
+    # ولا يقرؤه سوى postgres (psql) والجذر (السكربت) — بلا قراءة للجميع.
+    import pwd
+    _pw = pwd.getpwnam("postgres")
+    os.chown(workdir, _pw.pw_uid, _pw.pw_gid)
+    os.chmod(workdir, 0o700)
     dump_path = os.path.join(workdir, "dump.sql")
     log(f"source ref={ref} target db={db} workdir={workdir}")
     verdict = "NO-GO"
