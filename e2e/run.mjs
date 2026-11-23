@@ -143,11 +143,15 @@ async function bodyText(page) {
 }
 
 /** ينقر أول عنصر (زر/رابط) يحتوي نصه على النص المعطى — نقرة حقيقية عبر Puppeteer. */
-async function clickByText(page, text, { timeout = WAIT_TIMEOUT, selector = 'button, a' } = {}) {
+async function clickByText(page, text, { timeout = WAIT_TIMEOUT, selector = 'button, a, [role="button"], .cursor-pointer' } = {}) {
   const handle = await page.waitForFunction(
     (t, sel) => {
-      const els = [...document.querySelectorAll(sel)];
-      return els.find((el) => el.innerText && el.innerText.includes(t) && !el.disabled) || null;
+      const els = [...document.querySelectorAll(sel)].filter(
+        (el) => el.innerText && el.innerText.includes(t) && !el.disabled,
+      );
+      // الأقصر نصاً أولاً: الزر نفسه لا البطاقة الحاوية (نصها أطول دائماً)
+      els.sort((a, b) => a.innerText.length - b.innerText.length);
+      return els[0] || null;
     },
     { timeout },
     text,
@@ -158,6 +162,21 @@ async function clickByText(page, text, { timeout = WAIT_TIMEOUT, selector = 'but
   await el.scrollIntoView().catch(() => {});
   await el.click();
   return el;
+}
+
+/** ينقر زراً بـ aria-label مطابق — لأزرار Fab التي تنكمش تسميتها النصية بعد 2.6 ثانية */
+async function clickAriaLabel(page, label, timeout = WAIT_TIMEOUT) {
+  const handle = await page.waitForFunction(
+    (l) => {
+      const els = [...document.querySelectorAll('button')];
+      return els.find((el) => el.getAttribute('aria-label') === l && !el.disabled) || null;
+    },
+    { timeout },
+    label,
+  );
+  const el = handle.asElement();
+  assert(el, `لم يُعثر على زر aria-label: ${label}`);
+  await el.click();
 }
 
 async function waitPathname(page, expected, timeout = WAIT_TIMEOUT) {
@@ -224,6 +243,8 @@ async function clickButtonInCardWith(page, name, label) {
 async function issuePortalLink(page) {
   await page.goto(BASE + '/portal-links', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
   await waitBodyText(page, 'روابط أولياء الأمور');
+  // انتظر تحميل القائمة فعلياً (العنوان يظهر قبل البيانات)
+  await waitBodyText(page, 'إنشاء رابط');
   const hasIssue = await page.evaluate(() => {
     const btns = [...document.querySelectorAll('button')];
     const b = btns.find((x) => x.innerText && x.innerText.includes('إنشاء رابط'));
@@ -233,10 +254,21 @@ async function issuePortalLink(page) {
   if (!hasIssue) {
     // لا زر إصدار: للوصي رابط نشط — ألغه ثم أصدر جديداً
     await clickByText(page, 'إلغاء الرابط');
-    await sleep(1500);
     await clickByText(page, 'إنشاء رابط');
   }
-  await sleep(2500);
+  // انتظر ظهور رابط واتساب فعلياً (نوم ثابت لا يكفي عبر الريلاي)
+  await page
+    .waitForFunction(
+      () =>
+        [...document.querySelectorAll('a[href*="wa.me"]')].some((a) => {
+          try {
+            const text = new URL(a.href).searchParams.get('text') || '';
+            return /\/p\/[A-Za-z0-9_-]{20,}/.test(text);
+          } catch { return false; }
+        }),
+      { timeout: WAIT_TIMEOUT },
+    )
+    .catch(() => {});
   const link = await page.evaluate(() => {
     const anchors = [...document.querySelectorAll('a[href*="wa.me"]')];
     for (const a of anchors) {
@@ -297,6 +329,8 @@ const tests = [
     async run(page) {
       await demoLogin(page);
       await waitBodyText(page, 'حاضر النهارده');
+      const txt = await bodyText(page);
+      assert(txt.includes('حاضر النهارده'), 'الرئيسية لا تعرض عدّاد الحضور');
     },
   },
   {
@@ -344,7 +378,11 @@ const tests = [
     async run(page) {
       await ensureSession(page);
       await page.goto(BASE + '/invoices', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-      await waitBodyText(page, 'إصدار فواتير الشهر');
+      // زر الإصدار Fab: تسميته النصية تنكمش بعد 2.6s — الثابت هو aria-label
+      await page.waitForFunction(
+        () => [...document.querySelectorAll('button')].some((b) => b.getAttribute('aria-label') === 'إصدار الفواتير'),
+        { timeout: WAIT_TIMEOUT },
+      );
     },
   },
   {
@@ -372,8 +410,7 @@ const tests = [
       await ensureSession(page);
       // فاتورة بذرة الديمو عن الشهر الماضي فقط — أصدِر فواتير الشهر الحالي
       await page.goto(BASE + '/invoices', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-      await waitBodyText(page, 'إصدار الفواتير');
-      await clickByText(page, 'إصدار الفواتير');
+      await clickAriaLabel(page, 'إصدار الفواتير');
       await clickDialogButton(page, 'إصدار الفواتير');
       await waitBodyText(page, 'اتصدرت');
       const link = await issuePortalLink(page);
@@ -467,6 +504,7 @@ const tests = [
       await waitBodyText(page, 'البراعم');
       await clickByText(page, 'البراعم');
       await page.waitForFunction(() => location.pathname.startsWith('/today/'), { timeout: WAIT_TIMEOUT });
+      await waitBodyText(page, 'يوسف تجريبي');
       const countArrivedButtons = async () =>
         page.evaluate(
           () =>
@@ -504,6 +542,7 @@ const tests = [
       await waitBodyText(page, 'قوائم النهارده');
       await clickByText(page, 'خط المعادي التجريبي');
       await waitBodyText(page, 'قايمة الركوب (الصبح)');
+      await waitBodyText(page, 'يوسف تجريبي');
       await clickButtonInCardWith(page, 'يوسف تجريبي', 'ركب');
       await waitBodyText(page, 'ركب ✓');
       await clickByText(page, 'قايمة النزول (بعد الضهر)');
