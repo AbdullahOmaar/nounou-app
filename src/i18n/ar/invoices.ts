@@ -15,6 +15,7 @@ export const invoices = {
   issuing: 'جارٍ الإصدار…',
   issueDone: 'اتصدرت {count} فاتورة',
   issueSkipped: '{count} طفل عندهم فاتورة للشهر ده بالفعل',
+  issueNoPrice: '{count} طفل بلا باقة سعر — ما اتصدرلهمش فواتير: {names}',
   addLine: 'إضافة بند',
   lineBase: 'باقة {class}',
   lineBus: 'اشتراك باص — {route}',

@@ -19,6 +19,7 @@ export const bus = {
   markAbsent: 'مش راكب النهارده',
   handedTo: 'اتسلّم لـ',
   handedHome: 'باب البيت',
+  handoverHint: 'اختاري مين استلم الطفل — لازم تختاري قبل الحفظ',
   listProgress: '{done} من {total}',
   emptyRoutes: 'لا خطوط باص لسه',
   emptyRoutesBody: 'ضيف أول خط واشتراكات أطفاله',

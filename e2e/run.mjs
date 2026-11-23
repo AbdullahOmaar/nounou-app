@@ -634,7 +634,7 @@ const tests = [
   },
   {
     id: '10-bus-lists',
-    title: 'قوائم الباص: ركوب صباحاً ونزول بعد الضهر (handed_to غير مسجل من الواجهة — انظر الملاحظة)',
+    title: 'قوائم الباص: ركوب صباحاً ونزول بعد الضهر مع تسجيل المستلم (3A-378)',
     async run(page) {
       await ensureSession(page);
       await page.goto(BASE + '/bus', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
@@ -652,10 +652,13 @@ const tests = [
       await waitBodyText(page, 'يوسف تجريبي');
       if (!(await bodyText(page)).includes('نزل / اتسلّم ✓')) {
         await clickButtonInCardWith(page, 'يوسف تجريبي', 'نزل / اتسلّم');
+        // 3A-378: الزر يفتح ورقة تسليم — المستلم اختيار إجباري قبل الحفظ
+        await waitBodyText(page, 'اختاري مين استلم الطفل');
+        await clickByText(page, 'باب البيت');
+        await clickByText(page, 'حفظ');
         await waitBodyText(page, 'نزل / اتسلّم ✓');
+        await waitBodyText(page, 'باب البيت');
       }
-      // ملاحظة موثقة (3A-338): زر «نزل / اتسلّم» لا يسجل handed_to أبداً
-      // في الواجهة — الحقل موجود في API لكن بلا إدخال؛ يُعاد للمدير كفجوة.
     },
   },
   {

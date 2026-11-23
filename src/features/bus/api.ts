@@ -88,7 +88,11 @@ export async function deleteSubscription(id: string): Promise<void> {
 
 export interface BusListBundle {
   list: BusDayListRow
-  entries: (BusDayEntryRow & { childName: string; pickupPersons: { id: string; full_name: string }[] })[]
+  entries: (BusDayEntryRow & {
+    childName: string
+    pickupPersons: { id: string; full_name: string }[]
+    handedToName: string | null
+  })[]
 }
 
 /** قائمة يوم لخط واتجاه — تُبنى كسولاً من الاشتراكات النشطة عند أول فتح */
@@ -142,7 +146,12 @@ export async function getOrBuildDayList(
     const r = row as unknown as BusDayEntryRow & {
       child: { full_name: string } | null
     }
-    return { ...r, childName: r.child?.full_name ?? '', pickupPersons: [] as { id: string; full_name: string }[] }
+    return {
+      ...r,
+      childName: r.child?.full_name ?? '',
+      pickupPersons: [] as { id: string; full_name: string }[],
+      handedToName: null as string | null,
+    }
   })
   if (direction === 'to_home' && rows.length > 0) {
     const { data: persons } = await db
@@ -158,6 +167,22 @@ export async function getOrBuildDayList(
     }
     for (const r of rows) r.pickupPersons = byChild.get(r.child_id) ?? []
   }
+  const handedIds = rows
+    .map((r) => r.handed_to)
+    .filter((id): id is string => Boolean(id))
+  if (handedIds.length > 0) {
+    const { data: persons } = await db
+      .from('pickup_persons')
+      .select('id, full_name')
+      .in('id', handedIds)
+    const byId = new Map(
+      ((persons ?? []) as { id: string; full_name: string }[]).map((p) => [
+        p.id,
+        p.full_name,
+      ]),
+    )
+    for (const r of rows) r.handedToName = r.handed_to ? (byId.get(r.handed_to) ?? null) : null
+  }
   return { list: listRow, entries: rows }
 }
 
@@ -166,6 +191,7 @@ export async function setEntryStatus(
   status: BusDayEntryRow['status'],
   actorId: string | null,
   handedTo: string | null = null,
+  doorstep = false,
 ): Promise<void> {
   const db = requireSupabase()
   const { error } = await db
@@ -175,6 +201,7 @@ export async function setEntryStatus(
       done_at: status === 'pending' ? null : new Date().toISOString(),
       done_by: actorId,
       handed_to: handedTo,
+      handed_to_doorstep: doorstep,
     })
     .eq('id', entryId)
   if (error) throw error

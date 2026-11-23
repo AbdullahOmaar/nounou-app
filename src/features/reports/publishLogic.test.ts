@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { childrenWithoutReports } from './publishLogic'
+import { childrenWithoutReports, reportAccessFor } from './publishLogic'
 
 const present = [
   { id: 'c1', name: 'ليان' },
@@ -25,5 +25,22 @@ describe('childrenWithoutReports (W2)', () => {
 
   it('ignores report ids for children not present', () => {
     expect(childrenWithoutReports(present, new Set(['c1', 'c2', 'c3', 'cX']))).toEqual([])
+  })
+})
+
+describe('reportAccessFor (X2)', () => {
+  it('present and early_leave are editable', () => {
+    expect(reportAccessFor('present')).toBe('editable')
+    expect(reportAccessFor('early_leave')).toBe('editable')
+  })
+
+  it('absent and leave are blocked', () => {
+    expect(reportAccessFor('absent')).toBe('absent')
+    expect(reportAccessFor('leave')).toBe('absent')
+  })
+
+  it('no attendance row yet is unmarked, not blocked', () => {
+    expect(reportAccessFor(null)).toBe('unmarked')
+    expect(reportAccessFor(undefined)).toBe('unmarked')
   })
 })

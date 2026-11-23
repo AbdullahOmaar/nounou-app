@@ -19,6 +19,7 @@ export const bus = {
   markAbsent: 'Not riding today',
   handedTo: 'Handed over to',
   handedHome: 'Home door',
+  handoverHint: 'Choose who picked up the child — you must choose before saving',
   listProgress: '{done} of {total}',
   emptyRoutes: 'No bus routes yet',
   emptyRoutesBody: 'Add your first route and its child subscriptions',

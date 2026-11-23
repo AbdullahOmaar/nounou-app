@@ -6,6 +6,7 @@ function child(partial: Partial<IssueChildInput> & { childId: string }): IssueCh
     childName: partial.childId,
     className: 'KG1',
     baseFee: 800,
+    hasPrice: true,
     payerGuardianId: null,
     busLines: [],
     ...partial,
@@ -83,5 +84,37 @@ describe('planMonthlyIssue — قلب إصدار الفواتير (قرار ق١
     expect(round2(0.1 + 0.2)).toBe(0.3)
     expect(round2(799.999)).toBe(800)
     expect(round2(80.125)).toBe(80.13)
+  })
+
+  it('X4: طفل بلا باقة سعر يُستثنى ويُبلَّغ عنه بالاسم — بلا فاتورة 0 جنيه', () => {
+    const kids = [
+      child({ childId: 'a', childName: 'آدم' }),
+      child({ childId: 'b', childName: 'ليان', hasPrice: false, baseFee: 0 }),
+    ]
+    const { plans, skipped, noPrice } = planMonthlyIssue(kids, 10, new Set())
+    expect(plans.map((p) => p.childId)).toEqual(['a'])
+    expect(skipped).toEqual([])
+    expect(noPrice).toEqual(['ليان'])
+  })
+
+  it('X4: سعر صفر صريح (فصل مجاني) يُصدَر — الاستثناء للغياب لا للقيمة', () => {
+    const kids = [child({ childId: 'a', baseFee: 0, hasPrice: true })]
+    const { plans, noPrice } = planMonthlyIssue(kids, 10, new Set())
+    expect(plans).toHaveLength(1)
+    expect(plans[0].total).toBe(0)
+    expect(noPrice).toEqual([])
+  })
+
+  it('X4: المستثنى بلا سعر لا يحجز مكان «الأول» في خصم الإخوات', () => {
+    const kids = [
+      child({ childId: 'a', childName: 'آدم', payerGuardianId: 'g1', hasPrice: false, baseFee: 0 }),
+      child({ childId: 'b', childName: 'ليان', payerGuardianId: 'g1' }),
+      child({ childId: 'c', childName: 'نور', payerGuardianId: 'g1' }),
+    ]
+    const { plans, noPrice } = planMonthlyIssue(kids, 10, new Set())
+    const byId = Object.fromEntries(plans.map((p) => [p.childId, p]))
+    expect(noPrice).toEqual(['آدم'])
+    expect(byId['b'].total).toBe(800)
+    expect(byId['c'].total).toBe(720)
   })
 })

@@ -15,6 +15,7 @@ export const invoices = {
   issuing: 'Issuing…',
   issueDone: 'Issued {count} invoices',
   issueSkipped: '{count} children already have an invoice for this month',
+  issueNoPrice: '{count} children have no price package — no invoices issued for them: {names}',
   addLine: 'Add a line',
   lineBase: '{class} package',
   lineBus: 'Bus subscription — {route}',

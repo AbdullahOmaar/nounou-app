@@ -71,19 +71,24 @@ export function Chip({
   active,
   onClick,
   children,
+  disabled = false,
 }: {
   active: boolean
   onClick: () => void
   children: ReactNode
+  disabled?: boolean
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`px-4 min-h-[48px] rounded-full border text-[13.5px] font-semibold cursor-pointer whitespace-nowrap inline-flex items-center justify-center gap-1.5 ${
-        active
-          ? 'bg-primary text-on-primary border-primary'
-          : 'bg-card text-muted border-border-interactive hover:bg-soft'
+      disabled={disabled}
+      className={`px-4 min-h-[48px] rounded-full border text-[13.5px] font-semibold whitespace-nowrap inline-flex items-center justify-center gap-1.5 ${
+        disabled
+          ? 'bg-soft text-muted border-border-interactive opacity-60 cursor-not-allowed'
+          : active
+            ? 'bg-primary text-on-primary border-primary cursor-pointer'
+            : 'bg-card text-muted border-border-interactive hover:bg-soft cursor-pointer'
       }`}
     >
       {children}

@@ -53,4 +53,8 @@ export const reports = {
   deletePhoto: 'Delete photo',
   noPhotosYet: 'No photos for this day yet',
   consentBlocked: '"{name}" has no photo consent — they will not appear in the portal',
+  absentBadge: 'Absent',
+  noConsent: 'No consent',
+  uploadNoConsent: '"{name}" has no photo consent — the photos will not be uploaded',
+  reportAbsentBlocked: 'This child is absent today — a report cannot be saved',
 }
