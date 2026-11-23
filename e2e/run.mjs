@@ -181,8 +181,7 @@ const tests = [
     title: 'الدخول التجريبي والوصول للرئيسية',
     async run(page) {
       await demoLogin(page);
-      const txt = await bodyText(page);
-      assert(txt.includes('حاضر النهارده'), 'الرئيسية لا تعرض عدّاد الحضور');
+      await waitBodyText(page, 'حاضر النهارده');
     },
   },
   {
