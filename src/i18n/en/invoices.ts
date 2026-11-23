@@ -50,6 +50,8 @@ export const invoices = {
   invoiceNotes: 'Invoice notes',
   dueDate: 'Due date',
   cancelInvoice: 'Cancel invoice',
+  cancelBlockedHasPayments:
+    'An invoice with recorded payments cannot be cancelled — reverse the payments first if needed.',
   emptyTitle: 'No invoices for this month',
   emptyBody: "Issue the month's invoices with one tap",
   filterPeriod: 'Month',

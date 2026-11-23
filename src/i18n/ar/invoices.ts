@@ -50,6 +50,8 @@ export const invoices = {
   invoiceNotes: 'ملاحظات الفاتورة',
   dueDate: 'الاستحقاق',
   cancelInvoice: 'إلغاء الفاتورة',
+  cancelBlockedHasPayments:
+    'لا يمكن إلغاء فاتورة عليها دفعات مسجّلة — اعكس الدفعات أولاً إن لزم.',
   emptyTitle: 'لا فواتير للشهر ده',
   emptyBody: 'اصدر فواتير الشهر بضغطة واحدة',
   filterPeriod: 'الشهر',
