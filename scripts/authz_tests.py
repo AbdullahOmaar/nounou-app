@@ -23,6 +23,7 @@ import os
 import secrets
 import subprocess
 import sys
+from datetime import date, timedelta
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HELPER = os.path.expanduser(
@@ -186,8 +187,17 @@ def main():
     if not os.path.exists(HELPER):
         skip("أداة موصل Supabase غير موجودة في هذه البيئة")
     url, anon, ref = load_env()
+    # مسح تحضيري (3A-395): بقايا تشغيل سابق انهار قبل التنظيف —
+    # حضانات «authz fixture%» ومستخدمو «authz-%» — حتى يبدأ الأساس
+    # نظيفاً وتشغيلتان متتاليتان تعدّيان 100% بلا بقايا. الديمو لا
+    # يُمس: أسماؤه لا تطابق النمطين.
+    sql(ref, "delete from nurseries where name like 'authz fixture%'")
+    sql(ref, "delete from auth.users where email like 'authz-%'")
     base0 = baseline(ref)
     print(f"authz tests against {ref} — baseline: {base0}")
+    # يوم فصل قسم الـ staff: غداً دائماً — لا يصطدم أبداً بيوم البذرة
+    # (اليوم) ولا يتكرر عبر التشغيلات (التنظيف يمسح الحضانة كلها).
+    staff_day_date = (date.today() + timedelta(days=1)).isoformat()
 
     pw_owner_a = secrets.token_urlsafe(18)
     pw_owner_b = secrets.token_urlsafe(18)
@@ -486,7 +496,7 @@ def main():
             ("guardians", {"nursery_id": nursery_a, "full_name": "authz staff guardian",
                            "phone": "01000000099"}, "can_manage_children"),
             ("class_days", {"nursery_id": nursery_a, "class_id": a_class,
-                            "day_date": "2026-11-23"}, "can_take_attendance"),
+                            "day_date": staff_day_date}, "can_take_attendance"),
             ("attendance", {"nursery_id": nursery_a, "class_day_id": a_day,
                             "child_id": a_child2, "status": "present"},
              "can_take_attendance"),
@@ -539,11 +549,11 @@ def main():
         # الحضور يحتاج يوم فصل جديداً أولاً (بنفس الصلاحية)
         s, b = rest(url, anon, "POST", "/rest/v1/class_days", jwt=staff_jwt,
                     body={"nursery_id": nursery_a, "class_id": a_class,
-                          "day_date": "2026-11-23"})
+                          "day_date": staff_day_date})
         check("staff with can_take_attendance can insert a class day",
               s in (200, 201), f"got {s} {str(b)[:120]}")
         staff_day = one(ref, "select id from class_days where nursery_id = "
-                             f"'{nursery_a}' and day_date = '2026-11-23'")["id"]
+                        f"'{nursery_a}' and day_date = '{staff_day_date}'")["id"]
         s, b = rest(url, anon, "POST", "/rest/v1/attendance", jwt=staff_jwt,
                     body={"nursery_id": nursery_a, "class_day_id": staff_day,
                           "child_id": a_child1, "status": "present"})
@@ -899,6 +909,24 @@ def main():
                     body={"p_token": raw_replaced})
         check("the replacement portal token works",
               s == 200 and isinstance(b, dict), f"got {s} {str(b)[:120]}")
+        # 3A-395 بند 2: الإلغاء التعويضي لدفعة غير مؤكدة (0018 — تفشل
+        # قبل تطبيقه حيةً كما في 0017؛ الدفعة اليتيمة تُمسح مع الحضانة)
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_submit_payment",
+                    body={"p_token": raw_replaced, "p_child_id": a_child1,
+                          "p_amount": 100, "p_method": "instapay", "p_ext": "jpg"})
+        x2_pay = b.get("payment_id") if isinstance(b, dict) else None
+        check("portal payment can be submitted (unconfirmed)",
+              s == 200 and bool(x2_pay), f"got {s} {str(b)[:120]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_cancel_payment",
+                    body={"p_token": raw_replaced, "p_payment_id": x2_pay})
+        gone = one(ref, "select count(*) as c from payments "
+                        f"where id = '{x2_pay}'") if x2_pay else {"c": -1}
+        check("unconfirmed portal payment can be cancelled by its token",
+              s == 200 and int(gone["c"]) == 0, f"got {s} {str(b)[:80]} / {gone}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_cancel_payment",
+                    body={"p_token": raw_replaced, "p_payment_id": x2_pay})
+        check("cancelling an already-cancelled payment is rejected",
+              s >= 400, f"got {s} {str(b)[:80]}")
     finally:
         # ---------- cleanup ----------
         ids = [u for u in (owner_a_uid, owner_b_uid, staff_uid) if u]
