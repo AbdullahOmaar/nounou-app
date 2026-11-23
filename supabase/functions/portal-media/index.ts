@@ -9,12 +9,35 @@
 //   سارية لحظة الطلب — وتعيد مسار التخزين أو ترفض.
 // • تولّد رابطاً موقّعاً قصيراً (١٥ دقيقة) بالـ service role وتعيده.
 // أي فشل في أي خطوة = 403 بلا أي تسريب (لا وجود الصورة ولا سبب دقيق).
+// مفتاح الإدارة: من SUPABASE_SECRET_KEYS المحقونة (المفتاح السري
+// الجديد 'default') مع رجوع للمحقون القديم حتى تعطيل المفاتيح
+// القديمة — ترحيل مفاتيح Supabase 2026-11-23. التفويض الحقيقي
+// يبقى داخل RPC nursery_portal_photo_path (توكن + موافقة لحظية).
 // ============================================================================
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+// مفاتيح المشروع السرية الجديدة (sb_secret_*) — تحقنها المنصة JSON
+// بأسمائها في SUPABASE_SECRET_KEYS. مفتاح الإدارة هو 'default'،
+// وبغيابه نرجع للمفتاح القديم المحقون (صالح حتى تعطيل القديم).
+function secretKeys(): Record<string, string> {
+  try {
+    const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const out: Record<string, string> = {};
+    for (const [name, value] of Object.entries(parsed)) {
+      if (typeof value === "string" && value) out[name] = value;
+    }
+    return out;
+  } catch {
+    return {}; // بيئة بلا مفاتيح جديدة — يبقى الرجوع للقديم وحده
+  }
+}
+const SECRET_KEYS = secretKeys();
+const SERVICE_ROLE_KEY = SECRET_KEYS["default"] ??
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const SIGNED_URL_TTL_SECONDS = 900;
 
 const corsHeaders = {
