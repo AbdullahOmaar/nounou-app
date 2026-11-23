@@ -191,8 +191,12 @@ export async function fetchPortalPhotoUrl(
 
 /**
  * دفع من البوابة بإثبات: RPC ينشئ الدفعة ومسار إثباتها → رفع الصورة
- * (سياسة anon المقيدة بالمسار) → RPC تأكيد الرفع. أي فشل في الرفع
- * يترك الدفعة غير مؤكدة فلا تظهر في مراجعة المالك أبداً.
+ * (سياسة anon المقيدة بالمسار) → RPC تأكيد الرفع.
+ * أي فشل بعد الإنشاء يُلغى تعويضياً (3A-395): الدفعة غير المؤكدة
+ * تُحذف عبر nursery_portal_cancel_payment فلا تبقى دفعة pending
+ * بمسار إثبات يشير لملف غير موجود، وإن فشل التأكيد بعد نجاح الرفع
+ * يُحذف ملف التخزين أيضاً فلا يبقى ملف يتيم بلا دفعة.
+ * فشل الإلغاء نفسه يُسجَّل فقط ولا يخفي الخطأ الأصلي.
  */
 export async function submitPortalPayment(
   token: string,
@@ -218,10 +222,32 @@ export async function submitPortalPayment(
   const { error: upErr } = await db.storage
     .from('payment-proofs')
     .upload(proof_path, file, { upsert: false })
-  if (upErr) throw upErr
+  if (upErr) {
+    await cancelUnconfirmedPayment(db, token, payment_id)
+    throw upErr
+  }
   const { error: confErr } = await db.rpc('nursery_portal_confirm_proof', {
     p_token: token,
     p_payment_id: payment_id,
   })
-  if (confErr) throw confErr
+  if (confErr) {
+    await cancelUnconfirmedPayment(db, token, payment_id)
+    const { error: rmErr } = await db.storage
+      .from('payment-proofs')
+      .remove([proof_path])
+    if (rmErr) console.error('portal payment cleanup: proof file removal failed', rmErr)
+    throw confErr
+  }
+}
+
+async function cancelUnconfirmedPayment(
+  db: ReturnType<typeof requireSupabase>,
+  token: string,
+  paymentId: string,
+): Promise<void> {
+  const { error } = await db.rpc('nursery_portal_cancel_payment', {
+    p_token: token,
+    p_payment_id: paymentId,
+  })
+  if (error) console.error('portal payment cleanup: cancel failed', error)
 }
