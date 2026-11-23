@@ -43,22 +43,25 @@ export async function listTokens(
   return (data ?? []) as GuardianAccessTokenRow[]
 }
 
-/** إصدار رابط: يخزن الهاش فقط ويعيد الرابط الكامل للعرض/النسخ مرة واحدة */
+/**
+ * إصدار رابط = استبدال ذري (هجرة 0014): RPC واحدة تُلغي التوكنات
+ * النشطة السابقة بنفس النطاق (الوصي + الطفل أو الوصي العام) وتُدرج
+ * الجديد — فلا يبقى رابطان حيّان أبداً. يخزن الهاش فقط ويعيد الرابط
+ * الكامل للعرض/النسخ مرة واحدة.
+ */
 export async function issueToken(
   nurseryId: string,
   guardianId: string,
   childId: string | null,
-  actorId: string | null,
 ): Promise<string> {
   const db = requireSupabase()
   const raw = generateRawToken()
   const hash = await hashToken(raw)
-  const { error } = await db.from('guardian_access_tokens').insert({
-    nursery_id: nurseryId,
-    guardian_id: guardianId,
-    child_id: childId,
-    token_hash: hash,
-    created_by: actorId,
+  const { error } = await db.rpc('replace_guardian_portal_token', {
+    p_nursery: nurseryId,
+    p_guardian: guardianId,
+    p_child: childId,
+    p_token_hash: hash,
   })
   if (error) throw error
   return portalUrl(raw)

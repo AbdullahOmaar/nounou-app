@@ -20,6 +20,8 @@ import { getOrCreateClassDay, listDayChildren } from '../classday/api'
 import { useNurserySettings } from '../settings/hooks'
 import type { AteAmount, MealEntry, MealKind, Mood } from '../../types/database'
 import * as api from './api'
+import { childrenWithoutReports } from './publishLogic'
+import { MAX_PHOTO_BYTES } from './photoUtils'
 
 const MEALS: MealKind[] = ['breakfast', 'snack', 'lunch']
 const ATE: AteAmount[] = ['all', 'most', 'some', 'none']
@@ -145,6 +147,11 @@ export function ReportsPage() {
     [reports.data],
   )
   const unpublishedCount = (reports.data ?? []).filter((r) => !r.published_at).length
+  // W2 (3A-374): حاضرون بلا أي تقرير — لن يظهر لهم شيء في البوابة
+  const missingReports = childrenWithoutReports(
+    presentChildren.map((d) => ({ id: d.child.id, name: d.child.full_name })),
+    new Set(reportByChild.keys()),
+  )
   const activeClass = (classes.data ?? []).find((c) => c.id === activeClassId)
 
   const mealLabel = (m: MealKind): string =>
@@ -415,8 +422,19 @@ export function ReportsPage() {
         open={publishOpen}
         onClose={() => setPublishOpen(false)}
         title={t('reports.publish')}
-        body={t('reports.publishConfirm', { count: unpublishedCount })}
-        confirmLabel={t('reports.publish')}
+        body={
+          t('reports.publishConfirm', { count: unpublishedCount }) +
+          (missingReports.length > 0
+            ? ' ' +
+              t('reports.publishMissingWarning', {
+                count: missingReports.length,
+                names: missingReports.map((c) => c.name).join(', '),
+              })
+            : '')
+        }
+        confirmLabel={
+          missingReports.length > 0 ? t('reports.publishAnyway') : t('reports.publish')
+        }
         onConfirm={async () => {
           await publish.mutateAsync()
           setPublishOpen(false)
@@ -460,6 +478,13 @@ function PhotosSection({
     if (files.length === 0) return
     setUploading(true)
     try {
+      // W3 (3A-374): سقف حجم صارم قبل أي رفع — رسالة ودية باسم الملف
+      const tooBig = files.find((f) => f.size > MAX_PHOTO_BYTES)
+      if (tooBig) {
+        showToast(t('reports.photoTooLarge', { name: tooBig.name, max: 8 }), 'error')
+        setUploading(false)
+        return
+      }
       if (cap !== null) {
         for (const childId of tagged) {
           const count = await api.countChildPhotosToday(childId, classDayId)

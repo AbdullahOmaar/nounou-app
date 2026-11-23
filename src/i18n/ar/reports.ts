@@ -33,6 +33,9 @@ export const reports = {
   editChild: 'تعديل {name}',
   publish: 'نشر التقارير للأهالي',
   publishConfirm: 'نشر {count} تقرير؟ الأهالي هيشوفوهم في بوابتهم فوراً',
+  publishMissingWarning:
+    'تنبيه: {count} أطفال حاضرون بلا تقرير ({names}) — مش هيظهر لهم حاجة في بوابة أهاليهم النهارده.',
+  publishAnyway: 'انشر على أي حال',
   publishedOk: 'اتنشرت التقارير ✅',
   publishedBadge: 'منشور',
   draftBadge: 'مسودة',
@@ -46,6 +49,7 @@ export const reports = {
   uploading: 'جارٍ الرفع…',
   uploadedOk: 'اترفعت {count} صورة',
   dailyCapReached: 'وصلت لحد النهارده ({cap} صورة/طفل)',
+  photoTooLarge: 'الصورة «{name}» أكبر من {max} ميجا — اختار صورة أصغر',
   deletePhoto: 'حذف الصورة',
   noPhotosYet: 'لا صور لليوم ده لسه',
   consentBlocked: '«{name}» معندوش موافقة تصوير — مش هيظهر في البوابة',
