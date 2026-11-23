@@ -53,37 +53,75 @@ function assert(cond, msg) {
 /* ---------------------------------- ريلاي الطلبات ---------------------------------- */
 
 async function enableRelay(page, stats) {
-  await page.setRequestInterception(true);
-  page.on('request', async (req) => {
-    const url = req.url();
+  // ريلاي عبر CDP Fetch domain — لا عبر اعتراض Puppeteer: ‏postData() هناك
+  // يرجع undefined لطلبات multipart (رفع الصور/الإثباتات) فتصل فارغة (400
+  // "No content provided")، بينما postDataEntries في حدث الإيقاف تحمل
+  // البايتات الدقيقة (base64) لأي جسم ثنائي.
+  const cdp = await page.createCDPSession();
+  await cdp.send('Fetch.enable', {
+    patterns: [{ urlPattern: '*', requestStage: 'Request' }],
+  });
+  cdp.on('Fetch.requestPaused', async (ev) => {
+    const { requestId, request } = ev;
+    const url = request.url;
     if (
       url.startsWith(BASE) ||
       url.startsWith('data:') ||
       url.startsWith('blob:') ||
       url.startsWith('about:')
     ) {
-      req.continue().catch(() => {});
+      await cdp.send('Fetch.continueRequest', { requestId }).catch(() => {});
       return;
     }
-    const method = req.method();
+    const method = request.method;
+    // وضع الأوفلاين المُحاكى: محاكاة المتصفح وحدها لا تكفي — الريلاي يلبي
+    // الطلب من شبكة Node الحية فينجح «رغم انقطاع الاتصال». حين يرفع التدفق
+    // راية stats.offline نفشل الطلبات الخارجية كما يفعل انقطاع حقيقي.
+    if (stats.offline) {
+      await cdp
+        .send('Fetch.failRequest', { requestId, errorReason: 'InternetDisconnected' })
+        .catch(() => {});
+      return;
+    }
     const attempt = async () => {
-      const headers = { ...req.headers() };
-      delete headers.host;
+      const headers = {};
+      for (const [k, v] of Object.entries(request.headers || {})) {
+        if (k.toLowerCase() !== 'host') headers[k] = v;
+      }
       const init = { method, headers, redirect: 'follow' };
-      const pd = req.postData();
-      if (pd && method !== 'GET' && method !== 'HEAD') init.body = pd;
+      if (method !== 'GET' && method !== 'HEAD') {
+        // البايتات الدقيقة تأتي في postDataEntries (base64) — postData النصي
+        // يفسد الأجسام الثنائية (صور multipart) عند إعادة ترميزه UTF-8
+        const entries = request.postDataEntries;
+        if (entries && entries.length) {
+          try {
+            init.body = Buffer.concat(
+              entries.map((e) => Buffer.from(e.bytes || '', 'base64')),
+            );
+          } catch {
+            if (request.postData) init.body = request.postData;
+          }
+        } else if (request.postData) {
+          init.body = request.postData;
+        }
+      }
       const res = await fetch(url, init);
       const buf = Buffer.from(await res.arrayBuffer());
-      const out = {};
+      const responseHeaders = [];
       res.headers.forEach((v, k) => {
         if (
           !['content-encoding', 'content-length', 'transfer-encoding', 'connection'].includes(
             k.toLowerCase(),
           )
         )
-          out[k] = v;
+          responseHeaders.push({ name: k, value: v });
       });
-      await req.respond({ status: res.status, headers: out, body: buf });
+      await cdp.send('Fetch.fulfillRequest', {
+        requestId,
+        responseCode: res.status,
+        responseHeaders,
+        body: buf.toString('base64'),
+      });
     };
     try {
       await attempt();
@@ -99,7 +137,9 @@ async function enableRelay(page, stats) {
         }
       }
       stats.aborted += 1;
-      req.abort().catch(() => {});
+      await cdp
+        .send('Fetch.failRequest', { requestId, errorReason: 'Failed' })
+        .catch(() => {});
     }
   });
 }
@@ -142,6 +182,27 @@ async function bodyText(page) {
   return page.evaluate(() => (document.body ? document.body.innerText : ''));
 }
 
+/**
+ * طبقة التحميل (PageLoadingOverlay, z-40) تحجب اللمس عن المحتوى قصداً أثناء
+ * تحميل الصفحة — أي نقرة CDP أثناء وجودها تقع عليها ولا تصل للزر.
+ * انتظر زوالها قبل أي نقرة (تختفي فور اكتمال التحميل).
+ */
+async function waitNoOverlay(page) {
+  // غياب مستقر: 3 فحوص متتالية بلا طبقة (~1.2s) — فحص واحد قد يسبق ظهورها أصلاً
+  const deadline = Date.now() + WAIT_TIMEOUT;
+  let streak = 0;
+  while (Date.now() < deadline) {
+    const present = await page
+      .evaluate(() => !!document.querySelector('[data-loading-overlay]'))
+      .catch(() => false);
+    if (!present) {
+      streak += 1;
+      if (streak >= 3) return;
+    } else streak = 0;
+    await sleep(400);
+  }
+}
+
 /** ينقر أول عنصر (زر/رابط) يحتوي نصه على النص المعطى — نقرة حقيقية عبر Puppeteer. */
 async function clickByText(page, text, { timeout = WAIT_TIMEOUT, selector = 'button, a, [role="button"], .cursor-pointer' } = {}) {
   const handle = await page.waitForFunction(
@@ -160,6 +221,7 @@ async function clickByText(page, text, { timeout = WAIT_TIMEOUT, selector = 'but
   const el = handle.asElement();
   assert(el, `لم يُعثر على عنصر قابل للنقر يحتوي: ${text}`);
   await el.scrollIntoView().catch(() => {});
+  await waitNoOverlay(page);
   await el.click();
   return el;
 }
@@ -176,6 +238,7 @@ async function clickAriaLabel(page, label, timeout = WAIT_TIMEOUT) {
   );
   const el = handle.asElement();
   assert(el, `لم يُعثر على زر aria-label: ${label}`);
+  await waitNoOverlay(page);
   await el.click();
 }
 
@@ -210,6 +273,7 @@ async function clickDialogButton(page, text, timeout = WAIT_TIMEOUT) {
   );
   const el = handle.asElement();
   assert(el, `لم يُعثر على زر حوار بنص: ${text}`);
+  await waitNoOverlay(page);
   await el.click();
 }
 
@@ -218,70 +282,85 @@ async function clickDialogButton(page, text, timeout = WAIT_TIMEOUT) {
  * لأقرب أب يحتوي الاسم في نص قصير (البطاقة نفسها) — فلا ينقر زر
  * طفل آخر في نفس القائمة.
  */
-async function clickButtonInCardWith(page, name, label) {
-  const clicked = await page.evaluate((n, l) => {
-    const btns = [...document.querySelectorAll('button')].filter(
-      (b) => b.innerText && b.innerText.trim() === l && !b.disabled,
-    );
-    for (const btn of btns) {
-      let el = btn.parentElement;
-      while (el) {
-        const txt = el.innerText || '';
-        if (txt.includes(n) && txt.length < 300) { btn.click(); return true; }
-        el = el.parentElement;
+async function clickButtonInCardWith(page, name, label, timeout = WAIT_TIMEOUT) {
+  await waitNoOverlay(page);
+  const handle = await page.waitForFunction(
+    (n, l) => {
+      const btns = [...document.querySelectorAll('button')].filter(
+        (b) => b.innerText && b.innerText.trim() === l && !b.disabled,
+      );
+      for (const btn of btns) {
+        let el = btn.parentElement;
+        while (el) {
+          const txt = el.innerText || '';
+          if (txt.includes(n) && txt.length < 300) return btn;
+          el = el.parentElement;
+        }
       }
-    }
-    return false;
-  }, name, label);
-  assert(clicked, `لم يُعثر على زر «${label}» في بطاقة «${name}»`);
+      return null;
+    },
+    { timeout },
+    name,
+    label,
+  );
+  const el = handle.asElement();
+  assert(el, `لم يُعثر على زر «${label}» في بطاقة «${name}»`);
+  await waitNoOverlay(page);
+  await el.click();
 }
 
 /**
- * إصدار رابط بوابة لأول ولي أمر (من /portal-links) وإرجاع مساره /p/…
- * إن كان للوصي رابط نشط أصلاً، يُلغى أولاً ثم يُصدر جديد (مسار W1).
+ * إصدار رابط بوابة لوصيّ يوسف تحديداً (من /portal-links) وإرجاع مساره /p/…
+ * الاستخراج والنقر محصوران في بطاقة الوصي التي تحمل اسم يوسف — إصدار لوصي
+ * آخر يجعل البوابة تعرض طفلاً آخر. إن كان له رابط نشط أصلاً يُستخدم كما هو.
  */
 async function issuePortalLink(page) {
   await page.goto(BASE + '/portal-links', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
   await waitBodyText(page, 'روابط أولياء الأمور');
-  // انتظر تحميل القائمة فعلياً (العنوان يظهر قبل البيانات)
-  await waitBodyText(page, 'إنشاء رابط');
-  const hasIssue = await page.evaluate(() => {
-    const btns = [...document.querySelectorAll('button')];
-    const b = btns.find((x) => x.innerText && x.innerText.includes('إنشاء رابط'));
-    if (b) { b.click(); return true; }
-    return false;
-  });
-  if (!hasIssue) {
-    // لا زر إصدار: للوصي رابط نشط — ألغه ثم أصدر جديداً
-    await clickByText(page, 'إلغاء الرابط');
-    await clickByText(page, 'إنشاء رابط');
+  // انتظر تحميل القائمة فعلياً (العنوان يظهر قبل البيانات) — اسم وصيّ ثابت في
+  // كل الحالات؛ «إنشاء رابط» يغيب حين تكون كل الروابط نشطة أصلاً
+  await waitBodyText(page, 'أحمد تجريبي');
+  await waitNoOverlay(page);
+  const extractForChild = async () =>
+    page.evaluate(() => {
+      const anchors = [...document.querySelectorAll('a[href*="wa.me"]')];
+      for (const a of anchors) {
+        let m = null;
+        try {
+          const text = new URL(a.href).searchParams.get('text') || '';
+          m = text.match(/\/p\/[A-Za-z0-9_-]{20,}/);
+        } catch { /* تجاهل */ }
+        if (!m) continue;
+        let el = a.parentElement;
+        while (el) {
+          const txt = el.innerText || '';
+          if (txt.includes('يوسف تجريبي') && txt.length < 400) return m[0];
+          el = el.parentElement;
+        }
+      }
+      return null;
+    });
+  let link = await extractForChild();
+  if (!link) {
+    // الرابط الخام لا يظهر إلا لحظة الإصدار (الهاش فقط يُحفظ) — فإن كان لوصي
+    // يوسف توكن نشط، ألغِه أولاً ثم أعد الإصدار من بطاقته هو (مسار W1)
+    await clickButtonInCardWith(page, 'يوسف تجريبي', 'إلغاء الرابط', 8_000).catch(() => null);
+    await clickButtonInCardWith(page, 'يوسف تجريبي', 'إنشاء رابط جديد');
+    await page
+      .waitForFunction(
+        () =>
+          [...document.querySelectorAll('a[href*="wa.me"]')].some((a) => {
+            try {
+              const text = new URL(a.href).searchParams.get('text') || '';
+              return /\/p\/[A-Za-z0-9_-]{20,}/.test(text);
+            } catch { return false; }
+          }),
+        { timeout: WAIT_TIMEOUT },
+      )
+      .catch(() => {});
+    link = await extractForChild();
   }
-  // انتظر ظهور رابط واتساب فعلياً (نوم ثابت لا يكفي عبر الريلاي)
-  await page
-    .waitForFunction(
-      () =>
-        [...document.querySelectorAll('a[href*="wa.me"]')].some((a) => {
-          try {
-            const text = new URL(a.href).searchParams.get('text') || '';
-            return /\/p\/[A-Za-z0-9_-]{20,}/.test(text);
-          } catch { return false; }
-        }),
-      { timeout: WAIT_TIMEOUT },
-    )
-    .catch(() => {});
-  const link = await page.evaluate(() => {
-    const anchors = [...document.querySelectorAll('a[href*="wa.me"]')];
-    for (const a of anchors) {
-      try {
-        const u = new URL(a.href);
-        const text = u.searchParams.get('text') || '';
-        const m = text.match(/\/p\/[A-Za-z0-9_-]{20,}/);
-        if (m) return m[0];
-      } catch { /* تجاهل */ }
-    }
-    return null;
-  });
-  assert(link, 'لم يُعثر على رابط بوابة مُصدَر في الصفحة');
+  assert(link, 'لم يُعثر على رابط بوابة مُصدَر لوصي يوسف في الصفحة');
   return link;
 }
 
@@ -434,9 +513,8 @@ const tests = [
       } finally {
         await portalPage.close().catch(() => {});
       }
-      // المراجعة كمالك: اعتماد الإثبات
+      // المراجعة كمالك: اعتماد الإثبات (بطاقة الإثبات باسم الوصيّ الدافع لا الطفل)
       await page.goto(BASE + '/proofs', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-      await waitBodyText(page, 'يوسف تجريبي');
       await waitBodyText(page, 'المبلغ المُدّعى');
       await clickByText(page, 'اعتماد كدفعة');
       await waitBodyText(page, 'لا إثباتات معلّقة');
@@ -474,12 +552,22 @@ const tests = [
       } finally {
         await portalPage.close().catch(() => {});
       }
-      // المراجعة كمالك: رفض بسبب واضح
+      // المراجعة كمالك: رفض بسبب واضح (البطاقة باسم الوصيّ الدافع لا الطفل)
       await page.goto(BASE + '/proofs', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-      await waitBodyText(page, 'يوسف تجريبي');
+      await waitBodyText(page, 'المبلغ المُدّعى');
       await clickByText(page, 'رفض');
       await waitBodyText(page, 'سبب الرفض');
-      await page.type('[role="dialog"] input[type="text"]', 'الصورة مش واضحة');
+      const reasonField = await page.waitForFunction(
+        () => {
+          const dlg = document.querySelector('[role="dialog"]');
+          return dlg ? dlg.querySelector('textarea, input') : null;
+        },
+        { timeout: WAIT_TIMEOUT },
+      );
+      const reasonEl = reasonField.asElement();
+      assert(reasonEl, 'لا حقل لسبب الرفض داخل الحوار');
+      await reasonEl.click();
+      await page.keyboard.type('الصورة مش واضحة');
       await clickDialogButton(page, 'رفض');
       await waitBodyText(page, 'لا إثباتات معلّقة');
       // البوابة تعرض الرفض والسبب، والرصيد لم يتغير (المرفوض لا يُحتسب)
@@ -498,27 +586,38 @@ const tests = [
   {
     id: '09-offline-attendance',
     title: 'حضور أوفلاين: تسجيل وصول بلا اتصال ← عودة الاتصال ← مزامنة بلا تكرار',
-    async run(page) {
+    async run(page, ctx) {
       await ensureSession(page);
       await page.goto(BASE + '/today', { waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
-      await waitBodyText(page, 'البراعم');
-      await clickByText(page, 'البراعم');
+      // فصل «الزهور» تحديداً: لا يلمسه أي تدفق آخر، فيبقى يومه بلا حضور مسجل
+      // مهما تكررت الجولات (البراعم يستخدمه 04 وتلوثه جولات 09 السابقة)
+      await waitBodyText(page, 'الزهور');
+      await clickByText(page, 'الزهور');
       await page.waitForFunction(() => location.pathname.startsWith('/today/'), { timeout: WAIT_TIMEOUT });
-      await waitBodyText(page, 'يوسف تجريبي');
+      await page.waitForFunction(
+        () =>
+          [...document.querySelectorAll('button')].some(
+            (b) => b.innerText && b.innerText.replace('✓', '').trim() === 'وصل',
+          ),
+        { timeout: WAIT_TIMEOUT },
+      );
       const countArrivedButtons = async () =>
         page.evaluate(
           () =>
             [...document.querySelectorAll('button')].filter(
-              (b) => b.innerText && b.innerText.trim() === 'وصل',
+              (b) => b.innerText && b.innerText.replace('✓', '').trim() === 'وصل',
             ).length,
         );
       const before = await countArrivedButtons();
       assert(before > 0, 'لا طفل بلا وصول اليوم في البذرة — لا يمكن اختبار الأوفلاين');
       await page.setOfflineMode(true);
+      // الريلاي المحلي يجب أن يفشل الطلبات أيضاً وإلا نجحت الكتابة «أوفلاين»
+      if (ctx.relayStats) ctx.relayStats.offline = true;
       try {
         await clickByText(page, 'وصل');
         await waitBodyText(page, 'بانتظار المزامنة');
       } finally {
+        if (ctx.relayStats) ctx.relayStats.offline = false;
         await page.setOfflineMode(false);
       }
       // التفريغ عند عودة الاتصال (حدث online أو دورة الـ30 ثانية)
@@ -543,11 +642,18 @@ const tests = [
       await clickByText(page, 'خط المعادي التجريبي');
       await waitBodyText(page, 'قايمة الركوب (الصبح)');
       await waitBodyText(page, 'يوسف تجريبي');
-      await clickButtonInCardWith(page, 'يوسف تجريبي', 'ركب');
-      await waitBodyText(page, 'ركب ✓');
+      // إعادة التشغيل آمنة: إن كان راكباً أصلاً من جولة سابقة فالحالة النهائية
+      // هي المطلوب إثباتها ولا ننقر زراً غير موجود
+      if (!(await bodyText(page)).includes('ركب ✓')) {
+        await clickButtonInCardWith(page, 'يوسف تجريبي', 'ركب');
+        await waitBodyText(page, 'ركب ✓');
+      }
       await clickByText(page, 'قايمة النزول (بعد الضهر)');
-      await clickButtonInCardWith(page, 'يوسف تجريبي', 'نزل / اتسلّم');
-      await waitBodyText(page, 'نزل / اتسلّم ✓');
+      await waitBodyText(page, 'يوسف تجريبي');
+      if (!(await bodyText(page)).includes('نزل / اتسلّم ✓')) {
+        await clickButtonInCardWith(page, 'يوسف تجريبي', 'نزل / اتسلّم');
+        await waitBodyText(page, 'نزل / اتسلّم ✓');
+      }
       // ملاحظة موثقة (3A-338): زر «نزل / اتسلّم» لا يسجل handed_to أبداً
       // في الواجهة — الحقل موجود في API لكن بلا إدخال؛ يُعاد للمدير كفجوة.
     },
@@ -653,12 +759,20 @@ async function main() {
       headless: 'new',
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
-    const page = await browser.newPage();
+    let page = await browser.newPage();
     await page.setViewport({ width: 390, height: 844, hasTouch: true, isMobile: true });
-    const watcher = watchPage(page);
+    let watcher = watchPage(page);
     if (RELAY) await enableRelay(page, relayStats);
     const ctx = { browser, relayStats };
     for (const t of tests) {
+      // صفحة ميتة (إطار انفصل/متصفح تعب) لا تسمّم بقية التدفقات: جدّدها
+      const alive = await page.evaluate(() => true).then(() => true).catch(() => false);
+      if (!alive) {
+        page = await browser.newPage();
+        await page.setViewport({ width: 390, height: 844, hasTouch: true, isMobile: true });
+        watcher = watchPage(page);
+        if (RELAY) await enableRelay(page, relayStats);
+      }
       const from = { pe: watcher.pageErrors.length, ce: watcher.consoleErrors.length };
       const started = Date.now();
       try {
