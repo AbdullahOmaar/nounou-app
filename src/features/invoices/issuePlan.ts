@@ -14,6 +14,9 @@ export interface IssueChildInput {
   childName: string
   className: string
   baseFee: number
+  /** X4 (3A-378): هل للطفل سعر أصلاً (سعر خاص أو باقة فصل) — غيابه
+   *  ليس «صفر» بل «بلا سعر»، فيُستثنى من الإصدار بدل فاتورة 0 جنيه. */
+  hasPrice: boolean
   payerGuardianId: string | null
   busLines: { routeName: string; fee: number }[]
 }
@@ -39,9 +42,10 @@ export function planMonthlyIssue(
   children: IssueChildInput[],
   siblingDiscountPercent: number,
   alreadyInvoiced: Set<string>,
-): { plans: PlannedInvoice[]; skipped: string[] } {
+): { plans: PlannedInvoice[]; skipped: string[]; noPrice: string[] } {
   const plans: PlannedInvoice[] = []
   const skipped: string[] = []
+  const noPrice: string[] = []
 
   // ترتيب ثابت حتمي: بالاسم ثم المعرّف — «الأول» في مجموعة الإخوات محدد
   const sorted = [...children].sort((a, b) =>
@@ -54,6 +58,12 @@ export function planMonthlyIssue(
   for (const child of sorted) {
     if (alreadyInvoiced.has(child.childId)) {
       skipped.push(child.childId)
+      continue
+    }
+    // X4 (3A-378): بلا سعر = بلا فاتورة (ولا يحجز مكاناً في حساب
+    // خصم الإخوات) — يُبلَّغ عنه بالاسم في نتيجة الإصدار.
+    if (!child.hasPrice) {
+      noPrice.push(child.childName)
       continue
     }
     const lines: PlannedLine[] = []
@@ -92,5 +102,5 @@ export function planMonthlyIssue(
       total: round2(lines.reduce((sum, l) => sum + l.amount, 0)),
     })
   }
-  return { plans, skipped }
+  return { plans, skipped, noPrice }
 }

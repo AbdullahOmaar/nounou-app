@@ -35,6 +35,12 @@ export function BusPage() {
   const [routeSheet, setRouteSheet] = useState(false)
   const [routeName, setRouteName] = useState('')
   const [routeSupervisor, setRouteSupervisor] = useState('')
+  // X1 (3A-378): ورقة تسليم النزول — المستلم اختيار إجباري صريح
+  const [handoverEntry, setHandoverEntry] = useState<{
+    id: string
+    pickupPersons: { id: string; full_name: string }[]
+  } | null>(null)
+  const [handoverChoice, setHandoverChoice] = useState('')
   const [subSheet, setSubSheet] = useState(false)
   const [subChild, setSubChild] = useState('')
   const [subFee, setSubFee] = useState('')
@@ -93,8 +99,19 @@ export function BusPage() {
     onSuccess: refresh,
   })
   const setStatus = useMutation({
-    mutationFn: (args: { entryId: string; status: 'done' | 'absent' | 'pending'; handedTo?: string | null }) =>
-      api.setEntryStatus(args.entryId, args.status, user?.id ?? null, args.handedTo ?? null),
+    mutationFn: (args: {
+      entryId: string
+      status: 'done' | 'absent' | 'pending'
+      handedTo?: string | null
+      doorstep?: boolean
+    }) =>
+      api.setEntryStatus(
+        args.entryId,
+        args.status,
+        user?.id ?? null,
+        args.handedTo ?? null,
+        args.doorstep ?? false,
+      ),
     onSuccess: refresh,
   })
 
@@ -178,16 +195,35 @@ export function BusPage() {
                     <Card key={e.id} className="flex items-center justify-between py-3">
                       <span className="flex items-center gap-2">
                         <Avatar name={e.childName} />
-                        <span className="type-body">{e.childName}</span>
+                        <span className="flex flex-col">
+                          <span className="type-body">{e.childName}</span>
+                          {e.status === 'done' && direction === 'to_home' && (
+                            <span className="type-badge text-muted">
+                              {e.handed_to_doorstep
+                                ? t('bus.handedHome')
+                                : e.handedToName
+                                  ? `${t('bus.handedTo')} ${e.handedToName}`
+                                  : ''}
+                            </span>
+                          )}
+                        </span>
                       </span>
                       {canBus &&
                         (e.status === 'pending' ? (
                           <span className="flex gap-1.5">
                             <Button
                               size="sm"
-                              onClick={() =>
-                                setStatus.mutate({ entryId: e.id, status: 'done' })
-                              }
+                              onClick={() => {
+                                if (direction === 'to_home') {
+                                  setHandoverEntry({
+                                    id: e.id,
+                                    pickupPersons: e.pickupPersons,
+                                  })
+                                  setHandoverChoice('')
+                                } else {
+                                  setStatus.mutate({ entryId: e.id, status: 'done' })
+                                }
+                              }}
                             >
                               <Check size={16} />
                               {direction === 'to_nursery'
@@ -336,6 +372,53 @@ export function BusPage() {
               onChange={(e) => setSubFee(e.target.value)}
             />
           </Field>
+        </div>
+      </Sheet>
+
+      <Sheet
+        open={Boolean(handoverEntry)}
+        onClose={() => setHandoverEntry(null)}
+        title={t('bus.handedTo')}
+        footer={
+          <Button
+            full
+            disabled={!handoverChoice || setStatus.isPending}
+            onClick={async () => {
+              if (!handoverEntry || !handoverChoice) return
+              const doorstep = handoverChoice === 'doorstep'
+              await setStatus.mutateAsync({
+                entryId: handoverEntry.id,
+                status: 'done',
+                handedTo: doorstep ? null : handoverChoice,
+                doorstep,
+              })
+              setHandoverEntry(null)
+              setHandoverChoice('')
+            }}
+          >
+            {t('common.save')}
+          </Button>
+        }
+      >
+        <div className="flex flex-col gap-3">
+          <p className="type-badge text-muted">{t('bus.handoverHint')}</p>
+          <ChipRow>
+            {(handoverEntry?.pickupPersons ?? []).map((p) => (
+              <Chip
+                key={p.id}
+                active={handoverChoice === p.id}
+                onClick={() => setHandoverChoice(p.id)}
+              >
+                {p.full_name}
+              </Chip>
+            ))}
+            <Chip
+              active={handoverChoice === 'doorstep'}
+              onClick={() => setHandoverChoice('doorstep')}
+            >
+              {t('bus.handedHome')}
+            </Chip>
+          </ChipRow>
         </div>
       </Sheet>
     </div>

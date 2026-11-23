@@ -52,7 +52,11 @@ export function InvoicesPage() {
         dueDate: dueDate || null,
       })
       setIssueResult(
-        `${t('invoices.issueDone', { count: res.issued })}${res.skipped ? ` — ${t('invoices.issueSkipped', { count: res.skipped })}` : ''}`,
+        `${t('invoices.issueDone', { count: res.issued })}${res.skipped ? ` — ${t('invoices.issueSkipped', { count: res.skipped })}` : ''}${
+          res.noPrice.length > 0
+            ? ` — ${t('invoices.issueNoPrice', { count: res.noPrice.length, names: res.noPrice.join(', ') })}`
+            : ''
+        }`,
       )
     } catch (err) {
       setIssueError(err instanceof Error ? err.message : t('common.errorGeneric'))

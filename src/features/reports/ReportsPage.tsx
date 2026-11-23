@@ -20,7 +20,7 @@ import { getOrCreateClassDay, listDayChildren } from '../classday/api'
 import { useNurserySettings } from '../settings/hooks'
 import type { AteAmount, MealEntry, MealKind, Mood } from '../../types/database'
 import * as api from './api'
-import { childrenWithoutReports } from './publishLogic'
+import { childrenWithoutReports, reportAccessFor } from './publishLogic'
 import { MAX_PHOTO_BYTES } from './photoUtils'
 
 const MEALS: MealKind[] = ['breakfast', 'snack', 'lunch']
@@ -304,8 +304,12 @@ export function ReportsPage() {
                 full
                 disabled={saveReport.isPending || presentChildren.length === 0}
                 onClick={async () => {
-                  for (const d of presentChildren) {
-                    await saveReport.mutateAsync({ childId: d.child.id, draft: bulk })
+                  try {
+                    for (const d of presentChildren) {
+                      await saveReport.mutateAsync({ childId: d.child.id, draft: bulk })
+                    }
+                  } catch {
+                    showToast(t('common.errorGeneric'), 'error')
                   }
                 }}
               >
@@ -315,9 +319,29 @@ export function ReportsPage() {
           )}
 
           <section className="flex flex-col gap-2">
-            {presentChildren.map((d) => {
-              const report = reportByChild.get(d.child.id)
-              return (
+            {(dayChildren.data ?? [])
+              .filter((d) => reportAccessFor(d.attendance?.status) !== 'unmarked')
+              .map((d) => {
+                const report = reportByChild.get(d.child.id)
+                // X2 (3A-378): الغائب/في إجازة يظهر بشارة «غائب» وبطاقته
+                // معطلة — لا كتابة تقرير ولا نشر لمن لم يحضر.
+                if (reportAccessFor(d.attendance?.status) === 'absent') {
+                  return (
+                    <Card
+                      key={d.child.id}
+                      className="flex items-center justify-between py-3 opacity-70"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Avatar name={d.child.full_name} />
+                        <span className="type-body">{d.child.full_name}</span>
+                      </span>
+                      <span className="type-badge rounded-full px-2 py-1 text-bad-text bg-bad-soft">
+                        {t('reports.absentBadge')}
+                      </span>
+                    </Card>
+                  )
+                }
+                return (
                 <Card
                   key={d.child.id}
                   className="flex items-center justify-between py-3 cursor-pointer"
@@ -407,8 +431,19 @@ export function ReportsPage() {
             disabled={saveReport.isPending}
             onClick={async () => {
               if (!editChild) return
-              await saveReport.mutateAsync({ childId: editChild.id, draft: editDraft })
-              setEditChild(null)
+              try {
+                await saveReport.mutateAsync({ childId: editChild.id, draft: editDraft })
+                setEditChild(null)
+              } catch (err) {
+                // X2 (3A-378): الورقة اتفتحت والطفل حاضر، واتسجّل غايب
+                // أثناء التعديل — الرفض برسالة واضحة بدل صمت.
+                showToast(
+                  err instanceof Error && err.message === 'report_for_absent_child'
+                    ? t('reports.reportAbsentBlocked')
+                    : t('common.errorGeneric'),
+                  'error',
+                )
+              }
             }}
           >
             {t('common.save')}
@@ -478,6 +513,18 @@ function PhotosSection({
     if (files.length === 0) return
     setUploading(true)
     try {
+      // X3 (3A-378): دفاع ثانٍ بعد تعطيل الشريحة — لو تغيّرت الموافقة
+      // بعد تحميل الصفحة، الرفع يترفض قبل أي تخزين أو ربط.
+      const blocked = dayChildren.find(
+        (d) => tagged.has(d.child.id) && !d.child.photo_consent,
+      )
+      if (blocked) {
+        showToast(
+          t('reports.uploadNoConsent', { name: blocked.child.full_name }),
+          'error',
+        )
+        return
+      }
       // W3 (3A-374): سقف حجم صارم قبل أي رفع — رسالة ودية باسم الملف
       const tooBig = files.find((f) => f.size > MAX_PHOTO_BYTES)
       if (tooBig) {
@@ -543,6 +590,7 @@ function PhotosSection({
                     <Chip
                       key={d.child.id}
                       active={tagged.has(d.child.id)}
+                      disabled={!d.child.photo_consent}
                       onClick={() => {
                         const next = new Set(tagged)
                         if (next.has(d.child.id)) next.delete(d.child.id)
@@ -551,7 +599,7 @@ function PhotosSection({
                       }}
                     >
                       {d.child.full_name}
-                      {!d.child.photo_consent ? ' ⚠' : ''}
+                      {!d.child.photo_consent ? ` (${t('reports.noConsent')})` : ''}
                     </Chip>
                   ))}
                 </ChipRow>

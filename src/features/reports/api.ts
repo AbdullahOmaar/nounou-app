@@ -33,6 +33,20 @@ export async function upsertReport(
   actorId: string | null,
 ): Promise<void> {
   const db = requireSupabase()
+  // X2 (3A-378): بوابة حضور في طبقة التطبيق — الغائب/في إجازة لا
+  // تقرير له (المشغّل daily_reports_absent_trg في 0017 هو الحارس
+  // الأخير للاستدعاءات المباشرة).
+  const { data: att, error: attErr } = await db
+    .from('attendance')
+    .select('status')
+    .eq('class_day_id', classDayId)
+    .eq('child_id', childId)
+    .maybeSingle()
+  if (attErr) throw attErr
+  const status = (att as { status: string } | null)?.status
+  if (status === 'absent' || status === 'leave') {
+    throw new Error('report_for_absent_child')
+  }
   const { error } = await db.from('daily_reports').upsert(
     {
       nursery_id: nurseryId,
@@ -52,14 +66,40 @@ export async function upsertReport(
   if (error) throw error
 }
 
-/** نشر كل تقارير اليوم دفعة واحدة (تظهر في البوابات فوراً) */
+/**
+ * نشر تقارير اليوم دفعة واحدة (تظهر في البوابات فوراً) — X2 (3A-378):
+ * تقارير الغائبين/في إجازة لا تُنشر إطلاقاً (كُتبت والطفل حاضر ثم
+ * تغيّر حضوره): تُستثنى هنا، والمشغّل daily_reports_absent_trg
+ * في 0017 يرفض نشرها مباشرةً أيضاً.
+ */
 export async function publishDayReports(classDayId: string): Promise<number> {
   const db = requireSupabase()
+  const [reportsRes, attRes] = await Promise.all([
+    db
+      .from('daily_reports')
+      .select('id, child_id')
+      .eq('class_day_id', classDayId)
+      .is('published_at', null),
+    db.from('attendance').select('child_id, status').eq('class_day_id', classDayId),
+  ])
+  if (reportsRes.error) throw reportsRes.error
+  if (attRes.error) throw attRes.error
+  const absentIds = new Set(
+    ((attRes.data ?? []) as { child_id: string; status: string }[])
+      .filter((a) => a.status === 'absent' || a.status === 'leave')
+      .map((a) => a.child_id),
+  )
+  const publishable = ((reportsRes.data ?? []) as { id: string; child_id: string }[]).filter(
+    (r) => !absentIds.has(r.child_id),
+  )
+  if (publishable.length === 0) return 0
   const { data, error } = await db
     .from('daily_reports')
     .update({ published_at: new Date().toISOString() })
-    .eq('class_day_id', classDayId)
-    .is('published_at', null)
+    .in(
+      'id',
+      publishable.map((r) => r.id),
+    )
     .select('id')
   if (error) throw error
   return (data ?? []).length
@@ -127,6 +167,20 @@ export async function uploadPhotos(
   caption: string | null,
 ): Promise<number> {
   const db = requireSupabase()
+  // X3 (3A-378): الرفض عند المصدر — التحقق من موافقة كل طفل موسوم
+  // قبل رفع أي ملف (لا تخزين ولا رابط لطفل بلا موافقة). المشغّل
+  // photo_children_consent_trg في 0017 هو الحارس الأخير.
+  if (childIds.length > 0) {
+    const { data: kids, error: kidsErr } = await db
+      .from('children')
+      .select('id, photo_consent')
+      .in('id', childIds)
+    if (kidsErr) throw kidsErr
+    const blocked = (kids ?? []).find(
+      (k) => !(k as { photo_consent: boolean }).photo_consent,
+    )
+    if (blocked) throw new Error('photo_consent_required')
+  }
   let uploaded = 0
   for (const file of files) {
     const photoId = crypto.randomUUID()

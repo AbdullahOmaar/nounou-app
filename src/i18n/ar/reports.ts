@@ -53,4 +53,8 @@ export const reports = {
   deletePhoto: 'حذف الصورة',
   noPhotosYet: 'لا صور لليوم ده لسه',
   consentBlocked: '«{name}» معندوش موافقة تصوير — مش هيظهر في البوابة',
+  absentBadge: 'غائب',
+  noConsent: 'بلا موافقة',
+  uploadNoConsent: '«{name}» بلا موافقة تصوير — الصور مش هتترفع',
+  reportAbsentBlocked: 'الطفل غايب النهارده — مينفعش يتسجّل تقرير',
 } as const

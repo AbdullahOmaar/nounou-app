@@ -316,6 +316,7 @@ export interface BusDayEntryRow {
   done_at: string | null
   done_by: string | null
   handed_to: string | null
+  handed_to_doorstep: boolean
   sort_order: number
   created_at: string
   updated_at: string

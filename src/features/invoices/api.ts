@@ -113,7 +113,7 @@ export async function issueMonthlyInvoices(
   period: string,
   dueDate: string | null,
   actorId: string | null,
-): Promise<{ issued: number; skipped: number }> {
+): Promise<{ issued: number; skipped: number; noPrice: string[] }> {
   const db = requireSupabase()
   const [settingsRes, enrollRes, subsRes, linksRes, existingRes] = await Promise.all([
     db
@@ -169,7 +169,7 @@ export async function issueMonthlyInvoices(
     const row = e as unknown as {
       child_id: string
       price_override: number | null
-      class: { name: string; monthly_fee: number } | null
+      class: { name: string; monthly_fee: number | null } | null
       child: { full_name: string } | null
     }
     return {
@@ -177,13 +177,16 @@ export async function issueMonthlyInvoices(
       childName: row.child?.full_name ?? '',
       className: row.class?.name ?? '',
       baseFee: Number(row.price_override ?? row.class?.monthly_fee ?? 0),
+      // X4 (3A-378): السعر الغائب null في المصدرين معاً — لا يُعامل
+      // كصفر؛ الطفل يُستثنى ويُبلَّغ عنه بالاسم.
+      hasPrice: row.price_override != null || row.class?.monthly_fee != null,
       payerGuardianId: payerByChild.get(row.child_id) ?? null,
       busLines: busByChild.get(row.child_id) ?? [],
     }
   })
 
   const already = new Set((existingRes.data ?? []).map((i) => i.child_id as string))
-  const { plans, skipped } = planMonthlyIssue(inputs, discount, already)
+  const { plans, skipped, noPrice } = planMonthlyIssue(inputs, discount, already)
 
   for (const plan of plans) {
     const { data: inv, error } = await db
@@ -211,7 +214,7 @@ export async function issueMonthlyInvoices(
     )
     if (linesErr) throw linesErr
   }
-  return { issued: plans.length, skipped: skipped.length }
+  return { issued: plans.length, skipped: skipped.length, noPrice }
 }
 
 export async function addInvoiceLine(

@@ -550,6 +550,96 @@ def main():
         check("staff with can_take_attendance can insert attendance",
               s in (200, 201), f"got {s} {str(b)[:120]}")
 
+        # ---------- 3A-378: حراس السلامة (0017) ----------
+        print("3A-378 GUARDS (0017):")
+        # 0017 تُطبَّق حية بعد الدمج — قبلها فحوص الحراسة تفشل
+        # (لا تنهار): تحقق عمود باب البيت مرة واحدة، وتحقق
+        # قبول باب البيت يقرأ العمود فقط إن وُجد.
+        has_0017 = int(one(ref,
+                           "select count(*) as c from information_schema.columns "
+                           "where table_schema = 'public' "
+                           "and table_name = 'bus_day_entries' "
+                           "and column_name = 'handed_to_doorstep'")["c"]) > 0
+        if not has_0017:
+            print("  NOTE 0017 not applied live yet — guard checks expected to fail")
+        # X1: قايمة نزول + دخول معلّق + شخص استلام مصرّح
+        x1_route = one(ref,
+                       "insert into bus_routes (nursery_id, name) values "
+                       f"('{nursery_a}', 'authz route X1') returning id")["id"]
+        x1_list = one(ref,
+                      "insert into bus_day_lists (nursery_id, route_id, day_date, direction) "
+                      f"values ('{nursery_a}', '{x1_route}', current_date, 'to_home') "
+                      "returning id")["id"]
+        x1_entry = one(ref,
+                       "insert into bus_day_entries (nursery_id, list_id, child_id) "
+                       f"values ('{nursery_a}', '{x1_list}', '{a_child1}') returning id")["id"]
+        x1_person = one(ref,
+                        "insert into pickup_persons (nursery_id, child_id, full_name) "
+                        f"values ('{nursery_a}', '{a_child1}', 'authz pickup') returning id")["id"]
+        s, b = rest(url, anon, "PATCH",
+                    f"/rest/v1/bus_day_entries?id=eq.{x1_entry}", jwt=staff_jwt,
+                    body={"status": "done"})
+        still = one(ref, f"select status from bus_day_entries where id = '{x1_entry}'")
+        check("delivery without a recipient is rejected (handed_to_required)",
+              s not in (200, 204) and still.get("status") == "pending",
+              f"got {s} {str(b)[:80]} / {still}")
+        s, b = rest(url, anon, "PATCH",
+                    f"/rest/v1/bus_day_entries?id=eq.{x1_entry}", jwt=staff_jwt,
+                    body={"status": "done", "handed_to_doorstep": True})
+        cols = "status, handed_to_doorstep" if has_0017 else "status"
+        done = one(ref, f"select {cols} from bus_day_entries "
+                        f"where id = '{x1_entry}'")
+        check("delivery with explicit doorstep is accepted",
+              s in (200, 204) and done.get("status") == "done"
+              and (done.get("handed_to_doorstep") is True if has_0017 else False),
+              f"got {s} {str(b)[:80]} / {done}")
+        s, b = rest(url, anon, "PATCH",
+                    f"/rest/v1/bus_day_entries?id=eq.{x1_entry}", jwt=staff_jwt,
+                    body={"status": "pending"})
+        check("delivery can be undone back to pending",
+              s in (200, 204), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "PATCH",
+                    f"/rest/v1/bus_day_entries?id=eq.{x1_entry}", jwt=staff_jwt,
+                    body={"status": "done", "handed_to": x1_person,
+                          "handed_to_doorstep": False})
+        done = one(ref, f"select status, handed_to from bus_day_entries "
+                        f"where id = '{x1_entry}'")
+        check("delivery with a named recipient is accepted",
+              s in (200, 204) and done.get("status") == "done"
+              and done.get("handed_to") == x1_person,
+              f"got {s} {str(b)[:80]} / {done}")
+        # X2: طفل ثالث بحضور غائب — تقريره مرفوض عند المصدر
+        a_child3 = one(ref,
+                       "insert into children (nursery_id, full_name) values "
+                       f"('{nursery_a}', 'authz child A3') returning id")["id"]
+        sql(ref, "insert into attendance (nursery_id, class_day_id, child_id, status) "
+                 f"values ('{nursery_a}', '{a_day}', '{a_child3}', 'absent')")
+        s, b = rest(url, anon, "POST", "/rest/v1/daily_reports", jwt=staff_jwt,
+                    body={"nursery_id": nursery_a, "class_day_id": a_day,
+                          "child_id": a_child3, "mood": "calm"})
+        gone = one(ref, "select count(*) as c from daily_reports "
+                        f"where class_day_id = '{a_day}' and child_id = '{a_child3}'")
+        check("report for an absent child is rejected (report_for_absent_child)",
+              s not in (200, 201) and int(gone["c"]) == 0,
+              f"got {s} {str(b)[:80]} / {gone}")
+        # X3: ربط صورة بطفل بلا موافقة مرفوض؛ وبموافقة مقبول
+        # (a_child1 موافقة true في البذرة، a_child2 بلا موافقة — الافتراضي false)
+        x3_photo = one(ref,
+                       "insert into child_photos (nursery_id, storage_path) "
+                       f"values ('{nursery_a}', '{nursery_a}/authz-x3.jpg') "
+                       "returning id")["id"]
+        s, b = rest(url, anon, "POST", "/rest/v1/photo_children", jwt=staff_jwt,
+                    body={"photo_id": x3_photo, "child_id": a_child2})
+        gone = one(ref, "select count(*) as c from photo_children "
+                        f"where photo_id = '{x3_photo}' and child_id = '{a_child2}'")
+        check("photo link for a no-consent child is rejected (photo_consent_required)",
+              s not in (200, 201) and int(gone["c"]) == 0,
+              f"got {s} {str(b)[:80]} / {gone}")
+        s, b = rest(url, anon, "POST", "/rest/v1/photo_children", jwt=staff_jwt,
+                    body={"photo_id": x3_photo, "child_id": a_child1})
+        check("photo link for a consenting child is accepted",
+              s in (200, 201), f"got {s} {str(b)[:80]}")
+
         # ---------- STAFF × FINANCE (المال للمالك فقط — حتى بكل المفاتيح) ----------
         print("STAFF x FINANCE (owner-only even with every permission key):")
         for table in FINANCE_TABLES:
