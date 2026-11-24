@@ -53,6 +53,35 @@ export async function updateNurseryProfile(
   if (error) throw error
 }
 
+export async function getPublicPageSettings(nurseryId: string) {
+  const db = requireSupabase()
+  const { data, error } = await db
+    .from('nurseries')
+    .select('public_slug, public_enabled, public_about, public_license_no')
+    .eq('id', nurseryId)
+    .single()
+  if (error) throw error
+  return data as Pick<
+    NurseryRow,
+    'public_slug' | 'public_enabled' | 'public_about' | 'public_license_no'
+  >
+}
+
+export async function updatePublicPageSettings(
+  nurseryId: string,
+  patch: Partial<
+    Pick<
+      NurseryRow,
+      'public_slug' | 'public_enabled' | 'public_about' | 'public_license_no'
+    >
+  >,
+): Promise<void> {
+  const db = requireSupabase()
+  const { error } = await db.from('nurseries').update(patch).eq('id', nurseryId)
+  if (error) throw error
+  await logActivityAuto(nurseryId, 'settings_updated', 'public_page')
+}
+
 export interface MemberListItem extends NurseryMemberRow {
   display_name: string
 }

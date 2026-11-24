@@ -1,0 +1,18 @@
+export const pub = {
+  notFound: "This page is not available",
+  licensed: "Licensed nursery",
+  classesTitle: "Classes and prices",
+  perMonth: "/ month",
+  placesLeft: "{count} places left",
+  full: "Full — waitlist",
+  askPlaces: "For available places: contact us",
+  contactWhatsapp: "Chat on WhatsApp",
+  poweredBy: "Powered by Nounou",
+  settingsTitle: "Public page",
+  settingsHint: "A public discovery page in your nursery's name — only classes, prices and available places; never any child data.",
+  enabledLabel: "Enable the public page",
+  slugLabel: "Page link (letters, numbers, dashes)",
+  slugInvalid: "The link may only contain lowercase letters, numbers and dashes",
+  aboutLabel: "About the nursery (facilities tour)",
+  licenseLabel: "License number (optional — shows the licensed badge)",
+}
