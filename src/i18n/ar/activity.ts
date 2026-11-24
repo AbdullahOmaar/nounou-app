@@ -18,6 +18,8 @@ export const activity = {
     settings_updated: 'غيّر إعدادات',
     pickup_code_failed: 'محاولة استلام بكود غير صحيح',
     bus_trip_closed: 'أغلق رحلة باص',
+    expense_recorded: 'سجّل مصروفاً',
+    expense_deleted: 'حذف مصروفاً',
     link_issued: 'أصدر رابط بوابة',
     link_revoked: 'ألغى رابط بوابة',
   },

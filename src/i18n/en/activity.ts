@@ -18,6 +18,8 @@ export const activity = {
     settings_updated: 'Changed settings',
     pickup_code_failed: 'Pickup attempt with a wrong code',
     bus_trip_closed: 'Closed a bus trip',
+    expense_recorded: 'Recorded an expense',
+    expense_deleted: 'Deleted an expense',
     link_issued: 'Issued a portal link',
     link_revoked: 'Revoked a portal link',
   },
