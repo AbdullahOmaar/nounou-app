@@ -46,3 +46,26 @@ export async function trackPublicPage(
     // الإحصاء لا يكسر تجربة الزائر إطلاقاً
   }
 }
+
+export async function bookTour(
+  slug: string,
+  input: {
+    parentName: string
+    phone: string
+    childName: string
+    preferredAt: string | null
+    note: string | null
+  },
+): Promise<{ ok: boolean }> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('public_book_tour', {
+    p_slug: slug,
+    p_parent_name: input.parentName,
+    p_parent_phone: input.phone,
+    p_child_name: input.childName,
+    p_preferred_at: input.preferredAt,
+    p_note: input.note,
+  })
+  if (error) return { ok: false }
+  return data as { ok: boolean }
+}

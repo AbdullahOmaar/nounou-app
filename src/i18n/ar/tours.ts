@@ -1,0 +1,16 @@
+export const tours = {
+  title: "طلبات الجولات",
+  empty: "لا طلبات جولات بعد",
+  emptyHint: "طلبات حجز الجولات من موقعك العام تظهر هنا",
+  preferred: "الميعاد المفضل",
+  call: "اتصال",
+  markContacted: "تم التواصل",
+  markDone: "إنهاء",
+  convert: "تحويل لتسجيل",
+  convertConfirm: "إنشاء الطفل والوصي والتسجيل",
+  convertHint: "هيتنشئ الطفل ووصيّه من بيانات الطلب، وتقدر تختار الفصل دلوقتي أو بعدين.",
+  classLabel: "الفصل (اختياري)",
+  noClass: "بدون فصل الآن",
+  convertedOk: "اتسجل الطفل بنجاح",
+  status: { new: "جديد", contacted: "تم التواصل", done: "منتهي", converted: "اتسجل" },
+}

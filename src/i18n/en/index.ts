@@ -21,6 +21,7 @@ import { suppliers } from './suppliers'
 import { messages } from './messages'
 import { qa } from './qa'
 import { pub } from './pub'
+import { tours } from './tours'
 import type { Dict } from '../dict'
 
 /**
@@ -54,4 +55,5 @@ export const en: Dict = {
   messages,
   qa,
   pub,
+  tours,
 }
