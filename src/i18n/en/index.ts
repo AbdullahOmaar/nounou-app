@@ -17,6 +17,7 @@ import { notifications } from './notifications'
 import { settings } from './settings'
 import { activity } from './activity'
 import { finance } from './finance'
+import { suppliers } from './suppliers'
 import type { Dict } from '../dict'
 
 /**
@@ -46,4 +47,5 @@ export const en: Dict = {
   settings,
   activity,
   finance,
+  suppliers,
 }

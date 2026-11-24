@@ -148,7 +148,7 @@ export function FinancePage() {
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <Card className="text-center py-3">
           <div className="type-title">{formatMoney(m?.income ?? 0)}</div>
           <div className="type-badge text-muted">{t('finance.income')}</div>
@@ -156,6 +156,10 @@ export function FinancePage() {
         <Card className="text-center py-3">
           <div className="type-title">{formatMoney(m?.expensesTotal ?? 0)}</div>
           <div className="type-badge text-muted">{t('finance.expensesTotal')}</div>
+        </Card>
+        <Card className="text-center py-3">
+          <div className="type-title">{formatMoney(m?.supplierPaid ?? 0)}</div>
+          <div className="type-badge text-muted">{t('finance.supplierPaid')}</div>
         </Card>
         <Card className="text-center py-3">
           <div className="type-title">{formatMoney(m?.profit ?? 0)}</div>

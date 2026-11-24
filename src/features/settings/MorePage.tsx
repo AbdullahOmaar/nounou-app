@@ -12,6 +12,7 @@ import {
   ReceiptText,
   Settings as SettingsIcon,
   ShieldCheck,
+  Truck,
   Users,
   Wallet,
 } from 'lucide-react'
@@ -59,6 +60,7 @@ export function MorePage() {
     { icon: Megaphone, label: t('shell.more.announcements'), path: '/announcements' },
     { icon: Link2, label: t('shell.more.portalLinks'), path: '/portal-links' },
     { icon: Wallet, label: t('shell.more.finance'), path: '/finance', ownerOnly: true },
+    { icon: Truck, label: t('shell.more.suppliers'), path: '/suppliers', ownerOnly: true },
     {
       icon: ShieldCheck,
       label: t('shell.more.proofs'),

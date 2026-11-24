@@ -87,6 +87,11 @@ const FinancePage = lazy(() =>
     default: m.FinancePage,
   })),
 )
+const SuppliersPage = lazy(() =>
+  import('./features/suppliers/SuppliersPage').then((m) => ({
+    default: m.SuppliersPage,
+  })),
+)
 const SettingsPage = lazy(() =>
   import('./features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 )
@@ -116,6 +121,7 @@ registerRouteLoaders({
   '/proofs': () => import('./features/proofs/ProofsPage'),
   '/activity': () => import('./features/activity/ActivityLogPage'),
   '/finance': () => import('./features/finance/FinancePage'),
+  '/suppliers': () => import('./features/suppliers/SuppliersPage'),
   '/settings': () => import('./features/settings/SettingsPage'),
   '/members': () => import('./features/settings/MembersPage'),
   '/export': () => import('./features/settings/ExportPage'),
@@ -292,6 +298,14 @@ export default function App() {
                     element={
                       <Suspense fallback={<LoadingState />}>
                         <FinancePage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/suppliers"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <SuppliersPage />
                       </Suspense>
                     }
                   />

@@ -58,6 +58,8 @@ function resolveRoute(pathname: string): {
     return { screen: 'portalLinks', tab: 'more', title: 'shell.title.portalLinks' }
   if (pathname.startsWith('/finance'))
     return { screen: 'finance', tab: 'more', title: 'shell.title.finance' }
+  if (pathname.startsWith('/suppliers'))
+    return { screen: 'suppliers', tab: 'more', title: 'shell.title.suppliers' }
   if (pathname.startsWith('/activity'))
     return { screen: 'activity', tab: 'more', title: 'shell.title.activity' }
   if (pathname.startsWith('/members'))

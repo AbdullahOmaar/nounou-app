@@ -5,6 +5,7 @@ export const finance = {
   income: 'دخل الشهر',
   expensesTotal: 'مصروفات الشهر',
   profit: 'ربح الشهر',
+  supplierPaid: 'مدفوعات موردين',
   byCategory: 'المصروفات حسب البند',
   expensesTitle: 'مصروفات الشهر',
   addExpense: 'إضافة مصروف',

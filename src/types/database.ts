@@ -282,6 +282,43 @@ export interface CashboxCloseRow {
   created_at: string
 }
 
+/** صف ‏suppliers (مهمة 1.4؛ مالك فقط بـRLS) */
+export interface SupplierRow {
+  id: string
+  nursery_id: string
+  name: string
+  phone: string | null
+  credit_days: number
+  note: string | null
+  created_by: string | null
+  created_at: string
+}
+
+/** صف ‏purchase_orders */
+export interface PurchaseOrderRow {
+  id: string
+  nursery_id: string
+  supplier_id: string
+  title: string
+  total_amount: number
+  order_date: string
+  due_date: string
+  created_by: string | null
+  created_at: string
+}
+
+/** صف ‏supplier_payments */
+export interface SupplierPaymentRow {
+  id: string
+  nursery_id: string
+  order_id: string
+  amount: number
+  paid_date: string
+  cashbox_entry_id: string | null
+  created_by: string | null
+  created_at: string
+}
+
 /** صف view ‏invoice_balances */
 export interface InvoiceBalanceRow {
   invoice_id: string
