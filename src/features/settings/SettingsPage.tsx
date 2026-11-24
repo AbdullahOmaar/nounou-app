@@ -8,6 +8,7 @@ import { useT } from '../../i18n'
 import { useLocale, setLocale } from '../../i18n/locale'
 import { useTheme } from '../../hooks/useTheme'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
+import { WhatsAppSettingsCard } from './WhatsAppSettingsCard'
 import { useAuth } from '../../lib/AuthProvider'
 import { useNurserySettings, useSettingsMutations } from './hooks'
 
@@ -205,6 +206,10 @@ export function SettingsPage() {
             {t('common.save')}
           </Button>
         </Card>
+      )}
+
+      {isOwner && nursery.status === 'ready' && (
+        <WhatsAppSettingsCard nurseryId={nursery.nurseryId} />
       )}
 
       <Card className="flex flex-col gap-3">
