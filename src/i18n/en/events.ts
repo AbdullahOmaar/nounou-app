@@ -18,4 +18,7 @@ export const events = {
   hallsHint: "Separate halls (optional): each hall has its own place, map and RSVP",
   hallName: "Hall name",
   addHall: "Add a hall",
+  gallery: "Event photo archive",
+  addPhoto: "Add a photo",
+  galleryHint: "The archive is staff-only — children's photos are never public",
 }

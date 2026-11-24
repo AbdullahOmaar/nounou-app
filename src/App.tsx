@@ -81,6 +81,7 @@ const PublicClasses = lazy(() =>
   import('./features/public/PublicPage').then((m) => ({ default: m.PublicClasses })),
 )
 const VisitPage = lazy(() => import('./features/public/VisitPage'))
+const PublicEvents = lazy(() => import('./features/public/PublicEvents'))
 const PublicAbout = lazy(() =>
   import('./features/public/PublicPage').then((m) => ({ default: m.PublicAbout })),
 )
@@ -203,6 +204,14 @@ export default function App() {
                   element={
                     <Suspense fallback={<LoadingState />}>
                       <PublicAbout />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="events"
+                  element={
+                    <Suspense fallback={<LoadingState />}>
+                      <PublicEvents />
                     </Suspense>
                   }
                 />

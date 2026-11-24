@@ -42,4 +42,8 @@ export const pub = {
   visitError: "Check the name, mobile number and child name and try again",
   navVisit: "Book a tour",
   visitCta: "Book a tour and see the nursery yourself",
+  navEvents: "Events",
+  eventsTitle: "Nursery events",
+  eventsEmpty: "No events announced right now",
+  eventsPast: "Past events",
 }

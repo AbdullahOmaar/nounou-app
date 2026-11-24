@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link2, PartyPopper, Plus, Trash2 } from 'lucide-react'
+import { Images, Link2, PartyPopper, Plus, Trash2 } from 'lucide-react'
 import * as api from './api'
 import type { EventKind } from './api'
 import { useT } from '../../i18n'
@@ -23,6 +23,7 @@ export default function EventsPage() {
   const nursery = useCurrentNursery()
   const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : ''
   const [open, setOpen] = useState(false)
+  const [galleryFor, setGalleryFor] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [kind, setKind] = useState<EventKind>('open_day')
   const [starts, setStarts] = useState('')
@@ -130,16 +131,28 @@ export default function EventsPage() {
                   <Trash2 size={16} />
                 </button>
               </div>
-              <Button
-                className="mt-2"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(link)
-                  showToast(t('events.linkCopied'))
-                }}
-              >
-                <Link2 size={16} />
-                {t('events.copyLink')}
-              </Button>
+              <div className="flex gap-2 mt-2">
+                <Button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(link)
+                    showToast(t('events.linkCopied'))
+                  }}
+                >
+                  <Link2 size={16} />
+                  {t('events.copyLink')}
+                </Button>
+                <Button
+                  onClick={() =>
+                    setGalleryFor(galleryFor === ev.id ? null : ev.id)
+                  }
+                >
+                  <Images size={16} />
+                  {t('events.gallery')}
+                </Button>
+              </div>
+              {galleryFor === ev.id && (
+                <EventGallery nurseryId={nurseryId} eventId={ev.id} />
+              )}
             </Card>
           )
         })
@@ -232,6 +245,74 @@ export default function EventsPage() {
           </Button>
         )}
       </Sheet>
+    </div>
+  )
+}
+
+
+function EventGallery({
+  nurseryId,
+  eventId,
+}: {
+  nurseryId: string
+  eventId: string
+}) {
+  const t = useT()
+  const showToast = useToast()
+  const qc = useQueryClient()
+  const photos = useQuery({
+    queryKey: ['event-photos', eventId],
+    queryFn: () => api.listEventPhotos(eventId),
+  })
+  const refresh = () =>
+    void qc.invalidateQueries({ queryKey: ['event-photos', eventId] })
+  const upload = useMutation({
+    mutationFn: (file: File) => api.addEventPhoto(nurseryId, eventId, file),
+    onSuccess: refresh,
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
+  })
+  const remove = useMutation({
+    mutationFn: (photo: api.EventPhoto) => api.deleteEventPhoto(photo),
+    onSuccess: refresh,
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
+  })
+  return (
+    <div className="mt-3">
+      <p className="type-badge text-muted mb-2">{t('events.galleryHint')}</p>
+      <div className="grid grid-cols-3 gap-2">
+        {(photos.data ?? []).map((ph) => (
+          <div key={ph.id} className="relative">
+            {ph.url && (
+              <img
+                src={ph.url}
+                alt=""
+                className="w-full aspect-square object-cover rounded-xl"
+              />
+            )}
+            <button
+              type="button"
+              aria-label={t('common.delete')}
+              className="absolute top-1 end-1 bg-card rounded-full p-1"
+              onClick={() => remove.mutate(ph)}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <label className="mt-2 inline-block">
+        <span className="type-secondary underline">{t('events.addPhoto')}</span>
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) upload.mutate(f)
+            e.target.value = ''
+          }}
+        />
+      </label>
     </div>
   )
 }

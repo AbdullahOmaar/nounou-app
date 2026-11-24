@@ -91,6 +91,9 @@ export default function PublicSiteLayout() {
             <NavLink to={`/n/${slug}/visit`} className={navCls} style={navStyle}>
               {t('pub.navVisit')}
             </NavLink>
+            <NavLink to={`/n/${slug}/events`} className={navCls} style={navStyle}>
+              {t('pub.navEvents')}
+            </NavLink>
           </nav>
         </header>
 

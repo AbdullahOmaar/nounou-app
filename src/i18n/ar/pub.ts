@@ -42,4 +42,8 @@ export const pub = {
   visitError: "راجع الاسم ورقم الموبايل واسم الطفل وحاول تاني",
   navVisit: "احجز جولة",
   visitCta: "احجز جولة وشوف الحضانة بنفسك",
+  navEvents: "المناسبات",
+  eventsTitle: "مناسبات الحضانة",
+  eventsEmpty: "لا مناسبات معلنة حالياً",
+  eventsPast: "مناسبات سابقة",
 }
