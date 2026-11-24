@@ -23,6 +23,7 @@ import * as api from './api'
 import { childrenWithoutReports, reportAccessFor } from './publishLogic'
 import { enqueuePhoto, enqueueReport } from './offlineQueue'
 import { useReportsOfflineSync } from './hooks'
+import { Mic } from 'lucide-react'
 import { MAX_PHOTO_BYTES } from './photoUtils'
 
 const MEALS: MealKind[] = ['breakfast', 'snack', 'lunch']
@@ -68,6 +69,133 @@ function draftToReport(d: DraftState): api.ReportDraft {
     mood: d.mood,
     note: d.note.trim() || null,
   }
+}
+
+
+/**
+ * قالب الـ3 نقرات (4.1): نقرة واحدة لكل بُعد (أكل/نوم/مزاج)
+ * تُطبَّق على الفصل كله — بدل ١٠+ نقرات في النموذج الكامل تحتها.
+ */
+function QuickBar({
+  draft,
+  setDraft,
+}: {
+  draft: DraftState
+  setDraft: (d: DraftState) => void
+}) {
+  const t = useT()
+  const allMeals = (ate: AteAmount) => ({
+    breakfast: ate,
+    snack: ate,
+    lunch: ate,
+  })
+  return (
+    <div className="flex flex-col gap-2 mb-3 rounded-2xl bg-soft p-3">
+      <div className="type-secondary">{t('reports.quickTitle')}</div>
+      <ChipRow>
+        <Chip
+          active={draft.meals.lunch === 'all'}
+          onClick={() => setDraft({ ...draft, meals: allMeals('all') })}
+        >
+          {t('reports.quickAteAll')}
+        </Chip>
+        <Chip
+          active={draft.meals.lunch === 'some'}
+          onClick={() => setDraft({ ...draft, meals: allMeals('some') })}
+        >
+          {t('reports.quickAteSome')}
+        </Chip>
+        <Chip
+          active={draft.meals.lunch === 'none'}
+          onClick={() => setDraft({ ...draft, meals: allMeals('none') })}
+        >
+          {t('reports.quickAteNone')}
+        </Chip>
+      </ChipRow>
+      <ChipRow>
+        <Chip
+          active={draft.napSlept}
+          onClick={() => setDraft({ ...draft, napSlept: true })}
+        >
+          {t('reports.quickSlept')}
+        </Chip>
+        <Chip
+          active={!draft.napSlept}
+          onClick={() => setDraft({ ...draft, napSlept: false })}
+        >
+          {t('reports.quickNoSleep')}
+        </Chip>
+      </ChipRow>
+      <ChipRow>
+        <Chip
+          active={draft.mood === 'happy'}
+          onClick={() => setDraft({ ...draft, mood: 'happy' })}
+        >
+          {t('reports.moodHappy')}
+        </Chip>
+        <Chip
+          active={draft.mood === 'calm'}
+          onClick={() => setDraft({ ...draft, mood: 'calm' })}
+        >
+          {t('reports.moodCalm')}
+        </Chip>
+        <Chip
+          active={draft.mood === 'tired'}
+          onClick={() => setDraft({ ...draft, mood: 'tired' })}
+        >
+          {t('reports.moodTired')}
+        </Chip>
+      </ChipRow>
+    </div>
+  )
+}
+
+interface SpeechRecognitionLike {
+  lang: string
+  interimResults: boolean
+  start: () => void
+  stop: () => void
+  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null
+  onend: (() => void) | null
+  onerror: (() => void) | null
+}
+
+/** إدخال صوتي للملحوظة (4.1): Web Speech حيثما توفر — يختفي بصمت عند غيابه */
+function VoiceNoteButton({ onText }: { onText: (txt: string) => void }) {
+  const t = useT()
+  const [listening, setListening] = useState(false)
+  const Ctor = (
+    window as unknown as {
+      SpeechRecognition?: new () => SpeechRecognitionLike
+      webkitSpeechRecognition?: new () => SpeechRecognitionLike
+    }
+  )
+  const Impl = Ctor.SpeechRecognition ?? Ctor.webkitSpeechRecognition
+  if (!Impl) return null
+  const toggle = () => {
+    if (listening) return
+    const rec = new Impl()
+    rec.lang = 'ar-EG'
+    rec.interimResults = false
+    rec.onresult = (e) => {
+      const txt = e.results[0]?.[0]?.transcript ?? ''
+      if (txt) onText(txt)
+    }
+    rec.onend = () => setListening(false)
+    rec.onerror = () => setListening(false)
+    setListening(true)
+    rec.start()
+  }
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className="type-badge text-primary mt-1 inline-flex items-center gap-1"
+    >
+      <Mic size={14} />
+      {listening ? t('reports.voiceListening') : t('reports.voiceNote')}
+    </button>
+  )
 }
 
 /**
@@ -283,6 +411,14 @@ export function ReportsPage() {
             placeholder={t('reports.notePlaceholder')}
             rows={2}
           />
+          <VoiceNoteButton
+            onText={(txt) =>
+              setDraft({
+                ...draft,
+                note: (draft.note ? draft.note + ' ' : '') + txt,
+              })
+            }
+          />
         </Field>
       </div>
     )
@@ -321,6 +457,7 @@ export function ReportsPage() {
                 {t('reports.bulkTitle', { class: activeClass?.name ?? '' })}
               </h2>
               <p className="type-badge text-muted mb-3">{t('reports.bulkHint')}</p>
+              <QuickBar draft={bulk} setDraft={setBulk} />
               {draftForm(bulk, setBulk)}
               <Button
                 className="mt-3"
