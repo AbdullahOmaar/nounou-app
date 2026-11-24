@@ -1198,6 +1198,23 @@ def main():
         check("a view token cannot send portal messages (view_only)",
               s >= 400 and "view_only" in str(b), f"got {s} {str(b)[:80]}")
 
+        # ---- scope-aware replacement (2.9 W1 x 2.7 scopes) ----
+        raw_view2 = "authz-view2-" + secrets.token_urlsafe(24)
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/issue_guardian_view_token",
+                    staff_jwt,
+                    body={"p_nursery": nursery_a, "p_guardian": a_guardian,
+                          "p_child": None, "p_token_hash": token_hash(raw_view2)})
+        check("staff re-issues a view token via the RPC", s == 200, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    None, body={"p_token": raw_view})
+        check("re-issuing a view token kills the previous view token (W1)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    None, body={"p_token": raw_view2})
+        check("the new view token works and the main token is untouched",
+              s == 200 and isinstance(b, dict)
+              and b.get("access_scope") == "view", f"got {s}")
+
         # ---- whatsapp gates (2.2, migration 0031) ----
         s, b = rest(url, anon, "GET",
                     f"/rest/v1/nursery_whatsapp_config?nursery_id=eq.{nursery_a}&select=nursery_id",
