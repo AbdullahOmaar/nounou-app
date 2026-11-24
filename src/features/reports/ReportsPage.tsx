@@ -21,6 +21,8 @@ import { useNurserySettings } from '../settings/hooks'
 import type { AteAmount, MealEntry, MealKind, Mood } from '../../types/database'
 import * as api from './api'
 import { childrenWithoutReports, reportAccessFor } from './publishLogic'
+import { enqueuePhoto, enqueueReport } from './offlineQueue'
+import { useReportsOfflineSync } from './hooks'
 import { MAX_PHOTO_BYTES } from './photoUtils'
 
 const MEALS: MealKind[] = ['breakfast', 'snack', 'lunch']
@@ -112,14 +114,34 @@ export function ReportsPage() {
   const refresh = () =>
     invalidatePrefixes(qc, ['day-reports', 'day-photos', 'home', 'child-photos'])
   const saveReport = useMutation({
-    mutationFn: (args: { childId: string; draft: DraftState }) =>
-      api.upsertReport(
-        nurseryId!,
-        day.data!.id,
-        args.childId,
-        draftToReport(args.draft),
-        user?.id ?? null,
-      ),
+    // networkMode always (درس 0.1): بلا اتصال يجب أن يفشل الاستدعاء
+    // فوراً فيُطابَق التقرير محلياً بدل أن يعلّق في ذاكرة React Query
+    networkMode: 'always',
+    mutationFn: async (args: { childId: string; draft: DraftState }) => {
+      const fields = draftToReport(args.draft)
+      try {
+        await api.upsertReport(
+          nurseryId!,
+          day.data!.id,
+          args.childId,
+          fields,
+          user?.id ?? null,
+        )
+      } catch (err) {
+        if (err instanceof Error && err.message === 'report_for_absent_child') {
+          throw err
+        }
+        enqueueReport({
+          nurseryId: nurseryId!,
+          classDayId: day.data!.id,
+          childId: args.childId,
+          draft: fields,
+          actorId: user?.id ?? null,
+        })
+        recountQueued()
+        throw new Error('queued_offline')
+      }
+    },
     onSuccess: refresh,
   })
   const publish = useMutation({
@@ -129,6 +151,7 @@ export function ReportsPage() {
       showToast(t('reports.publishedOk'))
     },
   })
+  const { queued, recountQueued } = useReportsOfflineSync(nurseryId ?? null)
 
   const [bulk, setBulk] = useState<DraftState>(EMPTY_DRAFT)
   const [editChild, setEditChild] = useState<{ id: string; name: string } | null>(null)
@@ -308,8 +331,12 @@ export function ReportsPage() {
                     for (const d of presentChildren) {
                       await saveReport.mutateAsync({ childId: d.child.id, draft: bulk })
                     }
-                  } catch {
-                    showToast(t('common.errorGeneric'), 'error')
+                  } catch (err) {
+                    if (err instanceof Error && err.message === 'queued_offline') {
+                      showToast(t('reports.savedOffline'))
+                    } else {
+                      showToast(t('common.errorGeneric'), 'error')
+                    }
                   }
                 }}
               >
@@ -400,6 +427,12 @@ export function ReportsPage() {
             })}
           </section>
 
+          {queued > 0 && (
+            <span className="type-badge text-bad-text bg-bad-soft rounded-full px-2 py-1 self-start">
+              {t('reports.syncPending', { count: queued })}
+            </span>
+          )}
+
           {canReports && unpublishedCount > 0 && (
             <Button full onClick={() => setPublishOpen(true)}>
               <Send size={18} />
@@ -437,12 +470,17 @@ export function ReportsPage() {
               } catch (err) {
                 // X2 (3A-378): الورقة اتفتحت والطفل حاضر، واتسجّل غايب
                 // أثناء التعديل — الرفض برسالة واضحة بدل صمت.
-                showToast(
-                  err instanceof Error && err.message === 'report_for_absent_child'
-                    ? t('reports.reportAbsentBlocked')
-                    : t('common.errorGeneric'),
-                  'error',
-                )
+                if (err instanceof Error && err.message === 'queued_offline') {
+                  showToast(t('reports.savedOffline'))
+                  setEditChild(null)
+                } else {
+                  showToast(
+                    err instanceof Error && err.message === 'report_for_absent_child'
+                      ? t('reports.reportAbsentBlocked')
+                      : t('common.errorGeneric'),
+                    'error',
+                  )
+                }
               }
             }}
           >
@@ -555,8 +593,29 @@ function PhotosSection({
       setTagged(new Set())
       setCaption('')
       onChanged()
-    } catch {
-      showToast(t('common.errorGeneric'), 'error')
+    } catch (err) {
+      const offline =
+        !navigator.onLine ||
+        (err instanceof Error && /failed to fetch|network/i.test(err.message))
+      if (offline) {
+        for (const f of files) {
+          await enqueuePhoto({
+            nurseryId,
+            classDayId,
+            childIds: [...tagged],
+            caption: caption.trim() || null,
+            actorId,
+            blob: f,
+          })
+        }
+        showToast(t('reports.savedOffline'))
+        setFiles([])
+        setTagged(new Set())
+        setCaption('')
+        onChanged()
+      } else {
+        showToast(t('common.errorGeneric'), 'error')
+      }
     } finally {
       setUploading(false)
     }

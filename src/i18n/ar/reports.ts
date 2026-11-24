@@ -60,4 +60,6 @@ export const reports = {
   noConsent: 'بلا موافقة',
   uploadNoConsent: '«{name}» بلا موافقة تصوير — الصور مش هتترفع',
   reportAbsentBlocked: 'الطفل غايب النهارده — مينفعش يتسجّل تقرير',
-} as const
+  syncPending: '{count} عملية بانتظار المزامنة',
+  savedOffline: 'اتحفظت على الجهاز — هتتزامن أول ما النت يرجع',
+}

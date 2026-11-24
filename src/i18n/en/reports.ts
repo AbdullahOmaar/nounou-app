@@ -60,4 +60,6 @@ export const reports = {
   noConsent: 'No consent',
   uploadNoConsent: '"{name}" has no photo consent — the photos will not be uploaded',
   reportAbsentBlocked: 'This child is absent today — a report cannot be saved',
+  syncPending: '{count} waiting to sync',
+  savedOffline: 'Saved on this device — it will sync when you are back online',
 }
