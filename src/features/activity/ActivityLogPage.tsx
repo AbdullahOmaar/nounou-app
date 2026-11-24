@@ -62,6 +62,16 @@ export function ActivityLogPage() {
         return t('activity.kind.announcement_published')
       case 'member_invited':
         return t('activity.kind.member_invited')
+      case 'member_removed':
+        return t('activity.kind.member_removed')
+      case 'child_archived':
+        return t('activity.kind.child_archived')
+      case 'settings_updated':
+        return t('activity.kind.settings_updated')
+      case 'pickup_code_failed':
+        return t('activity.kind.pickup_code_failed')
+      case 'bus_trip_closed':
+        return t('activity.kind.bus_trip_closed')
       case 'link_issued':
         return t('activity.kind.link_issued')
       case 'link_revoked':

@@ -71,6 +71,16 @@ export function HomePage() {
             <div className="type-title">{s.reportsMissing}</div>
             <div className="type-badge text-muted">{t('home.reportsMissing')}</div>
           </Card>
+          {/* 420-T3: عدّاد حالة (لا كرت تنبيه — قاعدة المالك) يفتح صفحة النشر */}
+          <Card
+            className="text-center py-3 cursor-pointer"
+            role="button"
+            aria-label={t('home.reportsUnpublished')}
+            onClick={() => navigate('/reports')}
+          >
+            <div className="type-title">{s.reportsUnpublished}</div>
+            <div className="type-badge text-muted">{t('home.reportsUnpublished')}</div>
+          </Card>
           {isOwner && (
             <>
               <Card className="text-center py-3">

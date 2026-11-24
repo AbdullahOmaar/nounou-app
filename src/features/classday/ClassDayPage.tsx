@@ -44,7 +44,6 @@ export function ClassDayPage() {
   const [pickupCode, setPickupCode] = useState('')
   const [codeError, setCodeError] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
-  const [codes, setCodes] = useState<Map<string, string>>(new Map())
 
   const list = useMemo(() => {
     const q = search.trim()
@@ -60,8 +59,8 @@ export function ClassDayPage() {
   async function ensureCodes() {
     if (!nurseryId || !codeEnabled) return
     const ids = (children.data ?? []).map((d) => d.child.id)
-    const map = await api.ensurePickupCodes(nurseryId, ids, date)
-    setCodes(map)
+    // توليد أكواد اليوم فقط — التحقق صار خادمياً (420-U2)، لا أكواد تُقارن هنا
+    await api.ensurePickupCodes(nurseryId, ids, date)
   }
 
   function basePayload(d: api.DayChild): api.AttendanceUpsert {
@@ -135,16 +134,26 @@ export function ClassDayPage() {
     }
   }
 
-  function confirmPickup(
+  async function confirmPickup(
     personId: string | null,
     isGuardian: boolean,
     guardianId: string | null = null,
   ) {
     if (!pickupChild) return
     if (codeEnabled) {
-      const expected = codes.get(pickupChild.child.id)
-      if (expected && pickupCode.trim() !== expected) {
-        setCodeError(true)
+      // 420-U2: تحقق خادمي ذرّي — الكود يُعلَّم مستخدماً وتُسجَّل المحاولات
+      const verdict = await api.verifyPickupCode(
+        nurseryId!,
+        pickupChild.child.id,
+        date,
+        pickupCode,
+      )
+      if (!verdict.ok) {
+        if (verdict.reason === 'error') {
+          showToast(t('common.errorGeneric'), 'error')
+        } else {
+          setCodeError(true)
+        }
         return
       }
     }

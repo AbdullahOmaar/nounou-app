@@ -8,6 +8,7 @@ import type {
   PaymentRow,
 } from '../../types/database'
 import { planMonthlyIssue, type IssueChildInput, type PlannedLine } from './issuePlan'
+import { logActivity } from '../settings/api'
 
 export interface InvoiceListItem extends InvoiceRow {
   childName: string
@@ -214,6 +215,14 @@ export async function issueMonthlyInvoices(
     )
     if (linesErr) throw linesErr
   }
+  if (plans.length > 0) {
+    await logActivity(
+      nurseryId,
+      actorId,
+      'invoice_issued',
+      `${period} × ${plans.length}`,
+    )
+  }
   return { issued: plans.length, skipped: skipped.length, noPrice }
 }
 
@@ -292,6 +301,14 @@ export async function recordPayment(
     source: 'admin',
   })
   if (error) throw error
+  await logActivity(
+    nurseryId,
+    actorId,
+    'payment_recorded',
+    `${input.amount} — ${input.method}`,
+    'payment',
+    paymentId,
+  )
 }
 
 /** عكس دفعة: سطر مقابل + وسم الأصل — لا حذف أبداً */
@@ -322,6 +339,14 @@ export async function reversePayment(
     .update({ reversed_by_id: (reversal as { id: string }).id })
     .eq('id', payment.id)
   if (markErr) throw markErr
+  await logActivity(
+    nurseryId,
+    actorId,
+    'payment_reversed',
+    `${payment.amount} — ${payment.method}`,
+    'payment',
+    payment.id,
+  )
 }
 
 /** مدفوعات طفل (تبويب ملف الطفل — للمالك فقط بحكم RLS) */

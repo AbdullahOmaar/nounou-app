@@ -58,7 +58,7 @@ export function useSettingsMutations() {
       onSuccess: refresh,
     }),
     removeMember: useMutation({
-      mutationFn: (memberId: string) => api.removeMember(memberId),
+      mutationFn: (memberId: string) => api.removeMember(nurseryId!, memberId),
       onSuccess: refresh,
     }),
   }

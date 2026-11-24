@@ -57,7 +57,13 @@ export function ChildFormSheet({ open, onClose, onSubmit, initialClassId }: Prop
       setGuardianPhone('')
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.errorGeneric'))
+      setError(
+        err instanceof Error && err.message === 'class_full'
+          ? t('children.classFull')
+          : err instanceof Error
+            ? err.message
+            : t('common.errorGeneric'),
+      )
     } finally {
       setBusy(false)
     }

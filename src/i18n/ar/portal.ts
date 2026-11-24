@@ -19,6 +19,7 @@ export const portal = {
   activitiesTitle: 'الأنشطة',
   moodTitle: 'المزاج',
   photosTitle: 'صور اليوم',
+  photoRetry: 'الصورة ما فتحتش — دوس لإعادة المحاولة',
   noPhotos: 'لا صور منشورة لليوم ده',
   statementTitle: 'كشف الحساب',
   noInvoices: 'لا فواتير صادرة لسه',

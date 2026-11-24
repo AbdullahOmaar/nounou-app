@@ -6,6 +6,7 @@ export const home = {
   notPickedUpYet: 'لسه لم يُستلموا',
   absentToday: 'غائب النهارده',
   reportsMissing: 'تقارير ناقصة',
+  reportsUnpublished: 'تقارير بلا نشر',
   overdueTotal: 'متأخرات مستحقة',
   pendingProofs: 'إثباتات بانتظار المراجعة',
   quickActions: 'إجراءات سريعة',
