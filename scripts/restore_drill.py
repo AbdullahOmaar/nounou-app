@@ -14,7 +14,7 @@
      بيانات storage.objects الوصفية فقط.
   3. قاعدة محلية مؤقتة `nounou_drill_<ts>`: مخطط auth/storage
      مصغّر + أدوار anon/authenticated/service_role + دالة auth.uid
-     الصورية، ثم تطبيق الهجرات 0001–0019 من git عبر psql مع تخطٍّ
+     الصورية، ثم تطبيق الهجرات 0001–0020 من git عبر psql مع تخطٍّ
      صريح ومُسجَّل لبيانات Supabase فقط (pg_cron/pg_net وجدولة cron)
      — المشروع الحي لا يُمسّ أبداً إلا عبر run_migration.py.
   4. تحميل البيانات (وضع replica أثناء التحميل — نفس سلوك pg_restore
