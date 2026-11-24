@@ -42,8 +42,14 @@ export function useSettingsMutations() {
       onSuccess: refresh,
     }),
     invite: useMutation({
-      mutationFn: (args: { email: string; permissions: Parameters<typeof api.inviteMember>[2] }) =>
-        api.inviteMember(nurseryId!, args.email, args.permissions),
+      // الدعوة تُحفظ أولاً ثم يُرسل إيميلها (0.7) — حالة الإيميل ترجع للواجهة
+      mutationFn: async (args: {
+        email: string
+        permissions: Parameters<typeof api.inviteMember>[2]
+      }) => {
+        await api.inviteMember(nurseryId!, args.email, args.permissions)
+        return api.sendInviteEmail(nurseryId!, args.email)
+      },
       onSuccess: refresh,
     }),
     updateMember: useMutation({

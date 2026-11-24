@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Send, Trash2 } from 'lucide-react'
+import { useToast } from '../../components/ui/toast'
+import { sendInviteEmail } from './api'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Chip, ChipRow, Field, FormError, TextInput } from '../../components/ui/form'
@@ -29,6 +31,7 @@ const PERMISSION_KEYS: PermissionKey[] = [
  */
 export function MembersPage() {
   const t = useT()
+  const toast = useToast()
   const nursery = useCurrentNursery()
   const isOwner = nursery.status === 'ready' && nursery.isOwner
   const members = useMembers()
@@ -105,6 +108,24 @@ export function MembersPage() {
             </div>
             {m.role !== 'owner' && (
               <span className="flex gap-1">
+                {m.status === 'invited' && m.invited_email && nursery.status === 'ready' && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={t('settings.resendInviteEmail')}
+                    onClick={async () => {
+                      const st = await sendInviteEmail(nursery.nurseryId, m.invited_email!)
+                      toast(
+                        st === 'sent'
+                          ? t('settings.inviteEmailResent')
+                          : t('settings.inviteEmailFailed'),
+                        st === 'sent' ? 'success' : 'error',
+                      )
+                    }}
+                  >
+                    <Send size={16} />
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="ghost"
@@ -171,9 +192,15 @@ export function MembersPage() {
             onClick={async () => {
               setError(null)
               try {
-                await mutations.invite.mutateAsync({ email, permissions: perms })
+                const emailStatus = await mutations.invite.mutateAsync({ email, permissions: perms })
                 setEmail('')
                 setInviteOpen(false)
+                toast(
+                  emailStatus === 'sent'
+                    ? t('settings.inviteEmailSent')
+                    : t('settings.inviteEmailFailed'),
+                  emailStatus === 'sent' ? 'success' : 'error',
+                )
               } catch (err) {
                 setError(err instanceof Error ? err.message : t('common.errorGeneric'))
               }
