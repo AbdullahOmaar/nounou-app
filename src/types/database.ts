@@ -228,6 +228,29 @@ export interface PaymentRow {
   updated_at: string
 }
 
+export type ExpenseCategory =
+  | 'salaries'
+  | 'rent'
+  | 'food'
+  | 'transport'
+  | 'supplies'
+  | 'maintenance'
+  | 'other'
+
+/** صف ‏nursery_expenses (419 — مهمة 1.2؛ مالك فقط بـRLS) */
+export interface NurseryExpenseRow {
+  id: string
+  nursery_id: string
+  period: string
+  expense_date: string
+  category: ExpenseCategory
+  title: string
+  amount: number
+  note: string | null
+  created_by: string | null
+  created_at: string
+}
+
 /** صف view ‏invoice_balances */
 export interface InvoiceBalanceRow {
   invoice_id: string

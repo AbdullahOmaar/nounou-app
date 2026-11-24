@@ -13,6 +13,7 @@ import {
   Settings as SettingsIcon,
   ShieldCheck,
   Users,
+  Wallet,
 } from 'lucide-react'
 import { Card } from '../../components/ui/Card'
 import { useT } from '../../i18n'
@@ -40,6 +41,7 @@ export function MorePage() {
       '/announcements',
       '/portal-links',
       '/activity',
+      '/finance',
       '/settings',
       '/members',
     ])
@@ -56,6 +58,7 @@ export function MorePage() {
     { icon: Bus, label: t('shell.more.bus'), path: '/bus' },
     { icon: Megaphone, label: t('shell.more.announcements'), path: '/announcements' },
     { icon: Link2, label: t('shell.more.portalLinks'), path: '/portal-links' },
+    { icon: Wallet, label: t('shell.more.finance'), path: '/finance', ownerOnly: true },
     {
       icon: ShieldCheck,
       label: t('shell.more.proofs'),

@@ -1022,6 +1022,24 @@ def main():
                           "p_day_date": today_iso, "p_code": "135790"})
         check("pickup code: member of another nursery is forbidden",
               s >= 400, f"got {s} {str(b)[:80]}")
+        # ---- nursery_expenses (419, migration 0022): owner-only finance ----
+        s, b = rest(url, anon, "POST", "/rest/v1/nursery_expenses",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "period": "2026-11",
+                          "expense_date": "2026-11-15", "category": "food",
+                          "title": "authz expense", "amount": 250})
+        check("owner can record an expense", s in (200, 201), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "GET",
+                    f"/rest/v1/nursery_expenses?nursery_id=eq.{nursery_a}&select=id",
+                    staff_jwt)
+        rows = b if isinstance(b, list) else []
+        check("staff cannot see expenses (owner-only RLS)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        s, b = rest(url, anon, "POST", "/rest/v1/nursery_expenses",
+                    body={"nursery_id": nursery_a, "period": "2026-11",
+                          "expense_date": "2026-11-15", "category": "food",
+                          "title": "staff expense", "amount": 10})
+        check("staff cannot record an expense", s >= 400, f"got {s}")
     finally:
         # ---------- cleanup ----------
         ids = [u for u in (owner_a_uid, owner_b_uid, staff_uid) if u]
