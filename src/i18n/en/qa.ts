@@ -1,0 +1,16 @@
+export const qa = {
+  open: 'Open',
+  create: 'New Q&A session',
+  emptyTitle: 'No sessions yet',
+  emptyBody: 'Announce a session and let parents ask from their portal — questions land here and your answers publish to everyone',
+  titleLabel: 'Session title',
+  startsLabel: 'Starts when?',
+  scheduled: 'Scheduled',
+  live: 'Live now',
+  ended: 'Ended',
+  startNow: 'Start now',
+  endNow: 'End session',
+  noQuestions: 'No questions yet',
+  answerPlaceholder: 'Write the answer…',
+  answerSend: 'Publish answer',
+}

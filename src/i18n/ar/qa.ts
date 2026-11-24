@@ -1,0 +1,16 @@
+export const qa = {
+  open: 'فتح',
+  create: 'جلسة أسئلة جديدة',
+  emptyTitle: 'لا جلسات بعد',
+  emptyBody: 'أعلن جلسة وخلي الأهالي يسألوا من بوابتهم — الأسئلة بتظهر لك هنا وترد عليها فتتنشر للكل',
+  titleLabel: 'عنوان الجلسة',
+  startsLabel: 'تبدأ إمتى؟',
+  scheduled: 'مجدولة',
+  live: 'جارية الآن',
+  ended: 'انتهت',
+  startNow: 'ابدأ الآن',
+  endNow: 'إنهاء الجلسة',
+  noQuestions: 'لا أسئلة بعد',
+  answerPlaceholder: 'اكتب الإجابة…',
+  answerSend: 'نشر الإجابة',
+}

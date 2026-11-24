@@ -1148,6 +1148,35 @@ def main():
         check("owner can file a pending approval", s in (200, 201),
               f"got {s} {str(b)[:80]}")
 
+        # ---- Q&A sessions (2.8, migration 0034) ----
+        s, b = rest(url, anon, "POST", "/rest/v1/qa_sessions", owner_a_jwt,
+                    body={"nursery_id": nursery_a, "title": "authz qa",
+                          "starts_at": "2026-12-01T10:00:00Z"})
+        created = s in (200, 201)
+        s2, b2 = rest(url, anon, "GET",
+                      "/rest/v1/qa_sessions?title=eq.authz%20qa&select=id",
+                      owner_a_jwt)
+        qa_id = b2[0].get("id") if isinstance(b2, list) and b2 else None
+        check("owner creates a Q&A session", created and bool(qa_id),
+              f"got {s}")
+        raw_qa = "authz-qa-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', '{token_hash(raw_qa)}', 'authz qa')")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_ask_by_token",
+                    None, body={"p_token": raw_qa, "p_session": qa_id,
+                                "p_body": "authz question"})
+        check("a guardian asks a question by token",
+              s == 200 and isinstance(b, dict) and bool(b.get("id")), f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_qa_by_token",
+                    None, body={"p_token": raw_qa})
+        sess = b.get("sessions", []) if isinstance(b, dict) else []
+        mine_ok = any(
+            any(q.get("body") == "authz question" for q in ss.get("mine", []))
+            for ss in sess)
+        check("the guardian reads the session with their pending question",
+              s == 200 and mine_ok, f"got {s}")
+
         # ---- family view tokens (2.7, migration 0033) ----
         raw_view = "authz-view-" + secrets.token_urlsafe(24)
         sql(ref, "insert into guardian_access_tokens "

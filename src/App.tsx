@@ -128,6 +128,7 @@ registerRouteLoaders({
   '/finance': () => import('./features/finance/FinancePage'),
   '/suppliers': () => import('./features/suppliers/SuppliersPage'),
   '/messages': () => import('./features/messages/MessagesPage'),
+  '/qa': () => import('./features/qa/QaPage'),
   '/settings': () => import('./features/settings/SettingsPage'),
   '/members': () => import('./features/settings/MembersPage'),
   '/export': () => import('./features/settings/ExportPage'),

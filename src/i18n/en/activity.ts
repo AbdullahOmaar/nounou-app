@@ -30,6 +30,7 @@ export const activity = {
     approval_approved: 'Approved a financial action',
     approval_rejected: 'Rejected a financial action',
     fee_reminders_run: 'Ran fee reminders',
+    qa_session_created: 'Announced a Q&A session',
     message_sent: 'Sent a parent message',
     link_issued: 'Issued a portal link',
     link_revoked: 'Revoked a portal link',

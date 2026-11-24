@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react'
+import { Bell, ChevronLeft, ChevronRight, MessageCircle, MessageCircleQuestion, Send } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Sheet } from '../../components/ui/Sheet'
@@ -13,11 +13,13 @@ import { useLocale, setLocale } from '../../i18n/locale'
 import { fmtPeriod } from '../../i18n/format'
 import {
   formatClock12,
+  formatDateTimeAr,
   formatMoney,
   shiftISODate,
   todayISO,
   waLink,
 } from '../../lib/format'
+import { useToast } from '../../components/ui/toast'
 import type { PaymentMethod } from '../../types/database'
 import * as api from './api'
 import { capturePortalToken, getStoredPortalToken } from './session'
@@ -117,6 +119,7 @@ export function PortalPage() {
           </div>
           <span className="flex items-center gap-1">
             {!viewOnly && <MessagesButton token={token} />}
+            <QaButton token={token} viewOnly={viewOnly} />
             <NotificationsBell
               token={token}
               childName={(id) =>
@@ -646,6 +649,10 @@ function NotificationsBell({
           name,
           period: String(n.meta.period ?? ''),
         })
+      case 'qa':
+        return t('portal.notif.qa', {
+          title: String(n.meta?.title ?? ''),
+        })
       case 'message':
         return t('portal.notif.message')
       case 'announcement':
@@ -696,6 +703,101 @@ function NotificationsBell({
 
 
 /** رسائل الحضانة داخل البوابة (2.5): خيط الوصيّ + كتابة رسالة */
+interface QaButtonProps {
+  token: string
+  viewOnly: boolean
+}
+
+function QaButton({ token, viewOnly }: QaButtonProps) {
+  const t = useT()
+  const showToast = useToast()
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [drafts, setDrafts] = useState<Map<string, string>>(new Map())
+  const qa = useQuery({
+    queryKey: ['portal-qa', token],
+    queryFn: () => api.fetchPortalQa(token),
+    enabled: open,
+  })
+  const ask = useMutation({
+    mutationFn: (v: { sessionId: string; body: string }) =>
+      api.askPortalQuestion(token, v.sessionId, v.body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['portal-qa', token] })
+    },
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
+  })
+  const sessions = qa.data ?? []
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="ghost"
+        aria-label={t('portal.qaTitle')}
+        onClick={() => setOpen(true)}
+      >
+        <MessageCircleQuestion size={20} />
+      </Button>
+      <Sheet open={open} onClose={() => setOpen(false)} title={t('portal.qaTitle')}>
+        {qa.isLoading ? (
+          <LoadingState />
+        ) : sessions.length === 0 ? (
+          <div className="type-secondary text-muted">{t('portal.qaEmpty')}</div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {sessions.map((s) => (
+              <div key={s.id} className="flex flex-col gap-2">
+                <div className="type-body">{s.title}</div>
+                <div className="type-badge text-muted">
+                  {formatDateTimeAr(s.starts_at)}
+                  {s.status === 'live' ? ` • ${t('portal.qaLive')}` : ''}
+                </div>
+                {s.published.map((q) => (
+                  <div key={q.id} className="bg-soft rounded-xl p-2">
+                    <div className="type-secondary">{q.body}</div>
+                    <div className="type-secondary mt-1">{q.answer}</div>
+                  </div>
+                ))}
+                {s.mine
+                  .filter((q) => !q.answer)
+                  .map((q) => (
+                    <div key={q.id} className="type-badge text-muted">
+                      {q.body} — {t('portal.qaWaiting')}
+                    </div>
+                  ))}
+                {!viewOnly && (
+                  <div className="flex gap-2 items-start">
+                    <TextArea
+                      rows={2}
+                      value={drafts.get(s.id) ?? ''}
+                      placeholder={t('portal.qaPlaceholder')}
+                      onChange={(e) =>
+                        setDrafts((prev) => new Map(prev).set(s.id, e.target.value))
+                      }
+                    />
+                    <Button
+                      size="sm"
+                      disabled={!(drafts.get(s.id) ?? '').trim() || ask.isPending}
+                      onClick={() =>
+                        ask.mutate({
+                          sessionId: s.id,
+                          body: (drafts.get(s.id) ?? '').trim(),
+                        })
+                      }
+                    >
+                      <Send size={16} />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Sheet>
+    </>
+  )
+}
+
 interface MessagesButtonProps {
   token: string
 }

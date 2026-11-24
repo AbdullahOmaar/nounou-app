@@ -282,7 +282,7 @@ async function cancelUnconfirmedPayment(
 
 export interface PortalNotification {
   id: string
-  kind: 'report' | 'proof_approved' | 'proof_rejected' | 'invoice' | 'announcement' | 'message'
+  kind: 'report' | 'proof_approved' | 'proof_rejected' | 'invoice' | 'announcement' | 'message' | 'qa' | 'qa'
   meta: Record<string, unknown>
   child_id: string | null
   created_at: string
@@ -339,6 +339,51 @@ export async function sendPortalMessage(
   const db = requireSupabase()
   const { error } = await db.rpc('nursery_portal_send_message_by_token', {
     p_token: token,
+    p_body: body,
+  })
+  if (error) throw error
+}
+
+/* ------------------------------------------------------------------ */
+/* جلسات الأسئلة (2.8)                                                 */
+/* ------------------------------------------------------------------ */
+
+export interface PortalQaQuestion {
+  id: string
+  body: string
+  answer: string | null
+  answered_at?: string | null
+  created_at?: string
+}
+
+export interface PortalQaSession {
+  id: string
+  title: string
+  starts_at: string
+  status: 'scheduled' | 'live' | 'ended'
+  published: PortalQaQuestion[]
+  mine: PortalQaQuestion[]
+}
+
+export async function fetchPortalQa(token: string): Promise<PortalQaSession[]> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('nursery_portal_qa_by_token', {
+    p_token: token,
+  })
+  if (error) throw error
+  const parsed = data as { sessions?: PortalQaSession[] } | null
+  return parsed?.sessions ?? []
+}
+
+export async function askPortalQuestion(
+  token: string,
+  sessionId: string,
+  body: string,
+): Promise<void> {
+  const db = requireSupabase()
+  const { error } = await db.rpc('nursery_portal_ask_by_token', {
+    p_token: token,
+    p_session: sessionId,
     p_body: body,
   })
   if (error) throw error
