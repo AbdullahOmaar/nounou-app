@@ -1206,6 +1206,23 @@ def main():
               s == 200 and isinstance(b, dict)
               and b.get("found") is False, f"got {s}")
 
+        # ---- events platform (3.9, migration 0044) ----
+        sql(ref, f"update nurseries set public_enabled = true "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/public_nursery_events",
+                    None, body={"p_slug": "authz-public"})
+        check("the public site lists the nursery events year (3.9)",
+              s == 200 and isinstance(b, dict) and b.get("found") is True
+              and any(e.get("public_code") == "authzparty1"
+                      for e in b.get("events") or []), f"got {s}")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/event_photos?select=id&limit=1")
+        check("the event photo archive is closed to anon (3.9)",
+              not (isinstance(b, list) and len(b) > 0), f"got {s}")
+        sql(ref, f"update nurseries set public_enabled = false "
+                 f"where id = '{nursery_a}'")
+
         # ---- event halls (3.8, migration 0043) ----
         halls_json = json.dumps([{"name": "Men Hall", "location_text": "Hall A", "maps_url": None}])
         one(ref, "update nursery_events set halls = '"
