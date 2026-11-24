@@ -102,6 +102,33 @@ export async function inviteMember(
   if (error) throw error
 }
 
+export type InviteEmailStatus = 'sent' | 'not_configured' | 'failed'
+
+/**
+ * إرسال بريد الدعوة عبر دالة send-invite-email (Brevo — 0.7). لا يرمي أبداً:
+ * الدعوة محفوظة أصلاً، والإيميل طبقة إشعار — نتيجته تُعرض للمالك كتوست.
+ */
+export async function sendInviteEmail(
+  nurseryId: string,
+  email: string,
+): Promise<InviteEmailStatus> {
+  const db = requireSupabase()
+  try {
+    const { data, error } = await db.functions.invoke('send-invite-email', {
+      body: { nurseryId, email: email.trim().toLowerCase() },
+    })
+    if (error) {
+      // خطأ HTTP من الدالة (503 غير مهيأة / 502 فشل إرسال) يصل هنا كخطأ عام
+      const ctx = (error as { context?: Response }).context
+      if (ctx && ctx.status === 503) return 'not_configured'
+      return 'failed'
+    }
+    return (data as { sent?: boolean } | null)?.sent ? 'sent' : 'failed'
+  } catch {
+    return 'failed'
+  }
+}
+
 export async function updateMember(
   memberId: string,
   patch: Partial<Pick<NurseryMemberRow, 'permissions' | 'status'>>,

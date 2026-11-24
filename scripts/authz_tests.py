@@ -969,6 +969,24 @@ def main():
                     body={"p_token": raw_replaced})
         check("a revoked device session dies on the next call",
               s >= 400, f"got {s} {str(b)[:80]}")
+        # 0.7: بوابات دالة إرسال إيميل الدعوة (لا إيميل يُرسل فعلياً في أي فحص)
+        sql(ref, "insert into nursery_members "
+                 "(nursery_id, user_id, invited_email, role, permissions, status) values "
+                 f"('{nursery_a}', null, 'authz-invitee@nounou.test', 'staff', '{{}}', 'invited')")
+        s, b = rest(url, anon, "POST", "/functions/v1/send-invite-email",
+                    body={"nurseryId": nursery_a, "email": "authz-invitee@nounou.test"})
+        check("invite email function rejects anonymous callers",
+              s == 401, f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/functions/v1/send-invite-email",
+                    staff_jwt,
+                    body={"nurseryId": nursery_a, "email": "authz-invitee@nounou.test"})
+        check("invite email function rejects non-owner staff",
+              s == 403, f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/functions/v1/send-invite-email",
+                    owner_a_jwt,
+                    body={"nurseryId": nursery_a, "email": "authz-nobody@nounou.test"})
+        check("owner calling for a non-existent invite gets 404 (no send)",
+              s == 404, f"got {s} {str(b)[:80]}")
     finally:
         # ---------- cleanup ----------
         ids = [u for u in (owner_a_uid, owner_b_uid, staff_uid) if u]
