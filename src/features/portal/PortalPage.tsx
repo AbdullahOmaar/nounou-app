@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Bell, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
+import { Sheet } from '../../components/ui/Sheet'
 import { Chip, ChipRow, Field, TextInput } from '../../components/ui/form'
 import { ErrorState, LoadingState } from '../../components/ui/states'
 import { Mascot } from '../../components/mascot/Mascot'
@@ -108,13 +109,21 @@ export function PortalPage() {
               </div>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setLocale(locale === 'ar' ? 'en' : 'ar')}
-          >
-            {locale === 'ar' ? t('common.langEn') : t('common.langAr')}
-          </Button>
+          <span className="flex items-center gap-1">
+            <NotificationsBell
+              token={token}
+              childName={(id) =>
+                children.find((c) => c.id === id)?.full_name ?? ''
+              }
+            />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocale(locale === 'ar' ? 'en' : 'ar')}
+            >
+              {locale === 'ar' ? t('common.langEn') : t('common.langAr')}
+            </Button>
+          </span>
         </header>
 
         {children.length > 1 && (
@@ -585,5 +594,91 @@ function PaySection({
         {t('portal.paySubmit')}
       </Button>
     </Card>
+  )
+}
+
+/** جرس إشعارات الوصيّ (2.1): شارة غير المقروء + قائمة تُعلَّم مقروءة عند الفتح */
+function NotificationsBell({
+  token,
+  childName,
+}: {
+  token: string
+  childName: (id: string | null) => string
+}) {
+  const t = useT()
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const inbox = useQuery({
+    queryKey: ['portal-notifications', token],
+    queryFn: () => api.fetchPortalNotifications(token),
+    retry: false,
+  })
+  const unread = inbox.data?.unread ?? 0
+  const markRead = useMutation({
+    mutationFn: () => api.markPortalNotificationsRead(token),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ['portal-notifications', token] }),
+  })
+  const text = (n: api.PortalNotification): string => {
+    const name = childName(n.child_id)
+    switch (n.kind) {
+      case 'report':
+        return t('portal.notif.report', { name })
+      case 'proof_approved':
+        return t('portal.notif.proofApproved', {
+          amount: formatMoney(Number(n.meta.amount ?? 0)),
+        })
+      case 'proof_rejected':
+        return t('portal.notif.proofRejected', {
+          amount: formatMoney(Number(n.meta.amount ?? 0)),
+        })
+      case 'invoice':
+        return t('portal.notif.invoice', {
+          name,
+          period: String(n.meta.period ?? ''),
+        })
+      case 'announcement':
+        return t('portal.notif.announcement', {
+          title: String(n.meta.title ?? ''),
+        })
+    }
+  }
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label={t('portal.notif.title')}
+        onClick={() => {
+          setOpen(true)
+          if (unread > 0) markRead.mutate()
+        }}
+      >
+        <span className="relative inline-flex">
+          <Bell size={20} />
+          {unread > 0 && (
+            <span className="absolute -top-1.5 -end-1.5 min-w-4 h-4 px-0.5 rounded-full bg-bad text-white type-badge flex items-center justify-center">
+              {unread}
+            </span>
+          )}
+        </span>
+      </Button>
+      <Sheet open={open} onClose={() => setOpen(false)} title={t('portal.notif.title')}>
+        {(inbox.data?.items ?? []).length === 0 ? (
+          <p className="type-secondary text-muted">{t('portal.notif.empty')}</p>
+        ) : (
+          <div className="flex flex-col divide-y divide-border">
+            {(inbox.data?.items ?? []).map((n) => (
+              <div key={n.id} className="py-2.5 flex flex-col gap-0.5">
+                <span className="type-body">{text(n)}</span>
+                <span className="type-badge text-muted">
+                  {n.created_at.slice(0, 10)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Sheet>
+    </>
   )
 }

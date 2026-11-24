@@ -40,4 +40,13 @@ export const portal = {
   pickDate: 'يوم تاني',
   healthSummary: 'ملخص صحي',
   receiptsTitle: 'إيصالاتك',
+  notif: {
+    title: 'الإشعارات',
+    empty: 'لا إشعارات لسه',
+    report: 'نُشر تقرير {name} اليومي',
+    proofApproved: 'اتقبل إثبات دفعك ({amount})',
+    proofRejected: 'اترفض إثبات دفعك ({amount}) — شوف السبب في كشف الحساب',
+    invoice: 'فاتورة {name} لشهر {period} جاهزة',
+    announcement: 'إعلان جديد: {title}',
+  },
 }

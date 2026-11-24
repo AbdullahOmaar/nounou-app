@@ -826,6 +826,27 @@ def main():
                     "/rest/v1/rpc/nursery_portal_child_day_by_token",
                     body={"p_token": "bogus-token-value", "p_child_id": a_child1})
         check("portal child day rejects an invalid token", s >= 400, f"got {s}")
+        # ---- guardian notifications (2.1, migration 0030) ----
+        sql(ref, "insert into guardian_notifications "
+                 "(nursery_id, guardian_id, child_id, kind, meta) values "
+                 f"('{nursery_a}', '{a_guardian}', '{a_child1}', 'invoice', "
+                 "'{\"period\": \"2026-11\"}')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_notifications_by_token",
+                    body={"p_token": raw_valid})
+        items = b.get("items") if isinstance(b, dict) else None
+        check("portal notifications returns the guardian inbox with unread count",
+              s == 200 and isinstance(items, list) and len(items) >= 1
+              and (b.get("unread") or 0) >= 1,
+              f"got {s} {str(b)[:120]}")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_notifications_mark_read",
+                    body={"p_token": raw_valid})
+        unread_after = one(ref, "select count(*) as c from guardian_notifications "
+                                f"where guardian_id='{a_guardian}' and read_at is null")
+        check("portal notifications mark-read clears the unread count",
+              s == 200 and (unread_after.get("c") or 0) == 0,
+              f"got {s} unread={unread_after.get('c')}")
         paid_before = float(one(ref, "select total_paid from child_balances "
                                      f"where child_id = '{a_child1}'")["total_paid"])
         s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_submit_payment",

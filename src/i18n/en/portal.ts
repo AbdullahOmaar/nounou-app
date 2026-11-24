@@ -40,4 +40,13 @@ export const portal = {
   pickDate: 'Another day',
   healthSummary: 'Health summary',
   receiptsTitle: 'Your receipts',
+  notif: {
+    title: 'Notifications',
+    empty: 'No notifications yet',
+    report: 'The daily report for {name} was published',
+    proofApproved: 'Your payment proof was approved ({amount})',
+    proofRejected: 'Your payment proof was rejected ({amount}) — see the reason in your statement',
+    invoice: 'The invoice for {name} ({period}) is ready',
+    announcement: 'New announcement: {title}',
+  },
 }
