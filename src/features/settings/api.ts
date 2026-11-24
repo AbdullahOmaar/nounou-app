@@ -57,13 +57,19 @@ export async function getPublicPageSettings(nurseryId: string) {
   const db = requireSupabase()
   const { data, error } = await db
     .from('nurseries')
-    .select('public_slug, public_enabled, public_about, public_license_no')
+    .select('public_slug, public_enabled, public_about, public_license_no, public_instapay, public_vodafone, public_bank')
     .eq('id', nurseryId)
     .single()
   if (error) throw error
   return data as Pick<
     NurseryRow,
-    'public_slug' | 'public_enabled' | 'public_about' | 'public_license_no'
+    | 'public_slug'
+    | 'public_enabled'
+    | 'public_about'
+    | 'public_license_no'
+    | 'public_instapay'
+    | 'public_vodafone'
+    | 'public_bank'
   >
 }
 
@@ -72,7 +78,13 @@ export async function updatePublicPageSettings(
   patch: Partial<
     Pick<
       NurseryRow,
-      'public_slug' | 'public_enabled' | 'public_about' | 'public_license_no'
+      | 'public_slug'
+      | 'public_enabled'
+      | 'public_about'
+      | 'public_license_no'
+      | 'public_instapay'
+      | 'public_vodafone'
+      | 'public_bank'
     >
   >,
 ): Promise<void> {

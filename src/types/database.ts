@@ -65,6 +65,9 @@ export interface NurseryRow {
   public_enabled: boolean
   public_about: string | null
   public_license_no: string | null
+  public_instapay: string | null
+  public_vodafone: string | null
+  public_bank: string | null
 }
 
 export interface NurseryMemberRow {
