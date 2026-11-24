@@ -372,7 +372,7 @@ export function ClassDayPage() {
                 )}
               </Field>
             )}
-            {codeEnabled && nursery.isOwner && (
+            {codeEnabled && nursery.status === 'ready' && nursery.isOwner && (
               <Button
                 variant="ghost"
                 disabled={sendingCode}
