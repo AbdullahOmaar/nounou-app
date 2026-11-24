@@ -28,6 +28,9 @@ export default function EventsPage() {
   const [starts, setStarts] = useState('')
   const [location, setLocation] = useState('')
   const [mapsUrl, setMapsUrl] = useState('')
+  const [halls, setHalls] = useState<
+    { name: string; location: string; maps: string }[]
+  >([])
 
   const events = useQuery({
     queryKey: ['events', nurseryId],
@@ -44,6 +47,13 @@ export default function EventsPage() {
         endsAt: null,
         locationText: location.trim() || null,
         mapsUrl: mapsUrl.trim() || null,
+        halls: halls
+          .filter((h) => h.name.trim())
+          .map((h) => ({
+            name: h.name.trim(),
+            location_text: h.location.trim() || null,
+            maps_url: h.maps.trim() || null,
+          })),
       }),
     onSuccess: () => {
       showToast(t('common.savedOk'))
@@ -181,6 +191,46 @@ export default function EventsPage() {
             onChange={(e) => setMapsUrl(e.target.value)}
           />
         </Field>
+        <div className="type-secondary text-muted">{t('events.hallsHint')}</div>
+        {halls.map((h, i) => (
+          <div key={i} className="flex flex-col gap-2 rounded-2xl bg-soft p-3">
+            <Field label={t('events.hallName')}>
+              <TextInput
+                value={h.name}
+                onChange={(e) =>
+                  setHalls(halls.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))
+                }
+              />
+            </Field>
+            <Field label={t('events.location')}>
+              <TextInput
+                value={h.location}
+                onChange={(e) =>
+                  setHalls(halls.map((x, j) => (j === i ? { ...x, location: e.target.value } : x)))
+                }
+              />
+            </Field>
+            <Field label={t('events.mapsUrl')}>
+              <TextInput
+                dir="ltr"
+                value={h.maps}
+                onChange={(e) =>
+                  setHalls(halls.map((x, j) => (j === i ? { ...x, maps: e.target.value } : x)))
+                }
+              />
+            </Field>
+            <Button onClick={() => setHalls(halls.filter((_, j) => j !== i))}>
+              {t('common.delete')}
+            </Button>
+          </div>
+        ))}
+        {halls.length < 4 && (
+          <Button
+            onClick={() => setHalls([...halls, { name: '', location: '', maps: '' }])}
+          >
+            {t('events.addHall')}
+          </Button>
+        )}
       </Sheet>
     </div>
   )

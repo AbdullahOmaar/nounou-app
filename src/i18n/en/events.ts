@@ -15,4 +15,7 @@ export const events = {
   rsvp: "RSVP on WhatsApp",
   rsvpText: "I will attend:",
   kinds: { graduation: "Graduation", open_day: "Open day", aqeeqa: "Aqeeqa", misc: "Other" },
+  hallsHint: "Separate halls (optional): each hall has its own place, map and RSVP",
+  hallName: "Hall name",
+  addHall: "Add a hall",
 }

@@ -122,8 +122,45 @@ export default function EventInvitePage() {
               </div>
             )}
           </div>
+          {(ev.halls ?? []).length > 0 && (
+            <div className="flex flex-col gap-3">
+              {(ev.halls ?? []).map((h, i) => {
+                const hMaps =
+                  h.maps_url ??
+                  (h.location_text
+                    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(h.location_text)}`
+                    : null)
+                const hRsvp = wa
+                  ? `${wa}?text=${encodeURIComponent(`${t('events.rsvpText')} ${ev.title ?? ''} — ${h.name}`)}`
+                  : null
+                return (
+                  <div key={i} className="rounded-2xl bg-soft p-3">
+                    <div className="type-body mb-1">{h.name}</div>
+                    {h.location_text && (
+                      <div className="type-secondary text-muted mb-2">{h.location_text}</div>
+                    )}
+                    <div className="flex gap-2">
+                      {hMaps && (
+                        <a href={hMaps} target="_blank" rel="noreferrer">
+                          <Button>
+                            <MapPin size={16} />
+                            {t('events.openMap')}
+                          </Button>
+                        </a>
+                      )}
+                      {hRsvp && (
+                        <a href={hRsvp} target="_blank" rel="noreferrer">
+                          <Button>{t('events.rsvp')}</Button>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
           <div className="flex flex-col gap-2">
-            {maps && (
+            {(ev.halls ?? []).length === 0 && maps && (
               <a href={maps} target="_blank" rel="noreferrer">
                 <Button full style={brand ? { backgroundColor: brand } : undefined}>
                   <MapPin size={16} />
@@ -135,7 +172,7 @@ export default function EventInvitePage() {
               <CalendarPlus size={16} />
               {t('events.addCalendar')}
             </Button>
-            {rsvp && (
+            {(ev.halls ?? []).length === 0 && rsvp && (
               <a href={rsvp} target="_blank" rel="noreferrer">
                 <Button full>{t('events.rsvp')}</Button>
               </a>

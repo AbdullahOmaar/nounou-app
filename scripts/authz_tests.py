@@ -1206,6 +1206,20 @@ def main():
               s == 200 and isinstance(b, dict)
               and b.get("found") is False, f"got {s}")
 
+        # ---- event halls (3.8, migration 0043) ----
+        halls_json = json.dumps([{"name": "Men Hall", "location_text": "Hall A", "maps_url": None}])
+        one(ref, "update nursery_events set halls = '"
+                 + halls_json + "'::jsonb "
+                 "where public_code = 'authzparty1'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/public_event_by_code",
+                    None, body={"p_code": "authzparty1"})
+        check("the invitation carries its separate halls (3.8)",
+              s == 200 and isinstance(b, dict)
+              and isinstance(b.get("halls"), list)
+              and len(b.get("halls") or []) == 1
+              and (b.get("halls") or [{}])[0].get("name") == "Men Hall",
+              f"got {s}")
+
         # ---- tour booking (3.6, migration 0041) ----
         sql(ref, f"update nurseries set public_enabled = true "
                  f"where id = '{nursery_a}'")
