@@ -28,7 +28,7 @@ export type NurseryResolution =
 
 const MEMBER_COLS =
   'id, nursery_id, user_id, invited_email, role, permissions, status, created_at, updated_at'
-const NURSERY_COLS = 'id, name, logo_url, phone, address, created_by, created_at, updated_at'
+const NURSERY_COLS = 'id, name, logo_url, phone, address, created_by, created_at, updated_at, brand_color'
 
 /**
  * يحلّ «الحضانة النشطة» من جلسة Supabase:

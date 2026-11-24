@@ -81,4 +81,9 @@ export const settings = {
     testResult: 'نتيجة الاختبار: {status}',
     logTitle: 'آخر المحاولات المسجلة',
   },
+  identitySection: "هوية الحضانة",
+  logoUpload: "رفع الشعار",
+  logoHint: "يظهر على صفحتك العامة وبوابة الأهالي والإيصالات",
+  brandColor: "لون العلامة",
+  brandDefault: "الافتراضي",
 }

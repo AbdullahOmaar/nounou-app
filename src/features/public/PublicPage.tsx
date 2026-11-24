@@ -52,8 +52,11 @@ export default function PublicSiteLayout() {
     )
   }
   const wa = waLink(d.phone)
+  const brand = d.brand_color ?? undefined
   const navCls = ({ isActive }: { isActive: boolean }) =>
-    `type-secondary rounded-full px-3 py-1 ${isActive ? 'bg-primary text-white' : 'text-muted'}`
+    `type-secondary rounded-full px-3 py-1 ${isActive && !brand ? 'bg-primary text-white' : isActive ? 'text-white' : 'text-muted'}`
+  const navStyle = ({ isActive }: { isActive: boolean }) =>
+    isActive && brand ? { backgroundColor: brand } : undefined
 
   return (
     <div className="min-h-dvh bg-bg text-text">
@@ -76,13 +79,13 @@ export default function PublicSiteLayout() {
             </span>
           )}
           <nav className="flex gap-2 mt-1">
-            <NavLink to={`/n/${slug}`} end className={navCls}>
+            <NavLink to={`/n/${slug}`} end className={navCls} style={navStyle}>
               {t('pub.navHome')}
             </NavLink>
-            <NavLink to={`/n/${slug}/classes`} className={navCls}>
+            <NavLink to={`/n/${slug}/classes`} className={navCls} style={navStyle}>
               {t('pub.navClasses')}
             </NavLink>
-            <NavLink to={`/n/${slug}/about`} className={navCls}>
+            <NavLink to={`/n/${slug}/about`} className={navCls} style={navStyle}>
               {t('pub.navAbout')}
             </NavLink>
           </nav>
@@ -98,6 +101,7 @@ export default function PublicSiteLayout() {
             onClick={() => {
               if (slug) void api.trackPublicPage(slug, 'whatsapp_click', pageName)
             }}
+            style={brand ? { backgroundColor: brand } : undefined}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary text-white py-3 type-body"
           >
             <MessageCircle size={18} />

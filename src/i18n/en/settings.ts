@@ -81,4 +81,9 @@ export const settings = {
     testResult: 'Test result: {status}',
     logTitle: 'Recent logged attempts',
   },
+  identitySection: "Nursery identity",
+  logoUpload: "Upload logo",
+  logoHint: "Shown on your public page, the parent portal and receipts",
+  brandColor: "Brand color",
+  brandDefault: "Default",
 }
