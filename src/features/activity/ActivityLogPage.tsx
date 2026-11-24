@@ -76,6 +76,12 @@ export function ActivityLogPage() {
         return t('activity.kind.expense_recorded')
       case 'expense_deleted':
         return t('activity.kind.expense_deleted')
+      case 'cashbox_entry_added':
+        return t('activity.kind.cashbox_entry_added')
+      case 'cashbox_entry_deleted':
+        return t('activity.kind.cashbox_entry_deleted')
+      case 'cashbox_closed':
+        return t('activity.kind.cashbox_closed')
       case 'link_issued':
         return t('activity.kind.link_issued')
       case 'link_revoked':

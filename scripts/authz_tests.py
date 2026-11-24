@@ -1040,6 +1040,30 @@ def main():
                           "expense_date": "2026-11-15", "category": "food",
                           "title": "staff expense", "amount": 10})
         check("staff cannot record an expense", s >= 400, f"got {s}")
+
+        # ---- cashbox ledger + shift close (1.3, migration 0023) ----
+        s, b = rest(url, anon, "POST", "/rest/v1/cashbox_entries",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "entry_date": "2026-11-16",
+                          "direction": "out", "kind": "purchase",
+                          "title": "authz purchase", "amount": 90})
+        check("owner can add a cashbox entry", s in (200, 201), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "GET",
+                    f"/rest/v1/cashbox_entries?nursery_id=eq.{nursery_a}&select=id",
+                    staff_jwt)
+        rows = b if isinstance(b, list) else []
+        check("staff cannot see cashbox entries (owner-only RLS)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        sql(ref, "insert into cashbox_closes (nursery_id, shift_date, expected_total, "
+                 "counted_total, difference, handover_to) values "
+                 f"('{nursery_a}', '2026-11-15', 100, 100, 0, 'authz')")
+        s, b = rest(url, anon, "POST", "/rest/v1/cashbox_entries",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "entry_date": "2026-11-15",
+                          "direction": "out", "kind": "purchase",
+                          "title": "frozen day entry", "amount": 10})
+        check("a closed cashbox day is frozen server-side (trigger)",
+              s >= 400, f"got {s}")
     finally:
         # ---------- cleanup ----------
         ids = [u for u in (owner_a_uid, owner_b_uid, staff_uid) if u]
