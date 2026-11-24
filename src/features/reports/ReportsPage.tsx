@@ -25,6 +25,7 @@ import { enqueuePhoto, enqueueReport } from './offlineQueue'
 import { useReportsOfflineSync } from './hooks'
 import { Mic } from 'lucide-react'
 import { MAX_PHOTO_BYTES } from './photoUtils'
+import { makeStopFlag, type StopFlag } from '../../lib/bulk'
 
 const MEALS: MealKind[] = ['breakfast', 'snack', 'lunch']
 const ATE: AteAmount[] = ['all', 'most', 'some', 'none']
@@ -282,6 +283,8 @@ export function ReportsPage() {
   const { queued, recountQueued } = useReportsOfflineSync(nurseryId ?? null)
 
   const [bulk, setBulk] = useState<DraftState>(EMPTY_DRAFT)
+  const bulkStopRef = useRef<StopFlag>(makeStopFlag())
+  const [bulkSaving, setBulkSaving] = useState(false)
   const [editChild, setEditChild] = useState<{ id: string; name: string } | null>(null)
   const [editDraft, setEditDraft] = useState<DraftState>(EMPTY_DRAFT)
   const [publishOpen, setPublishOpen] = useState(false)
@@ -464,9 +467,22 @@ export function ReportsPage() {
                 full
                 disabled={saveReport.isPending || presentChildren.length === 0}
                 onClick={async () => {
+                  bulkStopRef.current = makeStopFlag()
+                  setBulkSaving(true)
+                  let savedCount = 0
                   try {
                     for (const d of presentChildren) {
+                      if (bulkStopRef.current.shouldStop()) {
+                        showToast(
+                          t('common.bulkStopped', {
+                            done: savedCount,
+                            total: presentChildren.length,
+                          }),
+                        )
+                        return
+                      }
                       await saveReport.mutateAsync({ childId: d.child.id, draft: bulk })
+                      savedCount += 1
                     }
                   } catch (err) {
                     if (err instanceof Error && err.message === 'queued_offline') {
@@ -474,11 +490,23 @@ export function ReportsPage() {
                     } else {
                       showToast(t('common.errorGeneric'), 'error')
                     }
+                  } finally {
+                    setBulkSaving(false)
                   }
                 }}
               >
                 {t('reports.applyToAll')}
               </Button>
+              {bulkSaving && (
+                <Button
+                  variant="soft"
+                  className="mt-2"
+                  full
+                  onClick={() => bulkStopRef.current.stop()}
+                >
+                  {t('common.stop')}
+                </Button>
+              )}
             </Card>
           )}
 
@@ -678,6 +706,7 @@ function PhotosSection({
   const t = useT()
   const showToast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
+  const uploadStopRef = useRef<StopFlag>(makeStopFlag())
   const [files, setFiles] = useState<File[]>([])
   const [tagged, setTagged] = useState<Set<string>>(new Set())
   const [caption, setCaption] = useState('')
@@ -838,9 +867,16 @@ function PhotosSection({
                   onChange={(e) => setCaption(e.target.value)}
                 />
               </Field>
-              <Button onClick={handleUpload} disabled={uploading} full>
-                {uploading ? t('reports.uploading') : t('reports.uploadNow')}
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleUpload} disabled={uploading} full>
+                  {uploading ? t('reports.uploading') : t('reports.uploadNow')}
+                </Button>
+                {uploading && (
+                  <Button variant="soft" onClick={() => uploadStopRef.current.stop()}>
+                    {t('common.stop')}
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </Card>

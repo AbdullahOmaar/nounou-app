@@ -5,6 +5,8 @@ export interface FeeReminderRun {
   attempted: number
   skippedRecent: number
   byStatus: Record<string, number>
+  stopped: boolean
+  total: number
 }
 
 interface Candidate {
@@ -22,6 +24,7 @@ interface Candidate {
 export async function runFeeReminders(
   nurseryId: string,
   actorId: string | null,
+  shouldStop?: () => boolean,
 ): Promise<FeeReminderRun> {
   const db = requireSupabase()
   const [balRes, linksRes] = await Promise.all([
@@ -47,7 +50,7 @@ export async function runFeeReminders(
     byGuardian.set(guardianId, cur)
   }
   const candidates = [...byGuardian.values()]
-  if (candidates.length === 0) return { attempted: 0, skippedRecent: 0, byStatus: {} }
+  if (candidates.length === 0) return { attempted: 0, skippedRecent: 0, byStatus: {}, stopped: false, total: 0 }
 
   const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString()
   const { data: recent, error: rErr } = await db
@@ -63,7 +66,12 @@ export async function runFeeReminders(
   const byStatus: Record<string, number> = {}
   let attempted = 0
   let skippedRecent = 0
+  let stoppedEarly = false
   for (const c of candidates) {
+    if (shouldStop?.()) {
+      stoppedEarly = true
+      break
+    }
     if (recentSet.has(c.guardianId)) {
       skippedRecent += 1
       continue
@@ -85,5 +93,5 @@ export async function runFeeReminders(
     'fee_reminders_run',
     `attempted ${attempted} — skipped ${skippedRecent}`,
   )
-  return { attempted, skippedRecent, byStatus }
+  return { attempted, skippedRecent, byStatus, stopped: stoppedEarly, total: candidates.length }
 }

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCheck, Copy, MessageCircle } from 'lucide-react'
+import { CheckCheck, Copy, MessageCircle, OctagonX } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -17,6 +17,7 @@ import { currentPeriod, formatMoney, waLinkWithText } from '../../lib/format'
 import { useNurserySettings } from '../settings/hooks'
 import { useInvoices, useInvoiceMutations, useOverdue } from './hooks'
 import { runFeeReminders } from './reminders'
+import { makeStopFlag, type StopFlag } from '../../lib/bulk'
 import { useAuth } from '../../lib/AuthProvider'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 
@@ -32,6 +33,8 @@ export function InvoicesPage() {
   const invoices = useInvoices(period)
   const overdue = useOverdue()
   const [reminding, setReminding] = useState(false)
+  const remindStopRef = useRef<StopFlag>(makeStopFlag())
+  const issueStopRef = useRef<StopFlag>(makeStopFlag())
   const { user } = useAuth()
   const nursery = useCurrentNursery()
   const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : null
@@ -54,14 +57,20 @@ export function InvoicesPage() {
   async function handleIssue() {
     setIssueError(null)
     try {
+      issueStopRef.current = makeStopFlag()
       const res = await mutations.issue.mutateAsync({
         period,
         dueDate: dueDate || null,
+        shouldStop: issueStopRef.current.shouldStop,
       })
       setIssueResult(
         `${t('invoices.issueDone', { count: res.issued })}${res.skipped ? ` — ${t('invoices.issueSkipped', { count: res.skipped })}` : ''}${
           res.noPrice.length > 0
             ? ` — ${t('invoices.issueNoPrice', { count: res.noPrice.length, names: res.noPrice.join(', ') })}`
+            : ''
+        }${
+          res.stopped
+            ? ` — ${t('common.bulkStopped', { done: res.issued, total: res.planned })}`
             : ''
         }`,
       )
@@ -168,12 +177,20 @@ export function InvoicesPage() {
                 onClick={async () => {
                   setReminding(true)
                   try {
-                    const run = await runFeeReminders(nurseryId!, user?.id ?? null)
+                    remindStopRef.current = makeStopFlag()
+                    const run = await runFeeReminders(nurseryId!, user?.id ?? null, remindStopRef.current.shouldStop)
                     showToast(
                       t('invoices.remindersRun', {
                         attempted: run.attempted,
                         skipped: run.skippedRecent,
-                      }),
+                      }) +
+                        (run.stopped
+                          ? ' — ' +
+                            t('common.bulkStopped', {
+                              done: run.attempted + run.skippedRecent,
+                              total: run.total,
+                            })
+                          : ''),
                     )
                   } catch {
                     showToast(t('common.errorGeneric'), 'error')
@@ -185,6 +202,16 @@ export function InvoicesPage() {
                 <MessageCircle size={16} />
                 {t('invoices.remindAll')}
               </Button>
+              {reminding && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => remindStopRef.current.stop()}
+                >
+                  <OctagonX size={16} />
+                  {t('common.stop')}
+                </Button>
+              )}
               <Button variant="ghost" size="sm" onClick={copyOverdue}>
                 <Copy size={16} />
                 {t('invoices.copyOverdue')}
@@ -240,9 +267,17 @@ export function InvoicesPage() {
         onClose={() => setIssueOpen(false)}
         title={t('invoices.issueTitle', { period })}
         footer={
-          <Button onClick={handleIssue} disabled={mutations.issue.isPending} full>
-            {mutations.issue.isPending ? t('invoices.issuing') : t('invoices.issueNow')}
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={handleIssue} disabled={mutations.issue.isPending} full>
+              {mutations.issue.isPending ? t('invoices.issuing') : t('invoices.issueNow')}
+            </Button>
+            {mutations.issue.isPending && (
+              <Button variant="soft" onClick={() => issueStopRef.current.stop()}>
+                <OctagonX size={16} />
+                {t('common.stop')}
+              </Button>
+            )}
+          </div>
         }
       >
         <div className="flex flex-col gap-3">

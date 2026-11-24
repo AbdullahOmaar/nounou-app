@@ -77,4 +77,6 @@ export const common = {
   notFoundHome: 'Back to home',
   offline: 'No connection — your work is saved on the device and uploads automatically when you are back online',
   aiGenerated: "AI-generated",
+  stop: "Stop",
+  bulkStopped: "Done {done} of {total} — the rest was stopped",
 }

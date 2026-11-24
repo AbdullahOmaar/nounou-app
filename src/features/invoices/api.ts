@@ -114,7 +114,14 @@ export async function issueMonthlyInvoices(
   period: string,
   dueDate: string | null,
   actorId: string | null,
-): Promise<{ issued: number; skipped: number; noPrice: string[] }> {
+  shouldStop?: () => boolean,
+): Promise<{
+  issued: number
+  skipped: number
+  noPrice: string[]
+  stopped: boolean
+  planned: number
+}> {
   const db = requireSupabase()
   const [settingsRes, enrollRes, subsRes, linksRes, existingRes] = await Promise.all([
     db
@@ -189,7 +196,13 @@ export async function issueMonthlyInvoices(
   const already = new Set((existingRes.data ?? []).map((i) => i.child_id as string))
   const { plans, skipped, noPrice } = planMonthlyIssue(inputs, discount, already)
 
+  let issuedCount = 0
+  let stoppedEarly = false
   for (const plan of plans) {
+    if (shouldStop?.()) {
+      stoppedEarly = true
+      break
+    }
     const { data: inv, error } = await db
       .from('invoices')
       .insert({
@@ -214,6 +227,7 @@ export async function issueMonthlyInvoices(
       })),
     )
     if (linesErr) throw linesErr
+    issuedCount += 1
   }
   if (plans.length > 0) {
     await logActivity(
@@ -223,7 +237,13 @@ export async function issueMonthlyInvoices(
       `${period} × ${plans.length}`,
     )
   }
-  return { issued: plans.length, skipped: skipped.length, noPrice }
+  return {
+    issued: issuedCount,
+    skipped: skipped.length,
+    noPrice,
+    stopped: stoppedEarly,
+    planned: plans.length,
+  }
 }
 
 export async function addInvoiceLine(

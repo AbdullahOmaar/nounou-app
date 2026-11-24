@@ -52,8 +52,8 @@ export function useInvoiceMutations() {
   return {
     nurseryId,
     issue: useMutation({
-      mutationFn: (args: { period: string; dueDate: string | null }) =>
-        api.issueMonthlyInvoices(nurseryId!, args.period, args.dueDate, user?.id ?? null),
+      mutationFn: (args: { period: string; dueDate: string | null; shouldStop?: () => boolean }) =>
+        api.issueMonthlyInvoices(nurseryId!, args.period, args.dueDate, user?.id ?? null, args.shouldStop),
       onSuccess: refresh,
     }),
     addLine: useMutation({
