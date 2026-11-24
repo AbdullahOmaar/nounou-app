@@ -55,7 +55,19 @@ export function MessagesPage() {
       setDraft('')
       refresh()
     },
-    onError: () => showToast(t('common.errorGeneric'), 'error'),
+    onError: (err) => {
+      if (err instanceof Error && err.message.startsWith('outbound_blocked:')) {
+        const reason = err.message.split(':')[1]
+        showToast(
+          t(reason === 'card_number'
+            ? 'messages.blockedCard'
+            : 'messages.blockedNationalId'),
+          'error',
+        )
+      } else {
+        showToast(t('common.errorGeneric'), 'error')
+      }
+    },
   })
 
   if (!nurseryId || threads.isLoading) return <LoadingState />
