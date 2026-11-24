@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import {
   Bell,
-  MessageCircle,
+  MessageCircle, MessageCircleQuestion,
   Bus,
   ClipboardList,
   Download,
@@ -63,6 +63,7 @@ export function MorePage() {
     { icon: Wallet, label: t('shell.more.finance'), path: '/finance', ownerOnly: true },
     { icon: Truck, label: t('shell.more.suppliers'), path: '/suppliers', ownerOnly: true },
     { icon: MessageCircle, label: t('shell.more.messages'), path: '/messages' },
+    { icon: MessageCircleQuestion, label: t('shell.more.qa'), path: '/qa' },
     {
       icon: ShieldCheck,
       label: t('shell.more.proofs'),
