@@ -41,4 +41,5 @@ export const pub = {
   visitDoneHint: "The nursery will call you to confirm",
   visitError: "Check the name, mobile number and child name and try again",
   navVisit: "Book a tour",
+  visitCta: "Book a tour and see the nursery yourself",
 }
