@@ -3,6 +3,12 @@ import { logActivityAuto } from '../settings/api'
 
 export type EventKind = 'graduation' | 'open_day' | 'aqeeqa' | 'other'
 
+export interface EventHall {
+  name: string
+  location_text: string | null
+  maps_url: string | null
+}
+
 export interface NurseryEvent {
   id: string
   title: string
@@ -12,6 +18,7 @@ export interface NurseryEvent {
   location_text: string | null
   maps_url: string | null
   public_code: string
+  halls: EventHall[]
   created_at: string
 }
 
@@ -36,6 +43,7 @@ export async function createEvent(
     endsAt: string | null
     locationText: string | null
     mapsUrl: string | null
+    halls: EventHall[]
   },
 ): Promise<void> {
   const db = requireSupabase()
@@ -48,6 +56,7 @@ export async function createEvent(
     ends_at: input.endsAt,
     location_text: input.locationText,
     maps_url: input.mapsUrl,
+    halls: input.halls,
     created_by: userData.user?.id ?? null,
   })
   if (error) throw error
@@ -68,6 +77,7 @@ export interface PublicEvent {
   ends_at?: string | null
   location_text?: string | null
   maps_url?: string | null
+  halls?: EventHall[]
   nursery?: {
     name: string
     logo_url: string | null

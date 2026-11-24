@@ -15,4 +15,7 @@ export const events = {
   rsvp: "تأكيد الحضور واتساب",
   rsvpText: "هحضر بإذن الله:",
   kinds: { graduation: "تخرج", open_day: "يوم مفتوح", aqeeqa: "عقيقة", misc: "أخرى" },
+  hallsHint: "قاعات منفصلة (اختياري): لكل قاعة مكانها وخريطتها وتأكيد حضورها",
+  hallName: "اسم القاعة",
+  addHall: "أضف قاعة",
 }
