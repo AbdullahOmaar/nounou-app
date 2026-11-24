@@ -27,20 +27,47 @@ async function enqueueAnnouncementAlert(
   nurseryId: string,
   title: string,
   isOwner: boolean,
+  audience: string,
+  classId: string | null,
 ): Promise<void> {
   if (!isOwner) return
   try {
     const db = requireSupabase()
-    const { data } = await db
-      .from('guardians')
-      .select('id')
-      .eq('nursery_id', nurseryId)
-      .limit(500)
-    for (const g of (data ?? []) as { id: string }[]) {
+    let guardianIds: string[]
+    if (audience === 'class' && classId) {
+      // منشور فصل: أوصياء أطفال الفصل النشطين فقط (زي جرس 0030)
+      const { data: enr } = await db
+        .from('enrollments')
+        .select('child_id')
+        .eq('nursery_id', nurseryId)
+        .eq('class_id', classId)
+        .eq('status', 'active')
+        .limit(1000)
+      const childIds = [...new Set(
+        ((enr ?? []) as { child_id: string }[]).map((r) => r.child_id),
+      )]
+      if (childIds.length === 0) return
+      const { data: links } = await db
+        .from('guardian_children')
+        .select('guardian_id')
+        .in('child_id', childIds)
+        .limit(1000)
+      guardianIds = [...new Set(
+        ((links ?? []) as { guardian_id: string }[]).map((r) => r.guardian_id),
+      )]
+    } else {
+      const { data } = await db
+        .from('guardians')
+        .select('id')
+        .eq('nursery_id', nurseryId)
+        .limit(500) // حد أمان لا هدف: أكبر حضانة متوقعة داخل النطاق
+      guardianIds = ((data ?? []) as { id: string }[]).map((g) => g.id)
+    }
+    for (const gid of guardianIds) {
       try {
         await db.rpc('whatsapp_enqueue', {
           p_nursery: nurseryId,
-          p_guardian: g.id,
+          p_guardian: gid,
           p_template: 'announcement',
           p_params: { title },
         })
@@ -110,6 +137,8 @@ export function AnnouncementsPage() {
           nurseryId!,
           title.trim(),
           nursery.status === 'ready' && nursery.isOwner,
+          audience,
+          audience === 'class' ? classId || null : null,
         )
       }
       setTitle('')
@@ -132,6 +161,8 @@ export function AnnouncementsPage() {
         nurseryId!,
         a.title,
         nursery.status === 'ready' && nursery.isOwner,
+        a.audience,
+        a.class_id,
       )
     },
   })
