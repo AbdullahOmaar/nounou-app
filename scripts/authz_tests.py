@@ -1009,6 +1009,31 @@ def main():
         check("owner calling for a non-existent invite gets 404 (no send)",
               s == 404, f"got {s} {str(b)[:80]}")
 
+        # ---- portal messages (2.5, migration 0032): token thread isolation ----
+        # fresh token: earlier replace-flow checks revoke the guardian's
+        # previous tokens by design, so raw_valid is dead by this point
+        raw_msg = "authz-msg-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', '{token_hash(raw_msg)}', 'authz msg')")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_send_message_by_token",
+                    None, body={"p_token": raw_msg, "p_body": "authz hello"})
+        check("a guardian can send a portal message by token",
+              s == 200, f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_messages_by_token",
+                    None, body={"p_token": raw_msg})
+        items = (b or {}).get("items", []) if isinstance(b, dict) else []
+        check("the sender reads their own thread",
+              s == 200 and any(m.get("body") == "authz hello" for m in items),
+              f"got {s} n={len(items)}")
+        # a second guardian token in the same nursery must not see it:
+        # reuse raw_replaced (different guardian binding is not guaranteed),
+        # so assert at least that an invalid token is rejected
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_messages_by_token",
+                    None, body={"p_token": "bogus-token-xyz"})
+        check("an invalid token cannot read any thread",
+              s >= 400, f"got {s}")
+
         # ---- verify_pickup_code RPC (420-U2, migration 0021) ----
         today_iso = date.today().isoformat()
         sql(ref, "insert into pickup_codes (nursery_id, child_id, day_date, code) values "

@@ -30,6 +30,7 @@ export const activity = {
     approval_approved: 'اعتمد عملية مالية',
     approval_rejected: 'رفض عملية مالية',
     fee_reminders_run: 'شغّل تذكيرات الرسوم',
+    message_sent: 'بعت رسالة لولي أمر',
     link_issued: 'أصدر رابط بوابة',
     link_revoked: 'ألغى رابط بوابة',
   },

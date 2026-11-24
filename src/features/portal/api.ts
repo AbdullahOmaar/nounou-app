@@ -262,7 +262,7 @@ async function cancelUnconfirmedPayment(
 
 export interface PortalNotification {
   id: string
-  kind: 'report' | 'proof_approved' | 'proof_rejected' | 'invoice' | 'announcement'
+  kind: 'report' | 'proof_approved' | 'proof_rejected' | 'invoice' | 'announcement' | 'message'
   meta: Record<string, unknown>
   child_id: string | null
   created_at: string
@@ -290,6 +290,36 @@ export async function markPortalNotificationsRead(token: string): Promise<void> 
   const db = requireSupabase()
   const { error } = await db.rpc('nursery_portal_notifications_mark_read', {
     p_token: token,
+  })
+  if (error) throw error
+}
+
+export interface PortalMessage {
+  id: string
+  sender: 'guardian' | 'staff'
+  body: string
+  created_at: string
+}
+
+export async function fetchPortalMessages(
+  token: string,
+): Promise<PortalMessage[]> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('nursery_portal_messages_by_token', {
+    p_token: token,
+  })
+  if (error) throw error
+  return ((data as { items?: PortalMessage[] })?.items ?? []) as PortalMessage[]
+}
+
+export async function sendPortalMessage(
+  token: string,
+  body: string,
+): Promise<void> {
+  const db = requireSupabase()
+  const { error } = await db.rpc('nursery_portal_send_message_by_token', {
+    p_token: token,
+    p_body: body,
   })
   if (error) throw error
 }

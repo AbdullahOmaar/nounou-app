@@ -39,6 +39,10 @@ export const portal = {
   invalidLinkBody: 'اطلب من الحضانة رابط جديد',
   pickDate: 'يوم تاني',
   healthSummary: 'ملخص صحي',
+  messagesTitle: 'رسائل الحضانة',
+  messagesEmpty: 'لا رسائل بعد — اكتب أول رسالة للحضانة.',
+  messagesPlaceholder: 'اكتب رسالتك للحضانة…',
+  messagesSend: 'إرسال',
   receiptsTitle: 'إيصالاتك',
   notif: {
     title: 'الإشعارات',
@@ -47,6 +51,7 @@ export const portal = {
     proofApproved: 'اتقبل إثبات دفعك ({amount})',
     proofRejected: 'اترفض إثبات دفعك ({amount}) — شوف السبب في كشف الحساب',
     invoice: 'فاتورة {name} لشهر {period} جاهزة',
+    message: 'رسالة جديدة من الحضانة',
     announcement: 'إعلان جديد: {title}',
   },
 }
