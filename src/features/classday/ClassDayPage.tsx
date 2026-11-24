@@ -12,6 +12,7 @@ import { useToast } from '../../components/ui/toast'
 import { useT } from '../../i18n'
 import { formatClock12, todayISO } from '../../lib/format'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
+import { enqueuePickupCode } from '../settings/whatsapp'
 import { useNurserySettings } from '../settings/hooks'
 import * as api from './api'
 import { useAttendanceWriter, useClassDay, useDayChildren } from './hooks'
@@ -42,6 +43,7 @@ export function ClassDayPage() {
   const [search, setSearch] = useState('')
   const [pickupChild, setPickupChild] = useState<api.DayChild | null>(null)
   const [pickupCode, setPickupCode] = useState('')
+  const [sendingCode, setSendingCode] = useState(false)
   const [codeError, setCodeError] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
 
@@ -305,6 +307,40 @@ export function ClassDayPage() {
         <p className="type-body text-center text-good-text">{t('attendance.allMarked')}</p>
       )}
 
+      {(() => {
+        const picked = list.filter((d) => d.attendance?.picked_up_at)
+        if (picked.length === 0) return null
+        return (
+          <Card className="flex flex-col gap-2">
+            <h2 className="type-section">{t('attendance.pickupLogTitle')}</h2>
+            {picked.map((d) => {
+              const g = d.guardians.find(
+                (x) => x.id === d.attendance?.picked_up_guardian_id,
+              )
+              const person = d.pickupPersons.find(
+                (x) => x.id === d.attendance?.picked_up_by,
+              )
+              return (
+                <div
+                  key={d.child.id}
+                  className="flex items-center justify-between gap-2"
+                >
+                  <span className="type-body">{d.child.full_name}</span>
+                  <span className="type-badge text-muted">
+                    {(d.attendance?.picked_up_at ?? '').slice(11, 16)}
+                    {' • '}
+                    {g?.full_name ?? person?.full_name ?? ''}
+                    {d.attendance?.pickup_code_used
+                      ? ` • ${t('attendance.pickupLogCodeUsed')}`
+                      : ''}
+                  </span>
+                </div>
+              )
+            })}
+          </Card>
+        )
+      })()}
+
       <Sheet
         open={Boolean(pickupChild)}
         onClose={() => setPickupChild(null)}
@@ -335,6 +371,36 @@ export function ClassDayPage() {
                   </span>
                 )}
               </Field>
+            )}
+            {codeEnabled && (
+              <Button
+                variant="ghost"
+                disabled={sendingCode}
+                onClick={async () => {
+                  setSendingCode(true)
+                  try {
+                    const map = await api.ensurePickupCodes(
+                      nurseryId!,
+                      [pickupChild.child.id],
+                      date,
+                    )
+                    const code = map.get(pickupChild.child.id)
+                    if (!code) throw new Error('no_code')
+                    const status = await enqueuePickupCode(
+                      nurseryId!,
+                      pickupChild.child.id,
+                      code,
+                    )
+                    showToast(t('attendance.codeSendResult', { status }))
+                  } catch {
+                    showToast(t('common.errorGeneric'), 'error')
+                  } finally {
+                    setSendingCode(false)
+                  }
+                }}
+              >
+                {t('attendance.sendCodeWhatsapp')}
+              </Button>
             )}
             {pickupChild.guardians.map((g) => (
               <Button

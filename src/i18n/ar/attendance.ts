@@ -38,4 +38,8 @@ export const attendance = {
   allMarked: 'كل الأطفال اتسجلوا 🎉',
   historyTitle: 'سجل حضور {name}',
   noHistory: 'لا سجل حضور لسه',
-} as const
+  sendCodeWhatsapp: 'إرسال كود اليوم للوصيّ (واتساب)',
+  codeSendResult: 'نتيجة الإرسال: {status}',
+  pickupLogTitle: 'سجل استلام اليوم',
+  pickupLogCodeUsed: 'بالكود',
+}
