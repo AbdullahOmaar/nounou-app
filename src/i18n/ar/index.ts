@@ -20,6 +20,7 @@ import { finance } from './finance'
 import { suppliers } from './suppliers'
 import { messages } from './messages'
 import { qa } from './qa'
+import { pub } from './pub'
 
 /**
  * قاموس العربية — لغة نونو الأولى (والإنجليزية مرآة بنيوية كاملة في
@@ -50,4 +51,5 @@ export const ar = {
   suppliers,
   messages,
   qa,
+  pub,
 } as const

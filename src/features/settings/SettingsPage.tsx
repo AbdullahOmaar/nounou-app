@@ -9,6 +9,7 @@ import { useLocale, setLocale } from '../../i18n/locale'
 import { useTheme } from '../../hooks/useTheme'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { WhatsAppSettingsCard } from './WhatsAppSettingsCard'
+import { PublicPageCard } from './PublicPageCard'
 import { useAuth } from '../../lib/AuthProvider'
 import { useNurserySettings, useSettingsMutations } from './hooks'
 
@@ -209,7 +210,10 @@ export function SettingsPage() {
       )}
 
       {isOwner && nursery.status === 'ready' && (
-        <WhatsAppSettingsCard nurseryId={nursery.nurseryId} />
+        <>
+          <WhatsAppSettingsCard nurseryId={nursery.nurseryId} />
+          <PublicPageCard nurseryId={nursery.nurseryId} />
+        </>
       )}
 
       <Card className="flex flex-col gap-3">

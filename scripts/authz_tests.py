@@ -1148,6 +1148,26 @@ def main():
         check("owner can file a pending approval", s in (200, 201),
               f"got {s} {str(b)[:80]}")
 
+        # ---- public page (3.1, migration 0037) ----
+        sql(ref, f"update nurseries set public_slug = 'authz-public', "
+                 f"public_enabled = true, public_license_no = 'L-1' "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        pub_ok = (s == 200 and isinstance(b, dict) and b.get("found") is True
+                  and b.get("licensed") is True
+                  and isinstance(b.get("classes"), list)
+                  and len(b.get("classes") or []) >= 1)
+        check("anon reads an enabled public page with classes (3.1)",
+              pub_ok, f"got {s} {str(b)[:140]}")
+        sql(ref, f"update nurseries set public_enabled = false "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("a disabled public page is not found (3.1)",
+              s == 200 and isinstance(b, dict) and b.get("found") is False,
+              f"got {s} {str(b)[:100]}")
+
         # ---- Q&A sessions (2.8, migration 0034) ----
         s, b = rest(url, anon, "POST", "/rest/v1/qa_sessions", owner_a_jwt,
                     body={"nursery_id": nursery_a, "title": "authz qa",

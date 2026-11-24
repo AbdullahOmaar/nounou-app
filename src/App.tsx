@@ -72,6 +72,7 @@ const PortalLinksPage = lazy(() =>
 const PortalPage = lazy(() =>
   import('./features/portal/PortalPage').then((m) => ({ default: m.PortalPage })),
 )
+const PublicPage = lazy(() => import('./features/public/PublicPage'))
 const NotificationsPage = lazy(() =>
   import('./features/notifications/NotificationsPage').then((m) => ({
     default: m.NotificationsPage,
@@ -160,6 +161,14 @@ export default function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route
+                path="/n/:slug"
+                element={
+                  <Suspense fallback={<LoadingState />}>
+                    <PublicPage />
+                  </Suspense>
+                }
+              />
               <Route
                 path="/p/:token"
                 element={

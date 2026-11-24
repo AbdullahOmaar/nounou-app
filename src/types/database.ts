@@ -61,6 +61,10 @@ export interface NurseryRow {
   created_by: string
   created_at: string
   updated_at: string
+  public_slug: string | null
+  public_enabled: boolean
+  public_about: string | null
+  public_license_no: string | null
 }
 
 export interface NurseryMemberRow {
