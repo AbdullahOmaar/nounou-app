@@ -24,13 +24,16 @@ export interface PrintDocOptions {
   lang?: 'ar' | 'en'
 }
 
+const ESC_MAP: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}
+
 function esc(s: string): string {
-  return s
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
+  return s.replace(/[&<>"']/g, (c) => ESC_MAP[c] ?? c)
 }
 
 function sectionHtml(s: PrintSection): string {
