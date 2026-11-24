@@ -83,6 +83,7 @@ export interface PublicEvent {
     logo_url: string | null
     phone: string | null
     brand_color: string | null
+    banner_key?: string | null
   }
 }
 

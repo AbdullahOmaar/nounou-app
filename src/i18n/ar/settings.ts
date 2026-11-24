@@ -86,4 +86,7 @@ export const settings = {
   logoHint: "يظهر على صفحتك العامة وبوابة الأهالي والإيصالات",
   brandColor: "لون العلامة",
   brandDefault: "الافتراضي",
+  bannerLabel: "بنر الصفحة (صور مولّدة)",
+  bannerNone: "بدون بنر",
+  bannerHint: "أعمال زخرفية مولّدة بالذكاء الاصطناعي — تظهر مع شارة الإفصاح",
 }

@@ -86,4 +86,7 @@ export const settings = {
   logoHint: "Shown on your public page, the parent portal and receipts",
   brandColor: "Brand color",
   brandDefault: "Default",
+  bannerLabel: "Page banner (generated art)",
+  bannerNone: "No banner",
+  bannerHint: "AI-generated decorative artwork — shown with the disclosure badge",
 }

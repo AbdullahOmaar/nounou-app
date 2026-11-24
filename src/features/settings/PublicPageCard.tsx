@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, Globe } from 'lucide-react'
 import * as api from './api'
+import { BANNER_KEYS, bannerUrl } from '../public/banners'
 import { useT } from '../../i18n'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -23,6 +24,7 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
   const [instapay, setInstapay] = useState('')
   const [vodafone, setVodafone] = useState('')
   const [bank, setBank] = useState('')
+  const [banner, setBanner] = useState('')
 
   useEffect(() => {
     if (current.data) {
@@ -33,6 +35,7 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
       setInstapay(current.data.public_instapay ?? '')
       setVodafone(current.data.public_vodafone ?? '')
       setBank(current.data.public_bank ?? '')
+      setBanner(current.data.banner_key ?? '')
     }
   }, [current.data])
 
@@ -46,6 +49,7 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
         public_instapay: instapay.trim() || null,
         public_vodafone: vodafone.trim() || null,
         public_bank: bank.trim() || null,
+        banner_key: banner || null,
       }),
     onSuccess: () => {
       showToast(t('common.savedOk'))
@@ -105,6 +109,29 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
       >
         {t('common.save')}
       </Button>
+      <div>
+        <div className="type-secondary text-muted mb-2">{t('settings.bannerLabel')}</div>
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            onClick={() => setBanner('')}
+            className={`rounded-xl bg-soft aspect-video flex items-center justify-center type-badge ${banner === '' ? 'ring-2 ring-text' : ''}`}
+          >
+            {t('settings.bannerNone')}
+          </button>
+          {BANNER_KEYS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setBanner(k)}
+              className={`rounded-xl overflow-hidden aspect-video ${banner === k ? 'ring-2 ring-text' : ''}`}
+            >
+              <img src={bannerUrl(k)} alt="" className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
+        <p className="type-badge text-muted mt-1">{t('settings.bannerHint')}</p>
+      </div>
       {enabled && stats.data && (
         <div className="type-secondary text-muted mt-3">
           {t('pub.statsLine', {
