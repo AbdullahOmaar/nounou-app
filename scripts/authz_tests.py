@@ -1183,6 +1183,13 @@ def main():
                                 "p_kind": "view", "p_page": "home"})
         check("tracking an unknown slug is a silent no-op (3.3)",
               s in (200, 204), f"got {s}")
+        sql(ref, f"update nurseries set sticker_key = 'lantern' "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the chosen sticker (3.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("sticker_key") == "lantern", f"got {s}")
         sql(ref, f"update nurseries set public_enabled = false "
                  f"where id = '{nursery_a}'")
         s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
@@ -1214,6 +1221,13 @@ def main():
         check("the public page carries the chosen banner (3.12)",
               s == 200 and isinstance(b, dict)
               and b.get("banner_key") == "ramadan", f"got {s}")
+        sql(ref, f"update nurseries set sticker_key = 'lantern' "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the chosen sticker (3.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("sticker_key") == "lantern", f"got {s}")
         sql(ref, f"update nurseries set public_enabled = false "
                  f"where id = '{nursery_a}'")
 
@@ -1279,6 +1293,13 @@ def main():
                     "/rest/v1/event_photos?select=id&limit=1")
         check("the event photo archive is closed to anon (3.9)",
               not (isinstance(b, list) and len(b) > 0), f"got {s}")
+        sql(ref, f"update nurseries set sticker_key = 'lantern' "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the chosen sticker (3.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("sticker_key") == "lantern", f"got {s}")
         sql(ref, f"update nurseries set public_enabled = false "
                  f"where id = '{nursery_a}'")
 
@@ -1317,6 +1338,13 @@ def main():
                     "/rest/v1/tour_requests?select=id&limit=3")
         check("anon cannot read tour requests (3.6)",
               not (isinstance(b, list) and len(b) > 0), f"got {s}")
+        sql(ref, f"update nurseries set sticker_key = 'lantern' "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the chosen sticker (3.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("sticker_key") == "lantern", f"got {s}")
         sql(ref, f"update nurseries set public_enabled = false "
                  f"where id = '{nursery_a}'")
 
@@ -1333,6 +1361,13 @@ def main():
         check("the public page carries the brand color (3.4)",
               s == 200 and isinstance(b, dict)
               and b.get("brand_color") == "#123ABC", f"got {s}")
+        sql(ref, f"update nurseries set sticker_key = 'lantern' "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the chosen sticker (3.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("sticker_key") == "lantern", f"got {s}")
         sql(ref, f"update nurseries set public_enabled = false "
                  f"where id = '{nursery_a}'")
         raw_idn = "authz-idn-" + secrets.token_urlsafe(24)

@@ -89,4 +89,5 @@ export const settings = {
   bannerLabel: "Page banner (generated art)",
   bannerNone: "No banner",
   bannerHint: "AI-generated decorative artwork — shown with the disclosure badge",
+  stickerLabel: "Seasonal sticker (generated)",
 }

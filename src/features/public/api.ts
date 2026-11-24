@@ -16,6 +16,7 @@ export interface PublicPageData {
   logo_url?: string | null
   brand_color?: string | null
   banner_key?: string | null
+  sticker_key?: string | null
   licensed?: boolean
   payments?: { instapay?: string | null; vodafone?: string | null; bank?: string | null }
   classes?: PublicClass[]

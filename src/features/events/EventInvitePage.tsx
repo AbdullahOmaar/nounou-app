@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom'
 import { CalendarPlus, MapPin, PartyPopper } from 'lucide-react'
 import * as api from './api'
 import type { PublicEvent } from './api'
-import { bannerUrl, eventBannerKey } from '../public/banners'
+import { bannerUrl, eventBannerKey, stickerUrl } from '../public/banners'
 import { AiDisclosure } from '../../components/ui/AiDisclosure'
 import { useT } from '../../i18n'
 import { Button } from '../../components/ui/Button'
@@ -119,6 +119,13 @@ export default function EventInvitePage() {
           <span className="absolute bottom-2 end-2">
             <AiDisclosure />
           </span>
+          {ev.nursery?.sticker_key && (
+            <img
+              src={stickerUrl(ev.nursery.sticker_key)}
+              alt=""
+              className="absolute -top-3 start-3 size-16 rounded-full object-cover shadow"
+            />
+          )}
         </div>
         <Card>
           <div className="flex flex-col items-center gap-2 py-4 text-center">

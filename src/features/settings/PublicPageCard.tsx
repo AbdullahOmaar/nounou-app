@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ExternalLink, Globe } from 'lucide-react'
 import * as api from './api'
-import { BANNER_KEYS, bannerUrl } from '../public/banners'
+import { BANNER_KEYS, STICKER_KEYS, bannerUrl, stickerUrl } from '../public/banners'
 import { useT } from '../../i18n'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -25,6 +25,7 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
   const [vodafone, setVodafone] = useState('')
   const [bank, setBank] = useState('')
   const [banner, setBanner] = useState('')
+  const [sticker, setSticker] = useState('')
 
   useEffect(() => {
     if (current.data) {
@@ -36,6 +37,7 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
       setVodafone(current.data.public_vodafone ?? '')
       setBank(current.data.public_bank ?? '')
       setBanner(current.data.banner_key ?? '')
+      setSticker(current.data.sticker_key ?? '')
     }
   }, [current.data])
 
@@ -50,6 +52,7 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
         public_vodafone: vodafone.trim() || null,
         public_bank: bank.trim() || null,
         banner_key: banner || null,
+        sticker_key: sticker || null,
       }),
     onSuccess: () => {
       showToast(t('common.savedOk'))
@@ -131,6 +134,28 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
           ))}
         </div>
         <p className="type-badge text-muted mt-1">{t('settings.bannerHint')}</p>
+      </div>
+      <div>
+        <div className="type-secondary text-muted mb-2">{t('settings.stickerLabel')}</div>
+        <div className="flex gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setSticker('')}
+            className={`rounded-full bg-soft size-14 flex items-center justify-center type-badge ${sticker === '' ? 'ring-2 ring-text' : ''}`}
+          >
+            {t('settings.bannerNone')}
+          </button>
+          {STICKER_KEYS.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setSticker(k)}
+              className={`rounded-full overflow-hidden size-14 ${sticker === k ? 'ring-2 ring-text' : ''}`}
+            >
+              <img src={stickerUrl(k)} alt="" className="w-full h-full object-cover" />
+            </button>
+          ))}
+        </div>
       </div>
       {enabled && stats.data && (
         <div className="type-secondary text-muted mt-3">

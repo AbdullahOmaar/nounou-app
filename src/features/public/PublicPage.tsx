@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import { MapPin, MessageCircle, Phone, ShieldCheck } from 'lucide-react'
 import * as api from './api'
 import type { PublicPageData } from './api'
-import { bannerUrl } from './banners'
+import { bannerUrl, stickerUrl } from './banners'
 import { AiDisclosure } from '../../components/ui/AiDisclosure'
 import { useT } from '../../i18n'
 import { Card } from '../../components/ui/Card'
@@ -207,6 +207,22 @@ export function PublicHome() {
           <span className="absolute bottom-2 end-2">
             <AiDisclosure />
           </span>
+          {d.sticker_key && (
+            <img
+              src={stickerUrl(d.sticker_key)}
+              alt=""
+              className="absolute -top-3 start-3 size-16 rounded-full object-cover shadow"
+            />
+          )}
+        </div>
+      )}
+      {!d.banner_key && d.sticker_key && (
+        <div className="flex justify-center">
+          <img
+            src={stickerUrl(d.sticker_key)}
+            alt=""
+            className="size-20 rounded-full object-cover shadow"
+          />
         </div>
       )}
       {d.about && (
@@ -259,6 +275,22 @@ export function PublicAbout() {
           <span className="absolute bottom-2 end-2">
             <AiDisclosure />
           </span>
+          {d.sticker_key && (
+            <img
+              src={stickerUrl(d.sticker_key)}
+              alt=""
+              className="absolute -top-3 start-3 size-16 rounded-full object-cover shadow"
+            />
+          )}
+        </div>
+      )}
+      {!d.banner_key && d.sticker_key && (
+        <div className="flex justify-center">
+          <img
+            src={stickerUrl(d.sticker_key)}
+            alt=""
+            className="size-20 rounded-full object-cover shadow"
+          />
         </div>
       )}
       {d.about && (

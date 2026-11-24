@@ -14,6 +14,12 @@ export const BANNER_KEYS = [
 
 export type BannerKey = (typeof BANNER_KEYS)[number]
 
+export const STICKER_KEYS = ['lantern', 'balloons', 'cap', 'flower'] as const
+
+export function stickerUrl(key: string): string {
+  return `/stickers/sticker-${key}.jpg`
+}
+
 export function bannerUrl(key: string): string {
   return `/banners/banner-${key}.jpg`
 }
