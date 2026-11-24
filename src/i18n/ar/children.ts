@@ -93,4 +93,7 @@ export const children = {
   deleteConfirm: 'حذف الطفل «{name}» وكل بياناته؟ الأرشفة بديل أأمن.',
   enrolledOn: 'مسجل من {date}',
   siblingBadge: 'أخ/أخت في الحضانة',
-} as const
+  issueViewLink: 'رابط مشاهدة للعائلة',
+  copyViewLink: 'نسخ رابط المشاهدة',
+  revokeViewLink: 'إلغاء رابط المشاهدة',
+}

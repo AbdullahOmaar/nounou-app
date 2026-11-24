@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Copy, Link2, MessageCircle, X } from 'lucide-react'
+import { Copy, Eye, Link2, MessageCircle, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -18,6 +18,7 @@ interface GuardianGroup {
   guardian: GuardianRow
   childrenNames: string[]
   activeToken: { id: string; expires_at: string; last_used_at: string | null } | null
+  viewToken: { id: string } | null
 }
 
 /** إدارة روابط البوابة: رابط لكل وصي (قرار ق١٠) — إصدار/نسخ/إرسال/إلغاء */
@@ -30,6 +31,7 @@ export function PortalLinksPage() {
   const qc = useQueryClient()
   const showToast = useToast()
   const [freshLinks, setFreshLinks] = useState<Map<string, string>>(new Map())
+  const [freshViewLinks, setFreshViewLinks] = useState<Map<string, string>>(new Map())
 
   const groups = useQuery({
     queryKey: ['portal-links', nurseryId],
@@ -58,10 +60,17 @@ export function PortalLinksPage() {
         childrenByGuardian.set(row.guardian_id, arr)
       }
       const activeByGuardian = new Map<string, GuardianGroup['activeToken']>()
+      const viewByGuardian = new Map<string, GuardianGroup['viewToken']>()
       for (const token of tokensRes) {
         if (token.child_id) continue
         if (token.revoked_at) continue
         if (new Date(token.expires_at) <= new Date()) continue
+        if (token.access_scope === 'view') {
+          if (!viewByGuardian.has(token.guardian_id)) {
+            viewByGuardian.set(token.guardian_id, { id: token.id })
+          }
+          continue
+        }
         if (!activeByGuardian.has(token.guardian_id)) {
           activeByGuardian.set(token.guardian_id, {
             id: token.id,
@@ -74,6 +83,7 @@ export function PortalLinksPage() {
         guardian: g,
         childrenNames: childrenByGuardian.get(g.id) ?? [],
         activeToken: activeByGuardian.get(g.id) ?? null,
+        viewToken: viewByGuardian.get(g.id) ?? null,
       }))
     },
   })
@@ -92,6 +102,16 @@ export function PortalLinksPage() {
   const revoke = useMutation({
     mutationFn: (tokenId: string) => api.revokeToken(tokenId),
     onSuccess: refresh,
+  })
+  const issueView = useMutation({
+    mutationFn: async (guardianId: string) => {
+      const url = await api.issueViewToken(nurseryId!, guardianId, null)
+      return { guardianId, url }
+    },
+    onSuccess: ({ guardianId, url }) => {
+      setFreshViewLinks((prev) => new Map(prev).set(guardianId, url))
+      refresh()
+    },
   })
 
   const list = useMemo(
@@ -112,8 +132,9 @@ export function PortalLinksPage() {
 
   return (
     <div className="flex flex-col gap-2">
-      {list.map(({ guardian, childrenNames, activeToken }) => {
+      {list.map(({ guardian, childrenNames, activeToken, viewToken }) => {
         const fresh = freshLinks.get(guardian.id)
+        const freshView = freshViewLinks.get(guardian.id)
         const wa = fresh ? waLink(guardian.phone) : null
         return (
           <Card key={guardian.id}>
@@ -179,6 +200,40 @@ export function PortalLinksPage() {
                   <X size={16} />
                   {t('children.revokeLink')}
                 </Button>
+              )}
+              {canManage && (
+                <span className="flex gap-2 flex-wrap">
+                  {!viewToken && !freshView && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => issueView.mutate(guardian.id)}
+                    >
+                      <Eye size={16} />
+                      {t('children.issueViewLink')}
+                    </Button>
+                  )}
+                  {freshView && (
+                    <Button
+                      size="sm"
+                      variant="soft"
+                      onClick={() => void navigator.clipboard.writeText(freshView)}
+                    >
+                      <Copy size={16} />
+                      {t('children.copyViewLink')}
+                    </Button>
+                  )}
+                  {viewToken && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => revoke.mutate(viewToken.id)}
+                    >
+                      <X size={16} />
+                      {t('children.revokeViewLink')}
+                    </Button>
+                  )}
+                </span>
               )}
             </div>
           </Card>

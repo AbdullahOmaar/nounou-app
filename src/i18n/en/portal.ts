@@ -39,6 +39,7 @@ export const portal = {
   invalidLinkBody: 'Ask the nursery for a new link',
   pickDate: 'Another day',
   healthSummary: 'Health summary',
+  viewOnlyBadge: 'View only',
   messagesTitle: 'Nursery messages',
   messagesEmpty: 'No messages yet — write the first message to the nursery.',
   messagesPlaceholder: 'Write your message to the nursery…',

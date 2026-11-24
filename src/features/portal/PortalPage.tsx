@@ -94,6 +94,7 @@ export function PortalPage() {
   }
 
   const { nursery, guardian, children, announcements } = overview.data
+  const viewOnly = overview.data.access_scope === 'view'
   const nurseryWa = waLink(nursery.phone)
 
   return (
@@ -107,10 +108,15 @@ export function PortalPage() {
               <div className="type-secondary text-muted">
                 {t('portal.welcome', { name: guardian.full_name })}
               </div>
+              {viewOnly && (
+                <span className="type-badge bg-soft rounded-full px-2 py-0.5">
+                  {t('portal.viewOnlyBadge')}
+                </span>
+              )}
             </div>
           </div>
           <span className="flex items-center gap-1">
-            <MessagesButton token={token} />
+            {!viewOnly && <MessagesButton token={token} />}
             <NotificationsBell
               token={token}
               childName={(id) =>
@@ -193,6 +199,7 @@ export function PortalPage() {
                 <DaySection day={day.data} />
                 <PhotosSection token={token!} photos={day.data.photos} />
                 <StatementSection day={day.data} />
+                {!viewOnly && (
                 <PaySection
                   token={token!}
                   childId={activeChild.id}
@@ -200,6 +207,7 @@ export function PortalPage() {
                   proofs={day.data.proofs}
                   onSent={() => void day.refetch()}
                 />
+                )}
                 {day.data.pickup_code && (
                   <Card className="text-center py-4">
                     <div className="type-secondary text-muted">

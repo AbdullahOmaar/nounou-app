@@ -1148,6 +1148,27 @@ def main():
         check("owner can file a pending approval", s in (200, 201),
               f"got {s} {str(b)[:80]}")
 
+        # ---- family view tokens (2.7, migration 0033) ----
+        raw_view = "authz-view-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label, access_scope) values "
+                 f"('{nursery_a}', '{a_guardian}', '{token_hash(raw_view)}', 'authz view', 'view')")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    None, body={"p_token": raw_view})
+        check("a view token reads the overview and learns its scope",
+              s == 200 and isinstance(b, dict) and b.get("access_scope") == "view",
+              f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_submit_payment",
+                    None, body={"p_token": raw_view, "p_child_id": a_child1,
+                                "p_amount": 10, "p_method": "instapay",
+                                "p_ext": "jpg"})
+        check("a view token cannot submit a payment (view_only)",
+              s >= 400 and "view_only" in str(b), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_send_message_by_token",
+                    None, body={"p_token": raw_view, "p_body": "hi"})
+        check("a view token cannot send portal messages (view_only)",
+              s >= 400 and "view_only" in str(b), f"got {s} {str(b)[:80]}")
+
         # ---- whatsapp gates (2.2, migration 0031) ----
         s, b = rest(url, anon, "GET",
                     f"/rest/v1/nursery_whatsapp_config?nursery_id=eq.{nursery_a}&select=nursery_id",

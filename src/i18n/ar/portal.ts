@@ -39,6 +39,7 @@ export const portal = {
   invalidLinkBody: 'اطلب من الحضانة رابط جديد',
   pickDate: 'يوم تاني',
   healthSummary: 'ملخص صحي',
+  viewOnlyBadge: 'مشاهدة فقط',
   messagesTitle: 'رسائل الحضانة',
   messagesEmpty: 'لا رسائل بعد — اكتب أول رسالة للحضانة.',
   messagesPlaceholder: 'اكتب رسالتك للحضانة…',

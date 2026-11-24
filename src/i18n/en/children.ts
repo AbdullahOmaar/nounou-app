@@ -93,4 +93,7 @@ export const children = {
   deleteConfirm: 'Delete the child "{name}" and all their data? Archiving is a safer alternative.',
   enrolledOn: 'Enrolled since {date}',
   siblingBadge: 'Has a sibling at the nursery',
+  issueViewLink: 'Family view link',
+  copyViewLink: 'Copy view link',
+  revokeViewLink: 'Revoke view link',
 }
