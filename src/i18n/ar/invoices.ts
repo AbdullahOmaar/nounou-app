@@ -60,4 +60,5 @@ export const invoices = {
   cancelPendingApproval: 'الفاتورة فيها دفعات — الإلغاء اتحفظ لاعتماد ثانٍ في صفحة المالية',
   printReceipt: 'طباعة الإيصال',
   receiptTitle: 'إيصال استلام مبلغ',
+  cancelHasPayments: 'الفاتورة دي فيها دفعات مسجلة — اعكس الدفعات الأول وبعدين ألغي الفاتورة',
 }

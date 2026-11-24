@@ -1101,6 +1101,28 @@ def main():
                           "summary": "authz approval"})
         check("owner can file a pending approval", s in (200, 201),
               f"got {s} {str(b)[:80]}")
+
+        # ---- pay_supplier_order RPC (1.7): atomic + remaining cap ----
+        order_row = one(ref, "select id from purchase_orders where "
+                             f"nursery_id='{nursery_a}' and title='authz order'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/pay_supplier_order",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a, "p_supplier": sup.get("id"),
+                          "p_order": order_row.get("id"), "p_amount": 600,
+                          "p_date": "2026-11-24"})
+        check("supplier payment above the order remaining is rejected",
+              s >= 400 and "overpayment" in str(b), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/pay_supplier_order",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a, "p_supplier": sup.get("id"),
+                          "p_order": order_row.get("id"), "p_amount": 500,
+                          "p_date": "2026-11-24"})
+        linked = one(ref, "select count(*) as c from cashbox_entries where "
+                          f"nursery_id='{nursery_a}' and ref_type='supplier_payment' "
+                          "and ref_id is not null")
+        check("supplier payment lands atomically with a linked cashbox entry",
+              s == 200 and (linked.get("c") or 0) >= 1,
+              f"got {s} linked={linked.get('c')}")
     finally:
         # ---------- cleanup ----------
         ids = [u for u in (owner_a_uid, owner_b_uid, staff_uid) if u]

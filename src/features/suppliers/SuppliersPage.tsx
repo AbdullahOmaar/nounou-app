@@ -127,7 +127,13 @@ export function SuppliersPage() {
       setPaySheet(null)
       showToast(t('suppliers.paid'))
     },
-    onError: () => showToast(t('common.errorGeneric'), 'error'),
+    onError: (e) =>
+      showToast(
+        String(e).includes('overpayment')
+          ? t('suppliers.overpay')
+          : t('common.errorGeneric'),
+        'error',
+      ),
   })
 
   if (nursery.status !== 'ready') return <LoadingState />
