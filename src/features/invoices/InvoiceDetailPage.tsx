@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Plus, RotateCcw, Trash2,
+  Printer,
+} from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { ConfirmSheet } from '../../components/ui/ConfirmSheet'
@@ -27,6 +29,7 @@ export function InvoiceDetailPage() {
   const [lineLabel, setLineLabel] = useState('')
   const [lineAmount, setLineAmount] = useState('')
   const [reverseTarget, setReverseTarget] = useState<PaymentRow | null>(null)
+  const [receiptTarget, setReceiptTarget] = useState<PaymentRow | null>(null)
   const [cancelOpen, setCancelOpen] = useState(false)
 
   if (bundle.isPending) return <LoadingState />
@@ -188,6 +191,20 @@ export function InvoiceDetailPage() {
                     {p.reverses_id && ` • ${t('invoices.reversesBadge', { no: '' })}`}
                   </div>
                 </div>
+                <span className="flex">
+                {p.receipt_no != null && p.proof_status !== 'pending' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setReceiptTarget(p)
+                      setTimeout(() => window.print(), 60)
+                    }}
+                    aria-label={t('invoices.printReceipt')}
+                  >
+                    <Printer size={16} />
+                  </Button>
+                )}
                 {!p.reversed_by_id && !p.reverses_id && p.proof_status !== 'pending' && (
                   <Button
                     variant="ghost"
@@ -198,6 +215,7 @@ export function InvoiceDetailPage() {
                     <RotateCcw size={16} />
                   </Button>
                 )}
+                </span>
               </Card>
             ))}
           </div>
@@ -260,6 +278,17 @@ export function InvoiceDetailPage() {
         </div>
       </Sheet>
 
+      {receiptTarget && (
+        <div className="receipt-print" style={{ display: 'none' }}>
+          <style>{`@media print { body * { visibility: hidden; } .receipt-print, .receipt-print * { visibility: visible; } .receipt-print { display: block !important; position: absolute; inset: 0; padding: 24px; } }`}</style>
+          <h1>{t('invoices.receiptTitle')}</h1>
+          <p>{t('invoices.receiptNo', { no: receiptTarget.receipt_no ?? 0 })}</p>
+          <p>{childName}</p>
+          <p>{formatMoney(receiptTarget.amount)} — {methodLabel(receiptTarget)}</p>
+          <p>{formatDateTimeAr(receiptTarget.paid_at)}</p>
+          <p>{invoice.period}</p>
+        </div>
+      )}
       <ConfirmSheet
         open={Boolean(reverseTarget)}
         onClose={() => setReverseTarget(null)}

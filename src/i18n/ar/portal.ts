@@ -39,4 +39,5 @@ export const portal = {
   invalidLinkBody: 'اطلب من الحضانة رابط جديد',
   pickDate: 'يوم تاني',
   healthSummary: 'ملخص صحي',
-} as const
+  receiptsTitle: 'إيصالاتك',
+}

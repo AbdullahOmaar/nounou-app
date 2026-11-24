@@ -136,6 +136,14 @@ export interface PortalChildDay {
     rejection_reason: string | null
     created_at: string
   }[]
+  /** دفعات صالحة برقم الإيصال (1.6 — هجرة 0028) */
+  payments: {
+    id: string
+    amount: number
+    method: string
+    paid_at: string
+    receipt_no: number | null
+  }[]
   pickup_code: string | null
 }
 
