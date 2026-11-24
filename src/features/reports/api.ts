@@ -197,6 +197,7 @@ export async function uploadPhotos(
   files: File[],
   childIds: string[],
   caption: string | null,
+  shouldStop?: () => boolean,
 ): Promise<number> {
   const db = requireSupabase()
   // X3 (3A-378): الرفض عند المصدر — التحقق من موافقة كل طفل موسوم
@@ -215,6 +216,7 @@ export async function uploadPhotos(
   }
   let uploaded = 0
   for (const file of files) {
+    if (shouldStop?.()) break
     const photoId = crypto.randomUUID()
     const path = `${nurseryId}/${photoId}.jpg`
     const blob = await compressImage(file)

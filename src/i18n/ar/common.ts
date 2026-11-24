@@ -77,4 +77,6 @@ export const common = {
   notFoundHome: 'ارجع للرئيسية',
   offline: 'مفيش نت — شغلك محفوظ على الجهاز ويرتفع تلقائياً عند عودة الاتصال',
   aiGenerated: "مولّد بالذكاء الاصطناعي",
+  stop: "إيقاف",
+  bulkStopped: "اتنفذ {done} من {total} — الباقي اتوقف",
 }
