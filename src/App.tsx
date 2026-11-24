@@ -87,6 +87,11 @@ const FinancePage = lazy(() =>
     default: m.FinancePage,
   })),
 )
+const MessagesPage = lazy(() =>
+  import('./features/messages/MessagesPage').then((m) => ({
+    default: m.MessagesPage,
+  })),
+)
 const SuppliersPage = lazy(() =>
   import('./features/suppliers/SuppliersPage').then((m) => ({
     default: m.SuppliersPage,
@@ -122,6 +127,7 @@ registerRouteLoaders({
   '/activity': () => import('./features/activity/ActivityLogPage'),
   '/finance': () => import('./features/finance/FinancePage'),
   '/suppliers': () => import('./features/suppliers/SuppliersPage'),
+  '/messages': () => import('./features/messages/MessagesPage'),
   '/settings': () => import('./features/settings/SettingsPage'),
   '/members': () => import('./features/settings/MembersPage'),
   '/export': () => import('./features/settings/ExportPage'),
@@ -306,6 +312,14 @@ export default function App() {
                     element={
                       <Suspense fallback={<LoadingState />}>
                         <SuppliersPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/messages"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <MessagesPage />
                       </Suspense>
                     }
                   />

@@ -5,7 +5,7 @@ import { Bell, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Sheet } from '../../components/ui/Sheet'
-import { Chip, ChipRow, Field, TextInput } from '../../components/ui/form'
+import { Chip, ChipRow, Field, TextArea, TextInput } from '../../components/ui/form'
 import { ErrorState, LoadingState } from '../../components/ui/states'
 import { Mascot } from '../../components/mascot/Mascot'
 import { useT } from '../../i18n'
@@ -110,6 +110,7 @@ export function PortalPage() {
             </div>
           </div>
           <span className="flex items-center gap-1">
+            <MessagesButton token={token} />
             <NotificationsBell
               token={token}
               childName={(id) =>
@@ -637,6 +638,8 @@ function NotificationsBell({
           name,
           period: String(n.meta.period ?? ''),
         })
+      case 'message':
+        return t('portal.notif.message')
       case 'announcement':
         return t('portal.notif.announcement', {
           title: String(n.meta.title ?? ''),
@@ -678,6 +681,81 @@ function NotificationsBell({
             ))}
           </div>
         )}
+      </Sheet>
+    </>
+  )
+}
+
+
+/** رسائل الحضانة داخل البوابة (2.5): خيط الوصيّ + كتابة رسالة */
+interface MessagesButtonProps {
+  token: string
+}
+
+function MessagesButton({ token }: MessagesButtonProps) {
+  const t = useT()
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [draft, setDraft] = useState('')
+  const thread = useQuery({
+    queryKey: ['portal-messages', token],
+    queryFn: () => api.fetchPortalMessages(token),
+    enabled: open,
+    retry: false,
+  })
+  const send = useMutation({
+    mutationFn: () => api.sendPortalMessage(token, draft),
+    onSuccess: () => {
+      setDraft('')
+      qc.invalidateQueries({ queryKey: ['portal-messages', token] })
+    },
+  })
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-label={t('portal.messagesTitle')}
+        onClick={() => setOpen(true)}
+      >
+        <MessageCircle size={20} />
+      </Button>
+      <Sheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title={t('portal.messagesTitle')}
+      >
+        <div className="flex flex-col gap-2">
+          {(thread.data ?? []).length === 0 && (
+            <p className="type-secondary text-muted">{t('portal.messagesEmpty')}</p>
+          )}
+          {(thread.data ?? []).map((m) => (
+            <div
+              key={m.id}
+              className={
+                m.sender === 'guardian'
+                  ? 'self-start max-w-[85%]'
+                  : 'self-end max-w-[85%]'
+              }
+            >
+              <Card className={m.sender === 'guardian' ? 'py-2 bg-primary-soft' : 'py-2 bg-soft'}>
+                <p className="type-body whitespace-pre-wrap">{m.body}</p>
+                <span className="type-badge text-muted">
+                  {m.created_at.slice(0, 16).replace('T', ' ')}
+                </span>
+              </Card>
+            </div>
+          ))}
+          <TextArea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder={t('portal.messagesPlaceholder')}
+            rows={3}
+          />
+          <Button disabled={!draft.trim() || send.isPending} onClick={() => send.mutate()}>
+            {t('portal.messagesSend')}
+          </Button>
+        </div>
       </Sheet>
     </>
   )

@@ -39,6 +39,10 @@ export const portal = {
   invalidLinkBody: 'Ask the nursery for a new link',
   pickDate: 'Another day',
   healthSummary: 'Health summary',
+  messagesTitle: 'Nursery messages',
+  messagesEmpty: 'No messages yet — write the first message to the nursery.',
+  messagesPlaceholder: 'Write your message to the nursery…',
+  messagesSend: 'Send',
   receiptsTitle: 'Your receipts',
   notif: {
     title: 'Notifications',
@@ -47,6 +51,7 @@ export const portal = {
     proofApproved: 'Your payment proof was approved ({amount})',
     proofRejected: 'Your payment proof was rejected ({amount}) — see the reason in your statement',
     invoice: 'The invoice for {name} ({period}) is ready',
+    message: 'A new message from the nursery',
     announcement: 'New announcement: {title}',
   },
 }
