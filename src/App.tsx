@@ -73,6 +73,15 @@ const PortalPage = lazy(() =>
   import('./features/portal/PortalPage').then((m) => ({ default: m.PortalPage })),
 )
 const PublicPage = lazy(() => import('./features/public/PublicPage'))
+const PublicHome = lazy(() =>
+  import('./features/public/PublicPage').then((m) => ({ default: m.PublicHome })),
+)
+const PublicClasses = lazy(() =>
+  import('./features/public/PublicPage').then((m) => ({ default: m.PublicClasses })),
+)
+const PublicAbout = lazy(() =>
+  import('./features/public/PublicPage').then((m) => ({ default: m.PublicAbout })),
+)
 const NotificationsPage = lazy(() =>
   import('./features/notifications/NotificationsPage').then((m) => ({
     default: m.NotificationsPage,
@@ -168,7 +177,32 @@ export default function App() {
                     <PublicPage />
                   </Suspense>
                 }
-              />
+              >
+                <Route
+                  index
+                  element={
+                    <Suspense fallback={<LoadingState />}>
+                      <PublicHome />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="classes"
+                  element={
+                    <Suspense fallback={<LoadingState />}>
+                      <PublicClasses />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="about"
+                  element={
+                    <Suspense fallback={<LoadingState />}>
+                      <PublicAbout />
+                    </Suspense>
+                  }
+                />
+              </Route>
               <Route
                 path="/p/:token"
                 element={

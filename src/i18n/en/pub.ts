@@ -23,4 +23,10 @@ export const pub = {
   instapayLabel: "InstaPay address (optional — shown publicly)",
   vodafoneLabel: "Vodafone Cash number (optional — shown publicly)",
   bankLabel: "Bank account (optional — shown publicly)",
+  navHome: "Home",
+  navClasses: "Classes & prices",
+  navAbout: "About",
+  readMore: "Read more",
+  allClasses: "All classes",
+  capacity: "Capacity: {count} children",
 }
