@@ -987,6 +987,41 @@ def main():
                     body={"nurseryId": nursery_a, "email": "authz-nobody@nounou.test"})
         check("owner calling for a non-existent invite gets 404 (no send)",
               s == 404, f"got {s} {str(b)[:80]}")
+
+        # ---- verify_pickup_code RPC (420-U2, migration 0021) ----
+        today_iso = date.today().isoformat()
+        sql(ref, "insert into pickup_codes (nursery_id, child_id, day_date, code) values "
+                 f"('{nursery_a}', '{a_child1}', '{today_iso}', '135790')")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/verify_pickup_code",
+                    staff_jwt,
+                    body={"p_nursery_id": nursery_a, "p_child_id": a_child1,
+                          "p_day_date": today_iso, "p_code": "000000"})
+        check("pickup code: wrong code rejected as mismatch",
+              s == 200 and b.get("ok") is False and b.get("reason") == "mismatch",
+              f"got {s} {str(b)[:80]}")
+        fails = one(ref, "select count(*) as c from activity_log where "
+                         f"nursery_id='{nursery_a}' and kind='pickup_code_failed'")
+        check("pickup code: failed attempt written to activity log",
+              (fails.get("c") or 0) >= 1, f"count={fails}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/verify_pickup_code",
+                    staff_jwt,
+                    body={"p_nursery_id": nursery_a, "p_child_id": a_child1,
+                          "p_day_date": today_iso, "p_code": "135790"})
+        check("pickup code: correct code verifies ok",
+              s == 200 and b.get("ok") is True, f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/verify_pickup_code",
+                    staff_jwt,
+                    body={"p_nursery_id": nursery_a, "p_child_id": a_child1,
+                          "p_day_date": today_iso, "p_code": "135790"})
+        check("pickup code: second use rejected as used (single-use)",
+              s == 200 and b.get("ok") is False and b.get("reason") == "used",
+              f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/verify_pickup_code",
+                    owner_b_jwt,
+                    body={"p_nursery_id": nursery_a, "p_child_id": a_child1,
+                          "p_day_date": today_iso, "p_code": "135790"})
+        check("pickup code: member of another nursery is forbidden",
+              s >= 400, f"got {s} {str(b)[:80]}")
     finally:
         # ---------- cleanup ----------
         ids = [u for u in (owner_a_uid, owner_b_uid, staff_uid) if u]

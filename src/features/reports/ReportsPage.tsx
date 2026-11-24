@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Camera, Send, Trash2 } from 'lucide-react'
+import { Camera, Download, Send, Trash2 } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -562,9 +562,41 @@ function PhotosSection({
     }
   }
 
+  const [exporting, setExporting] = useState(false)
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const { blob, count } = await api.downloadDayPhotosZip(classDayId)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `nounou-photos-${classDayId.slice(0, 8)}.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+      showToast(t('reports.exportedPhotos', { count }))
+    } catch {
+      showToast(t('common.errorGeneric'), 'error')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <section>
       <h2 className="type-section mb-2">{t('reports.photos')}</h2>
+      {photos.length > 0 && (
+        <Button
+          variant="soft"
+          full
+          className="mb-3"
+          disabled={exporting}
+          onClick={() => void handleExport()}
+        >
+          <Download size={18} />
+          {exporting ? t('reports.exportingPhotos') : t('reports.exportPhotos')}
+        </Button>
+      )}
       {canPhotos && (
         <Card className="mb-3">
           <p className="type-badge text-muted mb-2">{t('reports.addPhotosHint')}</p>

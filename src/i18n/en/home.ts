@@ -6,6 +6,7 @@ export const home = {
   notPickedUpYet: 'Not picked up yet',
   absentToday: 'Absent today',
   reportsMissing: 'Missing reports',
+  reportsUnpublished: 'Unpublished reports',
   overdueTotal: 'Overdue amounts due',
   pendingProofs: 'Proofs awaiting review',
   quickActions: 'Quick actions',

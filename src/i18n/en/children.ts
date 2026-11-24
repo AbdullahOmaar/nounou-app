@@ -11,6 +11,7 @@ export const children = {
   female: 'Girl',
   class: 'Class',
   noClass: 'No class',
+  classFull: 'This class is full — it reached its capacity',
   publicCode: 'Child code',
   photoConsent: 'Consent to photograph and share in the portal',
   photoConsentHint: "Without this consent, the child's photos will never appear to the parent in the portal",
@@ -66,6 +67,12 @@ export const children = {
     times: 'Times',
     noHealthData: 'No health data recorded yet',
   },
+  qr: {
+    title: 'Children QR cards',
+    hint: 'Print the class cards and cut them — staff scan the card at arrival and pickup instead of typing the code.',
+    print: 'Print cards',
+    empty: 'No children in this class yet',
+  },
   import: {
     title: 'Import children from Excel',
     pickFile: 'Choose an Excel or CSV file',
@@ -78,6 +85,7 @@ export const children = {
     rowError: 'Row {row}: {message}',
     duplicatePhone: 'Duplicate phone number',
     unknownClass: 'Unknown class',
+    overCapacity: 'Class is full (capacity reached)',
     missingName: 'Missing child name',
   },
   emptyTitle: 'No children registered yet',

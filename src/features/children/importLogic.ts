@@ -15,7 +15,13 @@ export interface ImportRow {
 
 export interface ImportRowError {
   rowNumber: number
-  code: 'missingName' | 'missingGuardian' | 'badPhone' | 'unknownClass'
+  code: 'missingName' | 'missingGuardian' | 'badPhone' | 'unknownClass' | 'overCapacity'
+}
+
+/** حدود سعة فصل (420-T2): السعة المعلنة + عدد المسجّلين النشطين حالياً */
+export interface ClassLimit {
+  capacity: number | null
+  enrolled: number
 }
 
 const HEADER_ALIASES: Record<string, keyof Omit<ImportRow, 'rowNumber'>> = {
@@ -52,6 +58,7 @@ function cellText(v: unknown): string {
 export function parseImportRows(
   rawRows: unknown[][],
   knownClassNames: Set<string>,
+  classLimits?: Map<string, ClassLimit>,
 ): { rows: ImportRow[]; errors: ImportRowError[] } {
   const rows: ImportRow[] = []
   const errors: ImportRowError[] = []
@@ -104,6 +111,25 @@ export function parseImportRows(
       guardian_name,
       guardian_phone,
     })
+  }
+  // 420-T2: إنفاذ سعة الفصل — الصفوف التي تتجاوز (المسجّلون + ما سبقها في
+  // الملف) سعة فصلها تُرفض بخطأ overCapacity بموضعها، بترتيب الملف.
+  if (classLimits) {
+    const running = new Map<string, number>()
+    const kept: ImportRow[] = []
+    for (const row of rows) {
+      const limit = row.class_name ? classLimits.get(row.class_name) : undefined
+      if (limit && limit.capacity !== null) {
+        const used = limit.enrolled + (running.get(row.class_name!) ?? 0)
+        if (used >= limit.capacity) {
+          errors.push({ rowNumber: row.rowNumber, code: 'overCapacity' })
+          continue
+        }
+        running.set(row.class_name!, (running.get(row.class_name!) ?? 0) + 1)
+      }
+      kept.push(row)
+    }
+    return { rows: kept, errors }
   }
   return { rows, errors }
 }

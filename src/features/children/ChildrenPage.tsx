@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Upload } from 'lucide-react'
+import { QrCode, Upload } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { ErrorState, LoadingState } from '../../components/ui/states'
@@ -114,6 +114,13 @@ export function ChildrenPage() {
 
       {canManage && (
         <>
+          <button
+            onClick={() => navigate('/qr-cards')}
+            className="fixed bottom-56 end-4 z-10 w-12 h-12 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-text cursor-pointer"
+            aria-label={t('children.qr.title')}
+          >
+            <QrCode size={20} />
+          </button>
           <button
             onClick={() => setImportOpen(true)}
             className="fixed bottom-40 end-4 z-10 w-12 h-12 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-text cursor-pointer"

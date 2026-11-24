@@ -1,5 +1,6 @@
 import { requireSupabase } from '../../lib/supabase'
 import type { PaymentRow } from '../../types/database'
+import { logActivity } from '../settings/api'
 
 export interface ProofItem extends PaymentRow {
   childName: string
@@ -119,6 +120,14 @@ export async function approveProof(
     .eq('id', proof.id)
     .eq('proof_status', 'pending')
   if (error) throw error
+  await logActivity(
+    proof.nursery_id,
+    actorId,
+    'proof_approved',
+    `${proof.amount} — ${proof.method}`,
+    'payment',
+    proof.id,
+  )
 }
 
 export async function rejectProof(
@@ -127,6 +136,11 @@ export async function rejectProof(
   reason: string,
 ): Promise<void> {
   const db = requireSupabase()
+  const { data: pay } = await db
+    .from('payments')
+    .select('nursery_id, amount, method')
+    .eq('id', proofId)
+    .maybeSingle()
   const { error } = await db
     .from('payments')
     .update({
@@ -138,4 +152,15 @@ export async function rejectProof(
     .eq('id', proofId)
     .eq('proof_status', 'pending')
   if (error) throw error
+  const p = pay as { nursery_id: string; amount: number; method: string } | null
+  if (p) {
+    await logActivity(
+      p.nursery_id,
+      actorId,
+      'proof_rejected',
+      `${p.amount} — ${p.method}: ${reason}`,
+      'payment',
+      proofId,
+    )
+  }
 }

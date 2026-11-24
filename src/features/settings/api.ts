@@ -41,6 +41,7 @@ export async function updateNurserySettings(
     .update(patch)
     .eq('nursery_id', nurseryId)
   if (error) throw error
+  await logActivityAuto(nurseryId, 'settings_updated', Object.keys(patch).join(', '))
 }
 
 export async function updateNurseryProfile(
@@ -100,6 +101,7 @@ export async function inviteMember(
     status: 'invited',
   })
   if (error) throw error
+  await logActivityAuto(nurseryId, 'member_invited', email.trim().toLowerCase(), 'member')
 }
 
 export type InviteEmailStatus = 'sent' | 'not_configured' | 'failed'
@@ -138,10 +140,11 @@ export async function updateMember(
   if (error) throw error
 }
 
-export async function removeMember(memberId: string): Promise<void> {
+export async function removeMember(nurseryId: string, memberId: string): Promise<void> {
   const db = requireSupabase()
   const { error } = await db.from('nursery_members').delete().eq('id', memberId)
   if (error) throw error
+  await logActivityAuto(nurseryId, 'member_removed', '', 'member', memberId)
 }
 
 export async function logActivity(
@@ -162,4 +165,17 @@ export async function logActivity(
     entity_type: entityType ?? null,
     entity_id: entityId ?? null,
   })
+}
+
+/** logActivity بفاعل = المستخدم الحالي (420-U1: توصيل سجل النشاط بالأحداث) */
+export async function logActivityAuto(
+  nurseryId: string,
+  kind: string,
+  summary: string,
+  entityType?: string,
+  entityId?: string,
+): Promise<void> {
+  const db = requireSupabase()
+  const { data } = await db.auth.getUser()
+  await logActivity(nurseryId, data.user?.id ?? null, kind, summary, entityType, entityId)
 }

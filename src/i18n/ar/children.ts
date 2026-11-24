@@ -11,6 +11,7 @@ export const children = {
   female: 'بنت',
   class: 'الفصل',
   noClass: 'بدون فصل',
+  classFull: 'الفصل ده ممتلئ — وصل سعته القصوى',
   publicCode: 'كود الطفل',
   photoConsent: 'موافقة التصوير والنشر في البوابة',
   photoConsentHint: 'من غير الموافقة دي، صور الطفل مش هتظهر لولي الأمر في البوابة أبداً',
@@ -66,6 +67,12 @@ export const children = {
     times: 'المواعيد',
     noHealthData: 'لا بيانات صحية مسجلة لسه',
   },
+  qr: {
+    title: 'بطاقات QR للأطفال',
+    hint: 'اطبع بطاقات الفصل وقصّها — المشرفة تمسح البطاقة عند الوصول والاستلام بدل كتابة الكود.',
+    print: 'طباعة البطاقات',
+    empty: 'لا أطفال في الفصل ده لسه',
+  },
   import: {
     title: 'استيراد أطفال من Excel',
     pickFile: 'اختر ملف Excel أو CSV',
@@ -78,6 +85,7 @@ export const children = {
     rowError: 'سطر {row}: {message}',
     duplicatePhone: 'موبايل مكرر',
     unknownClass: 'فصل غير معروف',
+    overCapacity: 'الفصل ممتلئ (وصل سعته)',
     missingName: 'اسم الطفل ناقص',
   },
   emptyTitle: 'لا أطفال مسجلين لسه',

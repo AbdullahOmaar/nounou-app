@@ -8,6 +8,7 @@ import { Chip, ChipRow, Field, Select, TextInput } from '../../components/ui/for
 import { EmptyState } from '../../components/ui/EmptyState'
 import { ErrorState, LoadingState } from '../../components/ui/states'
 import { Sheet } from '../../components/ui/Sheet'
+import { useToast } from '../../components/ui/toast'
 import { useT } from '../../i18n'
 import { formatMoney, todayISO } from '../../lib/format'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
@@ -23,6 +24,7 @@ import * as api from './api'
  */
 export function BusPage() {
   const t = useT()
+  const showToast = useToast()
   const nursery = useCurrentNursery()
   const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : null
   const canBus = nursery.status === 'ready' && nursery.can('can_manage_bus')
@@ -32,6 +34,7 @@ export function BusPage() {
   const [routeId, setRouteId] = useState('')
   const [tab, setTab] = useState<'lists' | 'subs'>('lists')
   const [direction, setDirection] = useState<BusDirection>('to_nursery')
+  const [closeOpen, setCloseOpen] = useState(false)
   const [routeSheet, setRouteSheet] = useState(false)
   const [routeName, setRouteName] = useState('')
   const [routeSupervisor, setRouteSupervisor] = useState('')
@@ -113,6 +116,14 @@ export function BusPage() {
         args.doorstep ?? false,
       ),
     onSuccess: refresh,
+  })
+  const closeTrip = useMutation({
+    mutationFn: (args: { listId: string; summary: string }) =>
+      api.closeBusTrip(nurseryId!, args.listId, args.summary),
+    onSuccess: () => {
+      setCloseOpen(false)
+      showToast(t('bus.tripClosed'))
+    },
   })
 
   if (routes.isPending) return <LoadingState />
@@ -261,6 +272,11 @@ export function BusPage() {
                   ))}
                 </div>
               )}
+              {canBus && entries.length > 0 && (
+                <Button variant="soft" onClick={() => setCloseOpen(true)}>
+                  {t('bus.closeTrip')}
+                </Button>
+              )}
             </>
           )}
 
@@ -373,6 +389,80 @@ export function BusPage() {
             />
           </Field>
         </div>
+      </Sheet>
+
+      {/* 420-S2: إغلاق الرحلة بتسوية «لا طفل منسيّ» */}
+      <Sheet
+        open={closeOpen}
+        onClose={() => setCloseOpen(false)}
+        title={
+          entries.some((e) => e.status === 'pending')
+            ? t('bus.closePendingTitle')
+            : t('bus.closeTrip')
+        }
+        footer={
+          entries.some((e) => e.status === 'pending') ? undefined : (
+            <Button
+              full
+              disabled={closeTrip.isPending || !dayList.data}
+              onClick={() =>
+                closeTrip.mutate({
+                  listId: dayList.data!.list.id,
+                  summary: t('bus.closeSummary', {
+                    done: entries.filter((e) => e.status === 'done').length,
+                    absent: entries.filter((e) => e.status === 'absent').length,
+                    total: entries.length,
+                  }),
+                })
+              }
+            >
+              {t('bus.closeTripConfirm')}
+            </Button>
+          )
+        }
+      >
+        {entries.some((e) => e.status === 'pending') ? (
+          <div className="flex flex-col gap-2">
+            <p className="type-secondary text-muted">{t('bus.closePendingBody')}</p>
+            {entries
+              .filter((e) => e.status === 'pending')
+              .map((e) => (
+                <Card key={e.id} className="flex items-center justify-between py-3">
+                  <span className="flex items-center gap-2">
+                    <Avatar name={e.childName} />
+                    <span className="type-body">{e.childName}</span>
+                  </span>
+                  <span className="flex gap-1.5">
+                    <Button
+                      size="sm"
+                      onClick={() => setStatus.mutate({ entryId: e.id, status: 'done' })}
+                    >
+                      <Check size={16} />
+                      {direction === 'to_nursery'
+                        ? t('bus.markBoarded')
+                        : t('bus.markDelivered')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="soft"
+                      onClick={() => setStatus.mutate({ entryId: e.id, status: 'absent' })}
+                      aria-label={t('bus.markAbsent')}
+                    >
+                      <X size={16} />
+                    </Button>
+                  </span>
+                </Card>
+              ))}
+          </div>
+        ) : (
+          <p className="type-body">
+            {t('bus.closeSummary', {
+              done: entries.filter((e) => e.status === 'done').length,
+              absent: entries.filter((e) => e.status === 'absent').length,
+              total: entries.length,
+            })}
+          </p>
+        )}
       </Sheet>
 
       <Sheet

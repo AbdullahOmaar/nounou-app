@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react'
@@ -344,20 +344,41 @@ function PhotosSection({
 }) {
   const t = useT()
   const [urls, setUrls] = useState<Map<string, string>>(new Map())
+  const [failed, setFailed] = useState<Set<string>>(new Set())
+  const retriedRef = useRef<Set<string>>(new Set())
+
+  // 420-T1: جلب متوازٍ (لا متسلسل) — روابط الصور الموقّعة تعيش 15 دقيقة فقط
   useEffect(() => {
     let cancelled = false
     void (async () => {
+      const entries = await Promise.all(
+        photos.map(async (p) => [p.id, await api.fetchPortalPhotoUrl(token, p.id)] as const),
+      )
+      if (cancelled) return
       const next = new Map<string, string>()
-      for (const p of photos) {
-        const url = await api.fetchPortalPhotoUrl(token, p.id)
-        if (url) next.set(p.id, url)
-      }
-      if (!cancelled) setUrls(next)
+      for (const [id, url] of entries) if (url) next.set(id, url)
+      setUrls(next)
     })()
     return () => {
       cancelled = true
     }
   }, [token, photos])
+
+  // رابط انتهى (ولي الأمر رجع للصفحة بعد ربع ساعة): إعادة طلب رابط جديد
+  // لنفس الصورة مرة واحدة تلقائياً، ثم زر إعادة محاولة صريح عند الفشل.
+  async function refreshPhoto(id: string) {
+    const url = await api.fetchPortalPhotoUrl(token, id)
+    if (url) {
+      setFailed((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+      setUrls((prev) => new Map(prev).set(id, url))
+    } else {
+      setFailed((prev) => new Set(prev).add(id))
+    }
+  }
 
   if (photos.length === 0) return null
   return (
@@ -366,17 +387,41 @@ function PhotosSection({
       <div className="grid grid-cols-2 gap-2">
         {photos.map((p) => {
           const url = urls.get(p.id)
-          return url ? (
-            <img
-              key={p.id}
-              src={url}
-              alt={p.caption ?? ''}
-              className="w-full aspect-square object-cover rounded-xl"
-              loading="lazy"
-            />
-          ) : (
-            <div key={p.id} className="w-full aspect-square rounded-xl bg-soft" />
-          )
+          if (url && !failed.has(p.id)) {
+            return (
+              <img
+                key={p.id}
+                src={url}
+                alt={p.caption ?? ''}
+                className="w-full aspect-square object-cover rounded-xl"
+                loading="lazy"
+                onError={() => {
+                  if (!retriedRef.current.has(p.id)) {
+                    retriedRef.current.add(p.id)
+                    void refreshPhoto(p.id)
+                  } else {
+                    setFailed((prev) => new Set(prev).add(p.id))
+                  }
+                }}
+              />
+            )
+          }
+          if (failed.has(p.id)) {
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => {
+                  retriedRef.current.delete(p.id)
+                  void refreshPhoto(p.id)
+                }}
+                className="w-full aspect-square rounded-xl bg-soft text-muted type-secondary"
+              >
+                {t('portal.photoRetry')}
+              </button>
+            )
+          }
+          return <div key={p.id} className="w-full aspect-square rounded-xl bg-soft" />
         })}
       </div>
     </section>

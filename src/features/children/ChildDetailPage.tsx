@@ -119,12 +119,21 @@ export function ChildDetailPage() {
             <Field label={t('children.class')}>
               <Select
                 value={enrollment?.class_id ?? ''}
-                onChange={(e) =>
-                  void mutations.moveClass.mutateAsync({
-                    childId: child.id,
-                    classId: e.target.value || null,
-                  })
-                }
+                onChange={async (e) => {
+                  try {
+                    await mutations.moveClass.mutateAsync({
+                      childId: child.id,
+                      classId: e.target.value || null,
+                    })
+                  } catch (err) {
+                    showToast(
+                      err instanceof Error && err.message === 'class_full'
+                        ? t('children.classFull')
+                        : t('common.errorGeneric'),
+                      'error',
+                    )
+                  }
+                }}
               >
                 <option value="">{t('children.noClass')}</option>
                 {(classes.data ?? []).map((c) => (

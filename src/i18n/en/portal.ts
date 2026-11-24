@@ -19,6 +19,7 @@ export const portal = {
   activitiesTitle: 'Activities',
   moodTitle: 'Mood',
   photosTitle: "Today's photos",
+  photoRetry: 'Photo did not load — tap to retry',
   noPhotos: 'No photos published for this day',
   statementTitle: 'Account statement',
   noInvoices: 'No invoices issued yet',

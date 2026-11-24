@@ -25,6 +25,9 @@ const ChildDetailPage = lazy(() =>
     default: m.ChildDetailPage,
   })),
 )
+const QrCardsPage = lazy(() =>
+  import('./features/children/QrCardsPage').then((m) => ({ default: m.QrCardsPage })),
+)
 const ClassesPage = lazy(() =>
   import('./features/classes/ClassesPage').then((m) => ({ default: m.ClassesPage })),
 )
@@ -171,6 +174,14 @@ export default function App() {
                     element={
                       <Suspense fallback={<LoadingState />}>
                         <ChildDetailPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/qr-cards"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <QrCardsPage />
                       </Suspense>
                     }
                   />

@@ -44,7 +44,13 @@ export function ChildImportSheet({ open, onClose }: Props) {
         raw = (await readXlsxFile(file)) as unknown as unknown[][]
       }
       const known = new Set((classes.data ?? []).map((c) => c.name))
-      const result = parseImportRows(raw, known)
+      const limits = new Map(
+        (classes.data ?? []).map((c) => [
+          c.name,
+          { capacity: c.capacity, enrolled: c.childrenCount },
+        ]),
+      )
+      const result = parseImportRows(raw, known, limits)
       setRows(result.rows)
       setErrors(result.errors)
     } catch {
@@ -85,6 +91,8 @@ export function ChildImportSheet({ open, onClose }: Props) {
     switch (e.code) {
       case 'unknownClass':
         return t('children.import.unknownClass')
+      case 'overCapacity':
+        return t('children.import.overCapacity')
       case 'missingName':
         return t('children.import.missingName')
       case 'badPhone':

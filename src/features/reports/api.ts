@@ -139,6 +139,38 @@ export async function listPhotosForDay(
   return withUrls
 }
 
+/**
+ * 420: تصدير صور اليوم جماعياً كملف ZIP — تنزيل كل صورة من التخزين
+ * بصلاحية العضو ثم ضغط تخزيني (JPEG مضغوط أصلاً) عبر fflate.
+ */
+export async function downloadDayPhotosZip(
+  classDayId: string,
+): Promise<{ blob: Blob; count: number }> {
+  const db = requireSupabase()
+  const { data, error } = await db
+    .from('child_photos')
+    .select('id, storage_path')
+    .eq('class_day_id', classDayId)
+    .order('created_at')
+  if (error) throw error
+  const photos = (data ?? []) as { id: string; storage_path: string }[]
+  const { zipSync } = await import('fflate')
+  const files: Record<string, Uint8Array> = {}
+  let done = 0
+  for (const p of photos) {
+    const { data: blob, error: dErr } = await db.storage
+      .from('child-media')
+      .download(p.storage_path)
+    if (dErr || !blob) continue
+    done++
+    const name = `${String(done).padStart(2, '0')}-${p.id.slice(0, 8)}.jpg`
+    files[name] = new Uint8Array(await blob.arrayBuffer())
+  }
+  if (done === 0) throw new Error('no_photos')
+  const zipped = zipSync(files, { level: 0 })
+  return { blob: new Blob([zipped.buffer as ArrayBuffer], { type: 'application/zip' }), count: done }
+}
+
 /** عدد صور طفل النهارده (لفرض السقف المرن من الإعدادات) */
 export async function countChildPhotosToday(
   childId: string,
