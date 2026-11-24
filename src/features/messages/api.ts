@@ -1,5 +1,6 @@
 import { requireSupabase } from '../../lib/supabase'
 import { logActivityAuto } from '../settings/api'
+import { checkOutboundMessage } from './outboundCheck'
 
 export interface ThreadSummary {
   guardianId: string
@@ -97,6 +98,8 @@ export async function sendStaffMessage(
   guardianId: string,
   body: string,
 ): Promise<void> {
+  const verdict = checkOutboundMessage(body)
+  if (!verdict.ok) throw new Error(`outbound_blocked:${verdict.reason}`)
   const db = requireSupabase()
   const { error } = await db.from('portal_messages').insert({
     nursery_id: nurseryId,
