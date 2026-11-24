@@ -114,8 +114,11 @@ export default function EventInvitePage() {
           <img
             src={bannerUrl(eventBannerKey(ev.kind ?? 'other', ev.nursery?.banner_key))}
             alt=""
-            className="w-full aspect-[16/9] object-cover"
+            className="w-full aspect-[16/9] object-cover invite-kenburns"
           />
+          <span aria-hidden className="invite-twinkle absolute top-3 end-4 text-white text-lg">✦</span>
+          <span aria-hidden className="invite-twinkle absolute top-10 end-12 text-white" style={{ animationDelay: "0.9s" }}>✦</span>
+          <span aria-hidden className="invite-twinkle absolute bottom-10 start-6 text-white" style={{ animationDelay: "1.7s" }}>✦</span>
           <span className="absolute bottom-2 end-2">
             <AiDisclosure />
           </span>
@@ -123,7 +126,7 @@ export default function EventInvitePage() {
             <img
               src={stickerUrl(ev.nursery.sticker_key)}
               alt=""
-              className="absolute -top-3 start-3 size-16 rounded-full object-cover shadow"
+              className="invite-float absolute -top-3 start-3 size-16 rounded-full object-cover shadow"
             />
           )}
         </div>
