@@ -23,4 +23,10 @@ export const pub = {
   instapayLabel: "عنوان InstaPay (اختياري — يظهر علناً)",
   vodafoneLabel: "رقم فودافون كاش (اختياري — يظهر علناً)",
   bankLabel: "الحساب البنكي (اختياري — يظهر علناً)",
+  navHome: "الرئيسية",
+  navClasses: "الفصول والأسعار",
+  navAbout: "عن الحضانة",
+  readMore: "اقرأ المزيد",
+  allClasses: "كل الفصول",
+  capacity: "السعة: {count} طفل",
 }
