@@ -15,6 +15,7 @@ export interface PublicPageData {
   phone?: string | null
   logo_url?: string | null
   licensed?: boolean
+  payments?: { instapay?: string | null; vodafone?: string | null; bank?: string | null }
   classes?: PublicClass[]
 }
 

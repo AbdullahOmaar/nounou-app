@@ -89,6 +89,46 @@ export default function PublicPage() {
           ))}
         </section>
 
+        {d.payments &&
+          (d.payments.instapay || d.payments.vodafone || d.payments.bank) && (
+            <section className="flex flex-col gap-2">
+              <h2 className="type-secondary">{t('pub.paymentsTitle')}</h2>
+              <Card>
+                {d.payments.instapay && (
+                  <div className="flex items-center justify-between py-1">
+                    <span className="type-secondary text-muted">
+                      {t('pub.instapay')}
+                    </span>
+                    <span className="type-body" dir="ltr">
+                      {d.payments.instapay}
+                    </span>
+                  </div>
+                )}
+                {d.payments.vodafone && (
+                  <div className="flex items-center justify-between py-1">
+                    <span className="type-secondary text-muted">
+                      {t('pub.vodafone')}
+                    </span>
+                    <span className="type-body" dir="ltr">
+                      {d.payments.vodafone}
+                    </span>
+                  </div>
+                )}
+                {d.payments.bank && (
+                  <div className="flex items-center justify-between py-1">
+                    <span className="type-secondary text-muted">
+                      {t('pub.bank')}
+                    </span>
+                    <span className="type-body" dir="ltr">
+                      {d.payments.bank}
+                    </span>
+                  </div>
+                )}
+                <p className="type-badge text-muted mt-2">{t('pub.payDirect')}</p>
+              </Card>
+            </section>
+          )}
+
         {wa && (
           <a
             href={wa}

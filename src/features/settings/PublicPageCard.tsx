@@ -20,6 +20,9 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
   const [slug, setSlug] = useState('')
   const [about, setAbout] = useState('')
   const [license, setLicense] = useState('')
+  const [instapay, setInstapay] = useState('')
+  const [vodafone, setVodafone] = useState('')
+  const [bank, setBank] = useState('')
 
   useEffect(() => {
     if (current.data) {
@@ -27,6 +30,9 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
       setSlug(current.data.public_slug ?? '')
       setAbout(current.data.public_about ?? '')
       setLicense(current.data.public_license_no ?? '')
+      setInstapay(current.data.public_instapay ?? '')
+      setVodafone(current.data.public_vodafone ?? '')
+      setBank(current.data.public_bank ?? '')
     }
   }, [current.data])
 
@@ -37,6 +43,9 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
         public_slug: slug.trim() || null,
         public_about: about.trim() || null,
         public_license_no: license.trim() || null,
+        public_instapay: instapay.trim() || null,
+        public_vodafone: vodafone.trim() || null,
+        public_bank: bank.trim() || null,
       }),
     onSuccess: () => {
       showToast(t('common.savedOk'))
@@ -71,6 +80,15 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
       )}
       <Field label={t('pub.aboutLabel')}>
         <TextArea value={about} onChange={(e) => setAbout(e.target.value)} rows={3} />
+      </Field>
+      <Field label={t('pub.instapayLabel')}>
+        <TextInput value={instapay} onChange={(e) => setInstapay(e.target.value)} />
+      </Field>
+      <Field label={t('pub.vodafoneLabel')}>
+        <TextInput value={vodafone} onChange={(e) => setVodafone(e.target.value)} />
+      </Field>
+      <Field label={t('pub.bankLabel')}>
+        <TextInput value={bank} onChange={(e) => setBank(e.target.value)} />
       </Field>
       <Field label={t('pub.licenseLabel')}>
         <TextInput value={license} onChange={(e) => setLicense(e.target.value)} />

@@ -15,4 +15,12 @@ export const pub = {
   slugInvalid: "The link may only contain lowercase letters, numbers and dashes",
   aboutLabel: "About the nursery (facilities tour)",
   licenseLabel: "License number (optional — shows the licensed badge)",
+  paymentsTitle: "Payment methods",
+  instapay: "InstaPay",
+  vodafone: "Vodafone Cash",
+  bank: "Bank transfer",
+  payDirect: "Money goes to the nursery directly — it never passes through Nounou",
+  instapayLabel: "InstaPay address (optional — shown publicly)",
+  vodafoneLabel: "Vodafone Cash number (optional — shown publicly)",
+  bankLabel: "Bank account (optional — shown publicly)",
 }
