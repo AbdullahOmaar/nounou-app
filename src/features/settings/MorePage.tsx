@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Bell,
   CalendarCheck,
+  PartyPopper,
   MessageCircle, MessageCircleQuestion,
   Bus,
   ClipboardList,
@@ -66,6 +67,7 @@ export function MorePage() {
     { icon: MessageCircle, label: t('shell.more.messages'), path: '/messages' },
     { icon: MessageCircleQuestion, label: t('shell.more.qa'), path: '/qa' },
     { icon: CalendarCheck, label: t('shell.more.tours'), path: '/tours' },
+    { icon: PartyPopper, label: t('shell.more.events'), path: '/events' },
     {
       icon: ShieldCheck,
       label: t('shell.more.proofs'),

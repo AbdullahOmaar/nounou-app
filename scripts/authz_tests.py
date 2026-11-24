@@ -1191,6 +1191,21 @@ def main():
               s == 200 and isinstance(b, dict) and b.get("found") is False,
               f"got {s} {str(b)[:100]}")
 
+        # ---- event invitations (3.7, migration 0042) ----
+        one(ref, "insert into nursery_events "
+                 "(nursery_id, title, starts_at, public_code) values "
+                 f"('{nursery_a}', 'Authz Party', now(), 'authzparty1')")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/public_event_by_code",
+                    None, body={"p_code": "authzparty1"})
+        check("the public invitation resolves by code (3.7)",
+              s == 200 and isinstance(b, dict) and b.get("found") is True
+              and b.get("title") == "Authz Party", f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/public_event_by_code",
+                    None, body={"p_code": "nope-nope"})
+        check("an unknown invitation code is a clean miss (3.7)",
+              s == 200 and isinstance(b, dict)
+              and b.get("found") is False, f"got {s}")
+
         # ---- tour booking (3.6, migration 0041) ----
         sql(ref, f"update nurseries set public_enabled = true "
                  f"where id = '{nursery_a}'")

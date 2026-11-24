@@ -69,6 +69,7 @@ const PortalLinksPage = lazy(() =>
     default: m.PortalLinksPage,
   })),
 )
+const EventInvitePage = lazy(() => import('./features/events/EventInvitePage'))
 const PortalPage = lazy(() =>
   import('./features/portal/PortalPage').then((m) => ({ default: m.PortalPage })),
 )
@@ -141,6 +142,7 @@ registerRouteLoaders({
   '/messages': () => import('./features/messages/MessagesPage'),
   '/qa': () => import('./features/qa/QaPage'),
   '/tours': () => import('./features/tours/ToursPage'),
+  '/events': () => import('./features/events/EventsPage'),
   '/settings': () => import('./features/settings/SettingsPage'),
   '/members': () => import('./features/settings/MembersPage'),
   '/export': () => import('./features/settings/ExportPage'),
@@ -213,6 +215,14 @@ export default function App() {
                   }
                 />
               </Route>
+              <Route
+                path="/e/:code"
+                element={
+                  <Suspense fallback={<LoadingState />}>
+                    <EventInvitePage />
+                  </Suspense>
+                }
+              />
               <Route
                 path="/p/:token"
                 element={
