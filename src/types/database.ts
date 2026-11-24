@@ -70,6 +70,7 @@ export interface NurseryRow {
   public_bank: string | null
   brand_color: string | null
   banner_key: string | null
+  sticker_key: string | null
 }
 
 export interface NurseryMemberRow {

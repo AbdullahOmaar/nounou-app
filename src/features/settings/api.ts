@@ -57,7 +57,7 @@ export async function getPublicPageSettings(nurseryId: string) {
   const db = requireSupabase()
   const { data, error } = await db
     .from('nurseries')
-    .select('public_slug, public_enabled, public_about, public_license_no, public_instapay, public_vodafone, public_bank, banner_key')
+    .select('public_slug, public_enabled, public_about, public_license_no, public_instapay, public_vodafone, public_bank, banner_key, sticker_key')
     .eq('id', nurseryId)
     .single()
   if (error) throw error
@@ -71,6 +71,7 @@ export async function getPublicPageSettings(nurseryId: string) {
     | 'public_vodafone'
     | 'public_bank'
     | 'banner_key'
+    | 'sticker_key'
   >
 }
 
@@ -87,6 +88,7 @@ export async function updatePublicPageSettings(
       | 'public_vodafone'
       | 'public_bank'
       | 'banner_key'
+      | 'sticker_key'
     >
   >,
 ): Promise<void> {

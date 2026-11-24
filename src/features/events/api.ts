@@ -84,6 +84,7 @@ export interface PublicEvent {
     phone: string | null
     brand_color: string | null
     banner_key?: string | null
+    sticker_key?: string | null
   }
 }
 
