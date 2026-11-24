@@ -79,6 +79,14 @@ export function useAttendanceWriter() {
   }, [nurseryId, qc])
 
   const write = useMutation({
+    // ‏networkMode ‏'always' مقصود: الوضع الافتراضي في React Query يُعلّق
+    // الـmutation صامتاً عند انقطاع الاتصال فلا يعمل mutationFn ولا onError
+    // إطلاقاً — فيتجاوز طابور localStorage كلياً ولا تظهر لافتة الانتظار،
+    // وتضيع الكتابة إن أُغلق التطبيق وهو أوفلاين. بـ'always' يعمل
+    // mutationFn فوراً فيرمي 'offline' ويُطابَق في onError كما صُمم.
+    // (اكتشاف فحص 0.1 — فيز 2، 2026-11-24: فلو E2E 09 كان يموت عند
+    // انتظار اللافتة والطابور فارغ رغم onLine=false المؤكد)
+    networkMode: 'always',
     mutationFn: async (payload: api.AttendanceUpsert) => {
       if (!navigator.onLine) throw new Error('offline')
       await api.upsertAttendance(payload)
