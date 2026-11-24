@@ -64,4 +64,5 @@ export const finance = {
   approvedDone: 'اتعمدت واتنفذت',
   rejectedDone: 'اترفض الطلب',
   selfNote: 'طلبك أنت — الاعتماد خطوة ثانية واعية',
+  amountPlain: "المبلغ",
 }

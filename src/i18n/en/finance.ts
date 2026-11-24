@@ -64,4 +64,5 @@ export const finance = {
   approvedDone: 'Approved and executed',
   rejectedDone: 'Request rejected',
   selfNote: 'Your own request — approval is a deliberate second step',
+  amountPlain: "Amount",
 }

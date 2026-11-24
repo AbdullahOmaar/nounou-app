@@ -23,7 +23,8 @@ import * as api from './api'
 import { childrenWithoutReports, reportAccessFor } from './publishLogic'
 import { enqueuePhoto, enqueueReport } from './offlineQueue'
 import { useReportsOfflineSync } from './hooks'
-import { Mic } from 'lucide-react'
+import { Mic, Printer } from 'lucide-react'
+import { openPrintDocument } from '../../lib/printDoc'
 import { MAX_PHOTO_BYTES } from './photoUtils'
 import { makeStopFlag, type StopFlag } from '../../lib/bulk'
 
@@ -624,6 +625,7 @@ export function ReportsPage() {
         onClose={() => setEditChild(null)}
         title={editChild ? t('reports.editChild', { name: editChild.name }) : ''}
         footer={
+          <div className="flex gap-2">
           <Button
             full
             disabled={saveReport.isPending}
@@ -651,6 +653,55 @@ export function ReportsPage() {
           >
             {t('common.save')}
           </Button>
+          <Button
+            variant="soft"
+            onClick={() => {
+              if (!editChild || nursery.status !== 'ready') return
+              const mealRows = (Object.keys(editDraft.meals) as MealKind[]).map(
+                (m) => ({
+                  label: mealLabel(m),
+                  value: ateLabel(editDraft.meals[m]),
+                }),
+              )
+              const opened = openPrintDocument({
+                nurseryName: nursery.nursery.name,
+                logoUrl: nursery.nursery.logo_url,
+                brandColor: nursery.nursery.brand_color,
+                title: t('reports.printTitle', { name: editChild.name }),
+                meta: date,
+                sections: [
+                  {
+                    type: 'kv',
+                    rows: [
+                      ...mealRows,
+                      {
+                        label: t('reports.nap'),
+                        value: editDraft.napSlept
+                          ? t('reports.quickSlept')
+                          : t('reports.quickNoSleep'),
+                      },
+                      {
+                        label: t('reports.mood'),
+                        value: editDraft.mood ? moodLabel(editDraft.mood) : '—',
+                      },
+                    ],
+                  },
+                  ...(editDraft.activities.trim()
+                    ? [{ type: 'text' as const, text: editDraft.activities.trim() }]
+                    : []),
+                  ...(editDraft.note.trim()
+                    ? [{ type: 'text' as const, text: editDraft.note.trim() }]
+                    : []),
+                ],
+                footerNote: t('pub.poweredBy'),
+              })
+              if (!opened) showToast(t('common.errorGeneric'), 'error')
+            }}
+          >
+            <Printer size={16} />
+            {t('reports.printReport')}
+          </Button>
+          </div>
         }
       >
         {draftForm(editDraft, setEditDraft)}

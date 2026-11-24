@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
+import { openPrintDocument } from '../../lib/printDoc'
 import { Plus, RotateCcw, Trash2,
   Printer,
 } from 'lucide-react'
@@ -33,7 +34,6 @@ export function InvoiceDetailPage() {
   const [lineLabel, setLineLabel] = useState('')
   const [lineAmount, setLineAmount] = useState('')
   const [reverseTarget, setReverseTarget] = useState<PaymentRow | null>(null)
-  const [receiptTarget, setReceiptTarget] = useState<PaymentRow | null>(null)
   const [cancelOpen, setCancelOpen] = useState(false)
 
   if (bundle.isPending) return <LoadingState />
@@ -201,8 +201,28 @@ export function InvoiceDetailPage() {
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      setReceiptTarget(p)
-                      setTimeout(() => window.print(), 60)
+                      if (nurseryRes.status !== 'ready') return
+                      const opened = openPrintDocument({
+                        nurseryName: nurseryRes.nursery.name,
+                        logoUrl: nurseryRes.nursery.logo_url,
+                        brandColor: nurseryRes.nursery.brand_color,
+                        title: t('invoices.receiptTitle'),
+                        sections: [
+                          {
+                            type: 'kv',
+                            rows: [
+                              { label: t('invoices.receiptNoLabel'), value: String(p.receipt_no ?? 0) },
+                              { label: t('invoices.receiptChild'), value: childName },
+                              { label: t('finance.amountPlain'), value: formatMoney(p.amount) },
+                              { label: t('invoices.receiptMethod'), value: methodLabel(p) },
+                              { label: t('invoices.receiptDate'), value: formatDateTimeAr(p.paid_at) },
+                              { label: t('invoices.receiptPeriod'), value: invoice.period },
+                            ],
+                          },
+                        ],
+                        footerNote: t('pub.poweredBy'),
+                      })
+                      if (!opened) showToast(t('common.errorGeneric'), 'error')
                     }}
                     aria-label={t('invoices.printReceipt')}
                   >
@@ -282,21 +302,6 @@ export function InvoiceDetailPage() {
         </div>
       </Sheet>
 
-      {receiptTarget && (
-        <div className="receipt-print" style={{ display: 'none' }}>
-          <style>{`@media print { body * { visibility: hidden; } .receipt-print, .receipt-print * { visibility: visible; } .receipt-print { display: block !important; position: absolute; inset: 0; padding: 24px; } }`}</style>
-          {nurseryRes.status === 'ready' && nurseryRes.nursery.logo_url && (
-            <img src={nurseryRes.nursery.logo_url} alt="" style={{ width: 56, height: 56, objectFit: 'cover' }} />
-          )}
-          {nurseryRes.status === 'ready' && <p>{nurseryRes.nursery.name}</p>}
-          <h1>{t('invoices.receiptTitle')}</h1>
-          <p>{t('invoices.receiptNo', { no: receiptTarget.receipt_no ?? 0 })}</p>
-          <p>{childName}</p>
-          <p>{formatMoney(receiptTarget.amount)} — {methodLabel(receiptTarget)}</p>
-          <p>{formatDateTimeAr(receiptTarget.paid_at)}</p>
-          <p>{invoice.period}</p>
-        </div>
-      )}
       <ConfirmSheet
         open={Boolean(reverseTarget)}
         onClose={() => setReverseTarget(null)}
