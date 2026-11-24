@@ -256,33 +256,17 @@ export async function cancelInvoiceInternal(invoiceId: string): Promise<void> {
 }
 
 /**
- * بوابة الاعتماد الثاني (1.5): إلغاء فاتورة فيها أي دفعة صالحة لا
- * يُنفَّذ فوراً — يُحفظ طلباً معلّقاً لاعتماد مالك.
+ * إلغاء فاتورة: بلا بوابة اعتماد — مشغّل 0013-V1 يرفض أصلاً إلغاء أي
+ * فاتورة فيها دفعة فعّالة (سلامة مال)، فالمسار الصحيح: عكس الدفعات
+ * أولاً ثم الإلغاء. الفواتير بلا دفعات تُلغى مباشرة.
  */
 export async function cancelInvoice(
   nurseryId: string,
   actorId: string | null,
   invoiceId: string,
-): Promise<'done' | 'pending'> {
-  const db = requireSupabase()
-  const { count } = await db
-    .from('payments')
-    .select('id', { count: 'exact', head: true })
-    .eq('invoice_id', invoiceId)
-    .in('proof_status', ['approved', 'not_required'])
-    .is('reverses_id', null)
-    .is('reversed_by_id', null)
-  if ((count ?? 0) > 0) {
-    const { requestApproval } = await import('../approvals/api')
-    await requestApproval(
-      nurseryId,
-      actorId,
-      'invoice_cancel_paid',
-      { invoiceId },
-      `invoice — ${invoiceId.slice(0, 8)}`,
-    )
-    return 'pending'
-  }
+): Promise<'done'> {
+  void nurseryId
+  void actorId
   await cancelInvoiceInternal(invoiceId)
   return 'done'
 }

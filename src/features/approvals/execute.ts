@@ -1,7 +1,6 @@
 import { requireSupabase } from '../../lib/supabase'
 import type { PaymentRow, PendingApprovalRow } from '../../types/database'
 import * as financeApi from '../finance/api'
-import * as invoicesApi from '../invoices/api'
 import * as proofsApi from '../proofs/api'
 import { markDecided } from './api'
 
@@ -43,9 +42,6 @@ export async function decideApproval(
         String(p.handover),
         p.note ? String(p.note) : null,
       )
-      break
-    case 'invoice_cancel_paid':
-      await invoicesApi.cancelInvoiceInternal(String(p.invoiceId))
       break
     case 'expense_large':
       await financeApi.addExpenseRecord(nurseryId, actorId, {

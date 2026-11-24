@@ -282,9 +282,8 @@ export function InvoiceDetailPage() {
         confirmLabel={t('invoices.cancelInvoice')}
         danger
         onConfirm={async () => {
-          const result = await mutations.cancel.mutateAsync(invoice.id)
+          await mutations.cancel.mutateAsync(invoice.id)
           setCancelOpen(false)
-          if (result === 'pending') showToast(t('invoices.cancelPendingApproval'))
         }}
       />
     </div>
