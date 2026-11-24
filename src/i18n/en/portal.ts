@@ -39,4 +39,5 @@ export const portal = {
   invalidLinkBody: 'Ask the nursery for a new link',
   pickDate: 'Another day',
   healthSummary: 'Health summary',
+  receiptsTitle: 'Your receipts',
 }

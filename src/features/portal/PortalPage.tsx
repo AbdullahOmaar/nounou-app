@@ -457,6 +457,23 @@ function StatementSection({ day }: { day: api.PortalChildDay }) {
           </div>
         ))}
       </div>
+      {(day.payments ?? []).length > 0 && (
+        <div className="flex flex-col gap-1 mt-2">
+          <div className="type-badge text-muted">{t('portal.receiptsTitle')}</div>
+          {(day.payments ?? []).map((pay) => (
+            <div key={pay.id} className="flex items-center justify-between">
+              <span className="type-secondary">
+                {pay.receipt_no
+                  ? t('invoices.receiptNo', { no: pay.receipt_no })
+                  : ''}
+              </span>
+              <span className="type-secondary text-muted">
+                {formatMoney(pay.amount)} • {pay.paid_at.slice(0, 10)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </Card>
   )
 }

@@ -58,4 +58,6 @@ export const invoices = {
   filterPeriod: 'الشهر',
   filterStatus: 'الحالة',
   cancelPendingApproval: 'الفاتورة فيها دفعات — الإلغاء اتحفظ لاعتماد ثانٍ في صفحة المالية',
+  printReceipt: 'طباعة الإيصال',
+  receiptTitle: 'إيصال استلام مبلغ',
 }

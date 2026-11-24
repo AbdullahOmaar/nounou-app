@@ -58,4 +58,6 @@ export const invoices = {
   filterPeriod: 'Month',
   filterStatus: 'Status',
   cancelPendingApproval: 'This invoice has payments — cancellation was saved for a second approval on the Finance page',
+  printReceipt: 'Print receipt',
+  receiptTitle: 'Payment receipt',
 }
