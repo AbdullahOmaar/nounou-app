@@ -80,3 +80,27 @@ export async function listWhatsAppLog(
   if (error) throw error
   return (data ?? []) as WhatsAppLogRow[]
 }
+
+/** يرسل كود استلام اليوم للوصيّ الدافع عبر البوابات (2.4) */
+export async function enqueuePickupCode(
+  nurseryId: string,
+  childId: string,
+  code: string,
+): Promise<string> {
+  const db = requireSupabase()
+  const { data: link, error: lErr } = await db
+    .from('guardian_children')
+    .select('guardian_id')
+    .eq('child_id', childId)
+    .eq('is_payer', true)
+    .maybeSingle()
+  if (lErr) throw lErr
+  const { data, error } = await db.rpc('whatsapp_enqueue', {
+    p_nursery: nurseryId,
+    p_guardian: link?.guardian_id ?? null,
+    p_template: 'pickup_code',
+    p_params: { code },
+  })
+  if (error) throw error
+  return data as string
+}

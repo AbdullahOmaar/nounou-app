@@ -38,4 +38,8 @@ export const attendance = {
   allMarked: 'All children are marked 🎉',
   historyTitle: 'Attendance history for {name}',
   noHistory: 'No attendance history yet',
+  sendCodeWhatsapp: 'Send the code of today to the guardian (WhatsApp)',
+  codeSendResult: 'Send result: {status}',
+  pickupLogTitle: 'Pickup log of today',
+  pickupLogCodeUsed: 'with code',
 }
