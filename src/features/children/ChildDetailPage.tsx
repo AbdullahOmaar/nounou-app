@@ -182,7 +182,7 @@ export function ChildDetailPage() {
                               r.nap_slept ? t('reports.quickSlept') : t('reports.quickNoSleep'),
                               (r.note ?? '') ||
                                 (Array.isArray(r.activities)
-                                  ? r.activities.join('، ')
+                                  ? r.activities.join(', ')
                                   : (r.activities ?? '')),
                             ]),
                           },
