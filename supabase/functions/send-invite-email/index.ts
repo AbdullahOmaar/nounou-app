@@ -34,12 +34,17 @@ function json(body: unknown, status: number): Response {
   });
 }
 
+const HTML_ESCAPES: Record<string, string> = {
+  "&": "&amp;",
+  "<": "&lt;",
+  ">": "&gt;",
+  '"': "&quot;",
+  "'": "&#39;",
+};
+
 function escapeHtml(s: string): string {
-  return s
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
+  // تمريرة واحدة بخريطة — لا سلاسل replaceAll متسلسلة (ترتيبها هش أمنياً)
+  return s.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 }
 
 Deno.serve(async (req: Request) => {
