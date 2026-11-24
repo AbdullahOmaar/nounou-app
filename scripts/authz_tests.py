@@ -1086,6 +1086,21 @@ def main():
                           "order_date": "2026-11-10", "due_date": "2026-11-24"})
         check("owner can add a purchase order", s in (200, 201),
               f"got {s} {str(b)[:80]}")
+
+        # ---- pending approvals (1.5, migration 0027): owner-only ----
+        s, b = rest(url, anon, "GET",
+                    f"/rest/v1/pending_approvals?nursery_id=eq.{nursery_a}&select=id",
+                    staff_jwt)
+        rows = b if isinstance(b, list) else []
+        check("staff cannot see pending approvals (owner-only RLS)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        s, b = rest(url, anon, "POST", "/rest/v1/pending_approvals",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "action_kind": "expense_large",
+                          "payload": {"title": "authz", "amount": 9000},
+                          "summary": "authz approval"})
+        check("owner can file a pending approval", s in (200, 201),
+              f"got {s} {str(b)[:80]}")
     finally:
         # ---------- cleanup ----------
         ids = [u for u in (owner_a_uid, owner_b_uid, staff_uid) if u]

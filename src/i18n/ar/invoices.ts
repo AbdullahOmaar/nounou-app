@@ -57,4 +57,5 @@ export const invoices = {
   emptyBody: 'اصدر فواتير الشهر بضغطة واحدة',
   filterPeriod: 'الشهر',
   filterStatus: 'الحالة',
-} as const
+  cancelPendingApproval: 'الفاتورة فيها دفعات — الإلغاء اتحفظ لاعتماد ثانٍ في صفحة المالية',
+}

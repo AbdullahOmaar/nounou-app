@@ -24,4 +24,5 @@ export const paymentProofs = {
   viewProof: 'عرض صورة الإثبات',
   methodLabel: 'الطريقة',
   sentAt: 'اتبعت {date}',
-} as const
+  approvalPending: 'المبلغ فوق حد الاعتماد — اتحفظ لاعتماد ثانٍ في صفحة المالية',
+}

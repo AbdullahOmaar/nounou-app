@@ -319,6 +319,26 @@ export interface SupplierPaymentRow {
   created_at: string
 }
 
+export type ApprovalKind =
+  | 'proof_approve'
+  | 'cashbox_close_diff'
+  | 'invoice_cancel_paid'
+  | 'expense_large'
+
+/** صف ‏pending_approvals (مهمة 1.5؛ مالك فقط بـRLS) */
+export interface PendingApprovalRow {
+  id: string
+  nursery_id: string
+  action_kind: ApprovalKind
+  payload: Record<string, unknown>
+  summary: string
+  requested_by: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  decided_by: string | null
+  decided_at: string | null
+  created_at: string
+}
+
 /** صف view ‏invoice_balances */
 export interface InvoiceBalanceRow {
   invoice_id: string

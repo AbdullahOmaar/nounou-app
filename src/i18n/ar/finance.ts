@@ -57,4 +57,11 @@ export const finance = {
     misc_in: 'داخل أخرى',
     misc_out: 'خارج أخرى',
   },
+  approvalPending: 'اتحفظت العملية لاعتماد ثانٍ — هتلاقيها أعلى صفحة المالية',
+  approvalsTitle: 'اعتمادات معلّقة',
+  approve: 'اعتماد وتنفيذ',
+  reject: 'رفض',
+  approvedDone: 'اتعمدت واتنفذت',
+  rejectedDone: 'اترفض الطلب',
+  selfNote: 'طلبك أنت — الاعتماد خطوة ثانية واعية',
 }

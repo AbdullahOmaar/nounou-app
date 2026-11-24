@@ -65,7 +65,7 @@ export function CashboxSection({
     queryFn: () => api.closeBreakdown(nurseryId, date, entries.data ?? []),
   })
   const refresh = () =>
-    invalidatePrefixes(qc, ['cashbox-entries', 'cashbox-close', 'cashbox-breakdown', 'day-cashbox'])
+    invalidatePrefixes(qc, ['cashbox-entries', 'cashbox-close', 'cashbox-breakdown', 'day-cashbox', 'approvals'])
 
   const add = useMutation({
     mutationFn: () =>
@@ -90,20 +90,44 @@ export function CashboxSection({
     onError: () => showToast(t('common.errorGeneric'), 'error'),
   })
   const doClose = useMutation({
-    mutationFn: () =>
-      api.closeCashbox(
+    mutationFn: async (): Promise<'done' | 'pending'> => {
+      const expected = breakdown.data?.expected ?? 0
+      const countedNum = parseFloat(counted) || 0
+      // بوابة الاعتماد الثاني (1.5): إقفال بفرق لا يُنفَّذ فوراً
+      if (countedNum !== expected) {
+        const { requestApproval } = await import('../approvals/api')
+        await requestApproval(
+          nurseryId,
+          actorId,
+          'cashbox_close_diff',
+          {
+            date,
+            expected,
+            counted: countedNum,
+            handover,
+            note: closeNote.trim() || null,
+          },
+          `${date} — diff ${countedNum - expected}`,
+        )
+        return 'pending'
+      }
+      await api.closeCashbox(
         nurseryId,
         actorId,
         date,
-        breakdown.data?.expected ?? 0,
-        parseFloat(counted) || 0,
+        expected,
+        countedNum,
         handover,
         closeNote.trim() || null,
-      ),
-    onSuccess: () => {
+      )
+      return 'done'
+    },
+    onSuccess: (result) => {
       refresh()
       setCloseOpen(false)
-      showToast(t('finance.closedOk'))
+      showToast(
+        result === 'pending' ? t('finance.approvalPending') : t('finance.closedOk'),
+      )
     },
     onError: () => showToast(t('common.errorGeneric'), 'error'),
   })

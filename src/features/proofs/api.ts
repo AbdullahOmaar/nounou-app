@@ -91,7 +91,7 @@ export async function proofSignedUrl(path: string): Promise<string | null> {
  * رقم الإيصال أُسند أصلاً عند إدراج الدفعة عبر مشغّل القاعدة (هجرة
  * 0013) فلا يُلمس هنا. الرفض بسبب ظاهر لولي الأمر في بوابته.
  */
-export async function approveProof(
+export async function approveProofInternal(
   actorId: string | null,
   proof: PaymentRow,
 ): Promise<void> {
@@ -163,4 +163,40 @@ export async function rejectProof(
       proofId,
     )
   }
+}
+
+/**
+ * بوابة الاعتماد الثاني (1.5): اعتماد إثبات فوق الحد لا يُنفَّذ —
+ * يُحفظ طلباً معلّقاً (ولا يتكرر إن وُجد طلب معلّق لنفس الدفعة).
+ */
+export async function approveProof(
+  actorId: string | null,
+  proof: PaymentRow,
+): Promise<'done' | 'pending'> {
+  const { PROOF_APPROVAL_LIMIT, requestApproval } = await import(
+    '../approvals/api'
+  )
+  if (Number(proof.amount) > PROOF_APPROVAL_LIMIT) {
+    const db = requireSupabase()
+    const { data } = await db
+      .from('pending_approvals')
+      .select('id')
+      .eq('nursery_id', proof.nursery_id)
+      .eq('action_kind', 'proof_approve')
+      .eq('status', 'pending')
+      .filter('payload->>paymentId', 'eq', proof.id)
+      .limit(1)
+    if (!data || data.length === 0) {
+      await requestApproval(
+        proof.nursery_id,
+        actorId,
+        'proof_approve',
+        { paymentId: proof.id },
+        `proof — ${proof.amount}`,
+      )
+    }
+    return 'pending'
+  }
+  await approveProofInternal(actorId, proof)
+  return 'done'
 }

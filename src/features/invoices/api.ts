@@ -246,13 +246,29 @@ export async function deleteInvoiceLine(lineId: string): Promise<void> {
   if (error) throw error
 }
 
-export async function cancelInvoice(invoiceId: string): Promise<void> {
+export async function cancelInvoiceInternal(invoiceId: string): Promise<void> {
   const db = requireSupabase()
   const { error } = await db
     .from('invoices')
     .update({ status: 'cancelled' })
     .eq('id', invoiceId)
   if (error) throw error
+}
+
+/**
+ * إلغاء فاتورة: بلا بوابة اعتماد — مشغّل 0013-V1 يرفض أصلاً إلغاء أي
+ * فاتورة فيها دفعة فعّالة (سلامة مال)، فالمسار الصحيح: عكس الدفعات
+ * أولاً ثم الإلغاء. الفواتير بلا دفعات تُلغى مباشرة.
+ */
+export async function cancelInvoice(
+  nurseryId: string,
+  actorId: string | null,
+  invoiceId: string,
+): Promise<'done'> {
+  void nurseryId
+  void actorId
+  await cancelInvoiceInternal(invoiceId)
+  return 'done'
 }
 
 export interface RecordPaymentInput {

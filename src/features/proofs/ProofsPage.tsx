@@ -8,6 +8,7 @@ import { ErrorState, LoadingState } from '../../components/ui/states'
 import { Field, TextInput } from '../../components/ui/form'
 import { Sheet } from '../../components/ui/Sheet'
 import { useT } from '../../i18n'
+import { useToast } from '../../components/ui/toast'
 import { fmtPeriod } from '../../i18n/format'
 import { formatDateTimeAr, formatMoney } from '../../lib/format'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
@@ -17,6 +18,7 @@ import * as api from './api'
 
 /** مراجعة إثباتات الدفع (المالك فقط): اعتماد يحوّلها لدفعة، أو رفض بسبب */
 export function ProofsPage() {
+  const showToast = useToast()
   const t = useT()
   const nursery = useCurrentNursery()
   const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : null
@@ -32,7 +34,10 @@ export function ProofsPage() {
   const approve = useMutation({
     mutationFn: (proof: api.ProofItem) =>
       api.approveProof(user?.id ?? null, proof),
-    onSuccess: refresh,
+    onSuccess: (result) => {
+      refresh()
+      if (result === 'pending') showToast(t('paymentProofs.approvalPending'))
+    },
   })
   const reject = useMutation({
     mutationFn: (args: { proofId: string; reason: string }) =>
