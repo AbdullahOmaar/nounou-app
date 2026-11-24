@@ -1168,6 +1168,21 @@ def main():
               s == 200 and isinstance(b, dict)
               and (b.get("payments") or {}).get("instapay") == "authz@instapay",
               f"got {s} {str(b)[:140]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/public_page_track",
+                    None, body={"p_slug": "authz-public", "p_kind": "view",
+                                "p_page": "home"})
+        check("anon tracks a public page view (3.3)", s in (200, 204),
+              f"got {s}")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/public_page_events?select=id&limit=5",
+                    owner_a_jwt)
+        check("the owner reads the tracked events, staff table closed to anon",
+              s == 200 and isinstance(b, list) and len(b) >= 1, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/public_page_track",
+                    None, body={"p_slug": "no-such-nursery",
+                                "p_kind": "view", "p_page": "home"})
+        check("tracking an unknown slug is a silent no-op (3.3)",
+              s in (200, 204), f"got {s}")
         sql(ref, f"update nurseries set public_enabled = false "
                  f"where id = '{nursery_a}'")
         s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",

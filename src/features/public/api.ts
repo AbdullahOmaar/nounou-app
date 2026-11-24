@@ -25,3 +25,23 @@ export async function fetchPublicPage(slug: string): Promise<PublicPageData> {
   if (error) throw error
   return (data ?? { found: false }) as PublicPageData
 }
+
+export type PublicPageName = 'home' | 'classes' | 'about'
+
+/** تتبع مجهول (3.3): لا يعطّل الصفحة أبداً عند أي فشل. */
+export async function trackPublicPage(
+  slug: string,
+  kind: 'view' | 'whatsapp_click',
+  page: PublicPageName,
+): Promise<void> {
+  try {
+    const db = requireSupabase()
+    await db.rpc('public_page_track', {
+      p_slug: slug,
+      p_kind: kind,
+      p_page: page,
+    })
+  } catch {
+    // الإحصاء لا يكسر تجربة الزائر إطلاقاً
+  }
+}

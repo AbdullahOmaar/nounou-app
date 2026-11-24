@@ -29,4 +29,5 @@ export const pub = {
   readMore: "اقرأ المزيد",
   allClasses: "كل الفصول",
   capacity: "السعة: {count} طفل",
+  statsLine: "آخر 30 يوم: {views} مشاهدة للصفحة و{clicks} نقرة واتساب",
 }

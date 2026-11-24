@@ -29,4 +29,5 @@ export const pub = {
   readMore: "Read more",
   allClasses: "All classes",
   capacity: "Capacity: {count} children",
+  statsLine: "Last 30 days: {views} page views and {clicks} WhatsApp clicks",
 }
