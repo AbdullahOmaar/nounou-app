@@ -545,4 +545,5 @@ export interface GuardianAccessTokenRow {
   last_used_at: string | null
   created_by: string | null
   created_at: string
+  access_scope: 'full' | 'view'
 }

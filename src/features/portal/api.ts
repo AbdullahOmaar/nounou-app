@@ -67,6 +67,25 @@ export async function issueToken(
   return portalUrl(raw)
 }
 
+/** إصدار رابط مشاهدة للعائلة الممتدة (2.7): لا يلغي الرابط الأساسي أبداً */
+export async function issueViewToken(
+  nurseryId: string,
+  guardianId: string,
+  childId: string | null,
+): Promise<string> {
+  const db = requireSupabase()
+  const raw = generateRawToken()
+  const hash = await hashToken(raw)
+  const { error } = await db.rpc('issue_guardian_view_token', {
+    p_nursery: nurseryId,
+    p_guardian: guardianId,
+    p_child: childId,
+    p_token_hash: hash,
+  })
+  if (error) throw error
+  return portalUrl(raw)
+}
+
 export async function revokeToken(tokenId: string): Promise<void> {
   const db = requireSupabase()
   const { error } = await db
@@ -91,6 +110,7 @@ export interface PortalChild {
 }
 
 export interface PortalOverview {
+  access_scope?: 'full' | 'view'
   nursery: { name: string; phone: string | null }
   guardian: { full_name: string }
   children: PortalChild[]
