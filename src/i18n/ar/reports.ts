@@ -62,4 +62,12 @@ export const reports = {
   reportAbsentBlocked: 'الطفل غايب النهارده — مينفعش يتسجّل تقرير',
   syncPending: '{count} عملية بانتظار المزامنة',
   savedOffline: 'اتحفظت على الجهاز — هتتزامن أول ما النت يرجع',
+  quickTitle: "قالب سريع — ٣ نقرات",
+  quickAteAll: "أكل كله",
+  quickAteSome: "أكل شوية",
+  quickAteNone: "ما أكلش",
+  quickSlept: "نام",
+  quickNoSleep: "ما نامش",
+  voiceNote: "ملحوظة صوتية",
+  voiceListening: "بسمع…",
 }

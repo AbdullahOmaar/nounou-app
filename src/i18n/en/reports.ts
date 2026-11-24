@@ -62,4 +62,12 @@ export const reports = {
   reportAbsentBlocked: 'This child is absent today — a report cannot be saved',
   syncPending: '{count} waiting to sync',
   savedOffline: 'Saved on this device — it will sync when you are back online',
+  quickTitle: "Quick template — 3 taps",
+  quickAteAll: "Ate everything",
+  quickAteSome: "Ate a little",
+  quickAteNone: "Did not eat",
+  quickSlept: "Slept",
+  quickNoSleep: "Did not sleep",
+  voiceNote: "Voice note",
+  voiceListening: "Listening…",
 }
