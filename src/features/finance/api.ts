@@ -112,6 +112,8 @@ async function validPayments(
 export interface MonthMoney {
   income: number
   expensesTotal: number
+  /** مدفوعات الموردين في الشهر (1.4) — تُخصم من الربح هنا لا من جدول المصروفات */
+  supplierPaid: number
   profit: number
   byCategory: { category: ExpenseCategory; total: number }[]
 }
@@ -129,13 +131,21 @@ export async function monthMoney(
   const payments = await validPayments(nurseryId, from, to)
   const income = payments.reduce((s, p) => s + Number(p.amount), 0)
   const expensesTotal = expenses.reduce((s, e) => s + Number(e.amount), 0)
+  const { supplierPaidInPeriod } = await import('../suppliers/api')
+  const supplierPaid = await supplierPaidInPeriod(nurseryId, period)
   const byCategory = EXPENSE_CATEGORIES.map((category) => ({
     category,
     total: expenses
       .filter((e) => e.category === category)
       .reduce((s, e) => s + Number(e.amount), 0),
   })).filter((c) => c.total > 0)
-  return { income, expensesTotal, profit: income - expensesTotal, byCategory }
+  return {
+    income,
+    expensesTotal,
+    supplierPaid,
+    profit: income - expensesTotal - supplierPaid,
+    byCategory,
+  }
 }
 
 export interface DayCashbox {

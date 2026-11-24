@@ -82,6 +82,12 @@ export function ActivityLogPage() {
         return t('activity.kind.cashbox_entry_deleted')
       case 'cashbox_closed':
         return t('activity.kind.cashbox_closed')
+      case 'supplier_added':
+        return t('activity.kind.supplier_added')
+      case 'order_added':
+        return t('activity.kind.order_added')
+      case 'supplier_paid':
+        return t('activity.kind.supplier_paid')
       case 'link_issued':
         return t('activity.kind.link_issued')
       case 'link_revoked':

@@ -5,6 +5,7 @@ export const finance = {
   income: 'Month income',
   expensesTotal: 'Month expenses',
   profit: 'Month profit',
+  supplierPaid: 'Supplier payments',
   byCategory: 'Expenses by category',
   expensesTitle: 'Month expenses',
   addExpense: 'Add expense',

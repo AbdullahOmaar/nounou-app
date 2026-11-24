@@ -1064,6 +1064,28 @@ def main():
                           "title": "frozen day entry", "amount": 10})
         check("a closed cashbox day is frozen server-side (trigger)",
               s >= 400, f"got {s}")
+
+        # ---- suppliers ledger (1.4, migration 0026) ----
+        s, b = rest(url, anon, "GET",
+                    f"/rest/v1/suppliers?nursery_id=eq.{nursery_a}&select=id",
+                    staff_jwt)
+        rows = b if isinstance(b, list) else []
+        check("staff cannot see suppliers (owner-only RLS)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        s, b = rest(url, anon, "POST", "/rest/v1/suppliers",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "name": "authz supplier",
+                          "credit_days": 14})
+        check("owner can add a supplier", s in (200, 201), f"got {s} {str(b)[:80]}")
+        sup = one(ref, "select id from suppliers where "
+                       f"nursery_id='{nursery_a}' and name='authz supplier'")
+        s, b = rest(url, anon, "POST", "/rest/v1/purchase_orders",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "supplier_id": sup.get("id"),
+                          "title": "authz order", "total_amount": 500,
+                          "order_date": "2026-11-10", "due_date": "2026-11-24"})
+        check("owner can add a purchase order", s in (200, 201),
+              f"got {s} {str(b)[:80]}")
     finally:
         # ---------- cleanup ----------
         ids = [u for u in (owner_a_uid, owner_b_uid, staff_uid) if u]
