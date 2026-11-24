@@ -252,6 +252,46 @@ export async function deletePhoto(photo: ChildPhotoRow): Promise<void> {
 }
 
 /** صور طفل (تبويب ملف الطفل) بروابط موقعة للطاقم */
+export interface ChildReportEntry {
+  date: string
+  mood: string | null
+  nap_slept: boolean | null
+  activities: string[] | null
+  note: string | null
+}
+
+/** تقارير منشورة لطفل واحد (لملف النمو 4.5) — الأحدث أولاً. */
+export async function listChildReports(
+  childId: string,
+  limit = 12,
+): Promise<ChildReportEntry[]> {
+  const db = requireSupabase()
+  const { data, error } = await db
+    .from('daily_reports')
+    .select('mood, nap_slept, activities, note, class_day:class_days(date)')
+    .eq('child_id', childId)
+    .not('published_at', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw error
+  return (data ?? []).map((r) => {
+    const row = r as unknown as {
+      mood: string | null
+      nap_slept: boolean | null
+      activities: string[] | null
+      note: string | null
+      class_day: { date: string } | null
+    }
+    return {
+      date: row.class_day?.date ?? '',
+      mood: row.mood,
+      nap_slept: row.nap_slept,
+      activities: row.activities,
+      note: row.note,
+    }
+  })
+}
+
 export async function listChildPhotos(
   childId: string,
   limit = 60,
