@@ -68,6 +68,7 @@ export interface NurseryRow {
   public_instapay: string | null
   public_vodafone: string | null
   public_bank: string | null
+  brand_color: string | null
 }
 
 export interface NurseryMemberRow {

@@ -10,6 +10,7 @@ import { useTheme } from '../../hooks/useTheme'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { WhatsAppSettingsCard } from './WhatsAppSettingsCard'
 import { PublicPageCard } from './PublicPageCard'
+import { IdentityCard } from './IdentityCard'
 import { useAuth } from '../../lib/AuthProvider'
 import { useNurserySettings, useSettingsMutations } from './hooks'
 
@@ -102,6 +103,14 @@ export function SettingsPage() {
             {t('common.save')}
           </Button>
         </Card>
+      )}
+
+      {isOwner && nursery.status === 'ready' && (
+        <IdentityCard
+          nurseryId={nursery.nurseryId}
+          logoUrl={nursery.nursery.logo_url}
+          brandColor={nursery.nursery.brand_color}
+        />
       )}
 
       {isOwner && (

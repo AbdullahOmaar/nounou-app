@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { Plus, RotateCcw, Trash2,
   Printer,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ export function InvoiceDetailPage() {
   const t = useT()
   const showToast = useToast()
   const { invoiceId } = useParams()
+  const nurseryRes = useCurrentNursery()
   const bundle = useInvoice(invoiceId)
   const mutations = useInvoiceMutations()
   const [payOpen, setPayOpen] = useState(false)
@@ -283,6 +285,10 @@ export function InvoiceDetailPage() {
       {receiptTarget && (
         <div className="receipt-print" style={{ display: 'none' }}>
           <style>{`@media print { body * { visibility: hidden; } .receipt-print, .receipt-print * { visibility: visible; } .receipt-print { display: block !important; position: absolute; inset: 0; padding: 24px; } }`}</style>
+          {nurseryRes.status === 'ready' && nurseryRes.nursery.logo_url && (
+            <img src={nurseryRes.nursery.logo_url} alt="" style={{ width: 56, height: 56, objectFit: 'cover' }} />
+          )}
+          {nurseryRes.status === 'ready' && <p>{nurseryRes.nursery.name}</p>}
           <h1>{t('invoices.receiptTitle')}</h1>
           <p>{t('invoices.receiptNo', { no: receiptTarget.receipt_no ?? 0 })}</p>
           <p>{childName}</p>

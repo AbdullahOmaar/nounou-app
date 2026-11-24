@@ -111,7 +111,7 @@ export interface PortalChild {
 
 export interface PortalOverview {
   access_scope?: 'full' | 'view'
-  nursery: { name: string; phone: string | null }
+  nursery: { name: string; phone: string | null; logo_url?: string | null; brand_color?: string | null }
   guardian: { full_name: string }
   children: PortalChild[]
   announcements: { id: string; title: string; body: string; published_at: string }[]

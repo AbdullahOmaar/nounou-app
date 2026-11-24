@@ -46,7 +46,7 @@ export async function updateNurserySettings(
 
 export async function updateNurseryProfile(
   nurseryId: string,
-  patch: Partial<Pick<NurseryRow, 'name' | 'phone' | 'address'>>,
+  patch: Partial<Pick<NurseryRow, 'name' | 'phone' | 'address' | 'logo_url' | 'brand_color'>>,
 ): Promise<void> {
   const db = requireSupabase()
   const { error } = await db.from('nurseries').update(patch).eq('id', nurseryId)
@@ -123,6 +123,20 @@ export async function getPublicPageStats(
     }
   }
   return stats
+}
+
+export async function uploadNurseryLogo(
+  nurseryId: string,
+  file: File,
+): Promise<string> {
+  const db = requireSupabase()
+  const path = `${nurseryId}/logo.jpg`
+  const { error } = await db.storage
+    .from('nursery-logos')
+    .upload(path, file, { upsert: true, contentType: 'image/jpeg' })
+  if (error) throw error
+  const { data } = db.storage.from('nursery-logos').getPublicUrl(path)
+  return `${data.publicUrl}?v=${Date.now()}`
 }
 
 export interface MemberListItem extends NurseryMemberRow {

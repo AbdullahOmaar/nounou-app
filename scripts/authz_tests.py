@@ -1191,6 +1191,34 @@ def main():
               s == 200 and isinstance(b, dict) and b.get("found") is False,
               f"got {s} {str(b)[:100]}")
 
+        # ---- nursery identity (3.4, migration 0040) ----
+        sql(ref, f"update nurseries set brand_color = '#123ABC', "
+                 f"public_instapay = null where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        # الصفحة معطلة الآن في هذا الموضع من التسلسل — نفعّلها لحظياً
+        sql(ref, f"update nurseries set public_enabled = true "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the brand color (3.4)",
+              s == 200 and isinstance(b, dict)
+              and b.get("brand_color") == "#123ABC", f"got {s}")
+        sql(ref, f"update nurseries set public_enabled = false "
+                 f"where id = '{nursery_a}'")
+        raw_idn = "authz-idn-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', "
+                 f"'{token_hash(raw_idn)}', 'authz idn')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    None, body={"p_token": raw_idn})
+        check("the portal overview carries logo and brand color (3.4)",
+              s == 200 and isinstance(b, dict)
+              and (b.get("nursery") or {}).get("brand_color") == "#123ABC",
+              f"got {s}")
+
         # ---- Q&A sessions (2.8, migration 0034) ----
         s, b = rest(url, anon, "POST", "/rest/v1/qa_sessions", owner_a_jwt,
                     body={"nursery_id": nursery_a, "title": "authz qa",

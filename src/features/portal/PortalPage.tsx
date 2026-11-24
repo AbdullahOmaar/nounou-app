@@ -101,10 +101,21 @@ export function PortalPage() {
 
   return (
     <div className="min-h-dvh bg-bg text-text">
+      {nursery.brand_color && (
+        <div style={{ backgroundColor: nursery.brand_color }} className="h-1.5" />
+      )}
       <div className="mx-auto max-w-[640px] px-4 pt-6 pb-10 flex flex-col gap-4">
         <header className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <Mascot size={48} />
+            {nursery.logo_url ? (
+              <img
+                src={nursery.logo_url}
+                alt=""
+                className="w-12 h-12 rounded-2xl object-cover"
+              />
+            ) : (
+              <Mascot size={48} />
+            )}
             <div>
               <div className="type-title">{nursery.name}</div>
               <div className="type-secondary text-muted">
