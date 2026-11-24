@@ -17,6 +17,42 @@ import { invalidatePrefixes } from '../../lib/invalidate'
 import { useClasses } from '../classes/hooks'
 import type { AnnouncementRow } from '../../types/database'
 
+
+/**
+ * تنبيه واتساب عند النشر (3.11): يمر عبر بوابات 2.2 — يُسجَّل في
+ * السجل دائماً ولا يُرسل فعلياً قبل وجود المرسل. مالك فقط (قيد
+ * الـRPC) وأفضل جهد: فشله لا يُفشل النشر أبداً.
+ */
+async function enqueueAnnouncementAlert(
+  nurseryId: string,
+  title: string,
+  isOwner: boolean,
+): Promise<void> {
+  if (!isOwner) return
+  try {
+    const db = requireSupabase()
+    const { data } = await db
+      .from('guardians')
+      .select('id')
+      .eq('nursery_id', nurseryId)
+      .limit(500)
+    for (const g of (data ?? []) as { id: string }[]) {
+      try {
+        await db.rpc('whatsapp_enqueue', {
+          p_nursery: nurseryId,
+          p_guardian: g.id,
+          p_template: 'announcement',
+          p_params: { title },
+        })
+      } catch {
+        // أفضل جهد لكل وصي — البوابة سجّلت أو رفضت، النشر تم
+      }
+    }
+  } catch {
+    // التنبيه لا يُفشل النشر
+  }
+}
+
 /** إعلانات الحضانة: مسودة → نشر يظهر في بوابات الأهالي فوراً */
 export function AnnouncementsPage() {
   const t = useT()
@@ -31,6 +67,7 @@ export function AnnouncementsPage() {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [audience, setAudience] = useState<'all' | 'class'>('all')
+  const [wantsRsvp, setWantsRsvp] = useState(false)
   const [classId, setClassId] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<AnnouncementRow | null>(null)
 
@@ -57,29 +94,46 @@ export function AnnouncementsPage() {
         title: title.trim(),
         body: body.trim(),
         audience,
+        wants_rsvp: wantsRsvp,
         class_id: audience === 'class' ? classId || null : null,
         published_at: publish ? new Date().toISOString() : null,
         created_by: user?.id ?? null,
       })
       if (error) throw error
+      return publish
     },
-    onSuccess: () => {
+    onSuccess: (wasPublish) => {
       refresh()
       setSheetOpen(false)
+      if (wasPublish) {
+        void enqueueAnnouncementAlert(
+          nurseryId!,
+          title.trim(),
+          nursery.status === 'ready' && nursery.isOwner,
+        )
+      }
       setTitle('')
       setBody('')
     },
   })
   const publish = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (a: AnnouncementRow) => {
       const db = requireSupabase()
       const { error } = await db
         .from('announcements')
         .update({ published_at: new Date().toISOString() })
-        .eq('id', id)
+        .eq('id', a.id)
       if (error) throw error
+      return a
     },
-    onSuccess: refresh,
+    onSuccess: (a) => {
+      refresh()
+      void enqueueAnnouncementAlert(
+        nurseryId!,
+        a.title,
+        nursery.status === 'ready' && nursery.isOwner,
+      )
+    },
   })
   const remove = useMutation({
     mutationFn: async (id: string) => {
@@ -127,6 +181,9 @@ export function AnnouncementsPage() {
                     : t('announcements.draftBadge')}
                   {a.audience === 'class' && ' • 🎯'}
                 </div>
+                {a.published_at && (
+                  <CircularStats announcementId={a.id} wantsRsvp={a.wants_rsvp} />
+                )}
               </div>
               {canManage && (
                 <span className="flex gap-1">
@@ -134,7 +191,7 @@ export function AnnouncementsPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => publish.mutate(a.id)}
+                      onClick={() => publish.mutate(a)}
                       aria-label={t('announcements.publish')}
                     >
                       <Send size={16} />
@@ -197,6 +254,16 @@ export function AnnouncementsPage() {
               </Chip>
             </ChipRow>
           </Field>
+          <Field label={t('announcements.rsvpLabel')}>
+            <ChipRow>
+              <Chip active={wantsRsvp} onClick={() => setWantsRsvp(true)}>
+                {t('announcements.rsvpYes')}
+              </Chip>
+              <Chip active={!wantsRsvp} onClick={() => setWantsRsvp(false)}>
+                {t('announcements.rsvpNo')}
+              </Chip>
+            </ChipRow>
+          </Field>
           {audience === 'class' && (
             <Field label={t('children.class')}>
               <Select value={classId} onChange={(e) => setClassId(e.target.value)}>
@@ -226,6 +293,61 @@ export function AnnouncementsPage() {
           }
         }}
       />
+    </div>
+  )
+}
+
+
+function CircularStats({
+  announcementId,
+  wantsRsvp,
+}: {
+  announcementId: string
+  wantsRsvp: boolean
+}) {
+  const t = useT()
+  const stats = useQuery({
+    queryKey: ['circular-stats', announcementId],
+    queryFn: async () => {
+      const db = requireSupabase()
+      const reads = await db
+        .from('circular_reads')
+        .select('guardian_id', { count: 'exact' })
+        .eq('announcement_id', announcementId)
+      const readCount = reads.count ?? (reads.data ?? []).length
+      let attending = 0
+      let guests = 0
+      let declined = 0
+      if (wantsRsvp) {
+        const rsvps = await db
+          .from('circular_rsvps')
+          .select('attending, guests')
+          .eq('announcement_id', announcementId)
+        for (const r of (rsvps.data ?? []) as {
+          attending: boolean
+          guests: number
+        }[]) {
+          if (r.attending) {
+            attending += 1
+            guests += r.guests
+          } else {
+            declined += 1
+          }
+        }
+      }
+      return { readCount, attending, guests, declined }
+    },
+  })
+  if (!stats.data) return null
+  return (
+    <div className="type-badge text-muted mt-1">
+      {t('announcements.readBy', { count: stats.data.readCount })}
+      {wantsRsvp &&
+        ` • ${t('announcements.rsvpSummary', {
+          attending: stats.data.attending,
+          guests: stats.data.guests,
+          declined: stats.data.declined,
+        })}`}
     </div>
   )
 }

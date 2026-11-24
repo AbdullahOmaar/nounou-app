@@ -1206,6 +1206,54 @@ def main():
               s == 200 and isinstance(b, dict)
               and b.get("found") is False, f"got {s}")
 
+        # ---- circulars: read tracking + RSVP (3.11, migration 0045) ----
+        circ = one(ref, "insert into announcements "
+                        "(nursery_id, title, body, published_at, "
+                        "wants_rsvp) values "
+                        f"('{nursery_a}', 'Authz Circular', 'body', now(), "
+                        "true) returning id")
+        circ_id = circ["id"]
+        raw_circ = "authz-circ-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', "
+                 f"'{token_hash(raw_circ)}', 'authz circ')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_mark_circular_read",
+                    None, body={"p_token": raw_circ,
+                                "p_announcement_id": circ_id})
+        check("a guardian's circular read is tracked (3.11)",
+              s == 200 and isinstance(b, dict)
+              and b.get("status") == "ok", f"got {s}")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_circular_rsvp",
+                    None, body={"p_token": raw_circ,
+                                "p_announcement_id": circ_id,
+                                "p_attending": True, "p_guests": 2})
+        check("a guardian RSVPs with a guest count (3.11)",
+              s == 200 and isinstance(b, dict)
+              and b.get("status") == "ok", f"got {s}")
+        row = one(ref, "select guests from circular_rsvps where "
+                       f"announcement_id = '{circ_id}'")
+        check("the RSVP persisted with its guest count (3.11)",
+              row is not None and row.get("guests") == 2,
+              f"got {row}")
+        raw_circ_view = "authz-circview-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label, "
+                 "access_scope) values "
+                 f"('{nursery_a}', '{a_guardian}', "
+                 f"'{token_hash(raw_circ_view)}', 'authz circ view', "
+                 "'view')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_circular_rsvp",
+                    None, body={"p_token": raw_circ_view,
+                                "p_announcement_id": circ_id,
+                                "p_attending": True, "p_guests": 0})
+        check("a view-only token cannot RSVP (3.11)",
+              s == 200 and isinstance(b, dict)
+              and b.get("status") == "view_only", f"got {s} {str(b)[:80]}")
+
         # ---- events platform (3.9, migration 0044) ----
         sql(ref, f"update nurseries set public_enabled = true "
                  f"where id = '{nursery_a}'")
