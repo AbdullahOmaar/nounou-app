@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom'
 import { CalendarPlus, MapPin, PartyPopper } from 'lucide-react'
 import * as api from './api'
 import type { PublicEvent } from './api'
+import { bannerUrl, eventBannerKey } from '../public/banners'
+import { AiDisclosure } from '../../components/ui/AiDisclosure'
 import { useT } from '../../i18n'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -107,6 +109,16 @@ export default function EventInvitePage() {
             />
           )}
           <div className="type-secondary text-muted">{ev.nursery?.name}</div>
+        </div>
+        <div className="relative overflow-hidden rounded-3xl">
+          <img
+            src={bannerUrl(eventBannerKey(ev.kind ?? 'other', ev.nursery?.banner_key))}
+            alt=""
+            className="w-full aspect-[16/9] object-cover"
+          />
+          <span className="absolute bottom-2 end-2">
+            <AiDisclosure />
+          </span>
         </div>
         <Card>
           <div className="flex flex-col items-center gap-2 py-4 text-center">

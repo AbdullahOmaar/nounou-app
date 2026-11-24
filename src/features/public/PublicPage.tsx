@@ -4,6 +4,8 @@ import { useEffect } from 'react'
 import { MapPin, MessageCircle, Phone, ShieldCheck } from 'lucide-react'
 import * as api from './api'
 import type { PublicPageData } from './api'
+import { bannerUrl } from './banners'
+import { AiDisclosure } from '../../components/ui/AiDisclosure'
 import { useT } from '../../i18n'
 import { Card } from '../../components/ui/Card'
 import { ErrorState, LoadingState } from '../../components/ui/states'
@@ -195,6 +197,18 @@ export function PublicHome() {
   const { slug } = useParams<{ slug: string }>()
   return (
     <>
+      {d.banner_key && (
+        <div className="relative overflow-hidden rounded-3xl">
+          <img
+            src={bannerUrl(d.banner_key)}
+            alt=""
+            className="w-full aspect-[16/9] object-cover"
+          />
+          <span className="absolute bottom-2 end-2">
+            <AiDisclosure />
+          </span>
+        </div>
+      )}
       {d.about && (
         <Card>
           <p className="type-body whitespace-pre-wrap line-clamp-4">{d.about}</p>
@@ -235,6 +249,18 @@ export function PublicAbout() {
   const d = usePublicData()
   return (
     <>
+      {d.banner_key && (
+        <div className="relative overflow-hidden rounded-3xl">
+          <img
+            src={bannerUrl(d.banner_key)}
+            alt=""
+            className="w-full aspect-[16/9] object-cover"
+          />
+          <span className="absolute bottom-2 end-2">
+            <AiDisclosure />
+          </span>
+        </div>
+      )}
       {d.about && (
         <Card>
           <h2 className="type-secondary mb-2">{t('pub.navAbout')}</h2>

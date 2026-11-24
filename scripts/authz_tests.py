@@ -1206,6 +1206,17 @@ def main():
               s == 200 and isinstance(b, dict)
               and b.get("found") is False, f"got {s}")
 
+        # ---- generated banners (3.12, migration 0047) ----
+        sql(ref, f"update nurseries set banner_key = 'ramadan', "
+                 f"public_enabled = true where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the chosen banner (3.12)",
+              s == 200 and isinstance(b, dict)
+              and b.get("banner_key") == "ramadan", f"got {s}")
+        sql(ref, f"update nurseries set public_enabled = false "
+                 f"where id = '{nursery_a}'")
+
         # ---- circulars: read tracking + RSVP (3.11, migration 0045) ----
         circ = one(ref, "insert into announcements "
                         "(nursery_id, title, body, published_at, "
