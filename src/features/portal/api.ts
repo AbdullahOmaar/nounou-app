@@ -259,3 +259,37 @@ async function cancelUnconfirmedPayment(
   })
   if (error) console.error('portal payment cleanup: cancel failed', error)
 }
+
+export interface PortalNotification {
+  id: string
+  kind: 'report' | 'proof_approved' | 'proof_rejected' | 'invoice' | 'announcement'
+  meta: Record<string, unknown>
+  child_id: string | null
+  created_at: string
+  read_at: string | null
+}
+
+export interface PortalInbox {
+  unread: number
+  items: PortalNotification[]
+}
+
+/** صندوق إشعارات الوصيّ (2.1 — جرس البوابة) */
+export async function fetchPortalNotifications(
+  token: string,
+): Promise<PortalInbox> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('nursery_portal_notifications_by_token', {
+    p_token: token,
+  })
+  if (error) throw error
+  return data as PortalInbox
+}
+
+export async function markPortalNotificationsRead(token: string): Promise<void> {
+  const db = requireSupabase()
+  const { error } = await db.rpc('nursery_portal_notifications_mark_read', {
+    p_token: token,
+  })
+  if (error) throw error
+}
