@@ -1123,6 +1123,24 @@ def main():
         check("owner can file a pending approval", s in (200, 201),
               f"got {s} {str(b)[:80]}")
 
+        # ---- whatsapp gates (2.2, migration 0031) ----
+        s, b = rest(url, anon, "GET",
+                    f"/rest/v1/nursery_whatsapp_config?nursery_id=eq.{nursery_a}&select=nursery_id",
+                    staff_jwt)
+        rows = b if isinstance(b, list) else []
+        check("staff cannot read the whatsapp config (owner-only RLS)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/whatsapp_enqueue",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a, "p_guardian": None,
+                          "p_template": "gate_test", "p_params": {}})
+        check("whatsapp enqueue is blocked by the platform kill switch",
+              s == 200 and b == "blocked_kill_switch", f"got {s} {str(b)[:80]}")
+        logged = one(ref, "select count(*) as c from whatsapp_send_log where "
+                          f"nursery_id='{nursery_a}' and status='blocked_kill_switch'")
+        check("the blocked attempt is written to the send log first",
+              (logged.get("c") or 0) >= 1, f"got {logged.get('c')}")
+
         # ---- pay_supplier_order RPC (1.7): atomic + remaining cap ----
         order_row = one(ref, "select id from purchase_orders where "
                              f"nursery_id='{nursery_a}' and title='authz order'")
