@@ -94,6 +94,8 @@ export function ActivityLogPage() {
         return t('activity.kind.approval_approved')
       case 'approval_rejected':
         return t('activity.kind.approval_rejected')
+      case 'fee_reminders_run':
+        return t('activity.kind.fee_reminders_run')
       case 'link_issued':
         return t('activity.kind.link_issued')
       case 'link_revoked':

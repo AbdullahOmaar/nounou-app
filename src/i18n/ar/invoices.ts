@@ -61,4 +61,6 @@ export const invoices = {
   printReceipt: 'طباعة الإيصال',
   receiptTitle: 'إيصال استلام مبلغ',
   cancelHasPayments: 'الفاتورة دي فيها دفعات مسجلة — اعكس الدفعات الأول وبعدين ألغي الفاتورة',
+  remindAll: 'تذكير الكل',
+  remindersRun: 'اتسجلت {attempted} محاولة تذكير — واتخطى {skipped} اتذكروا من أقل من أسبوع',
 }

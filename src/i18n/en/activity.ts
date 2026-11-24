@@ -29,6 +29,7 @@ export const activity = {
     approval_requested: 'Requested a second approval',
     approval_approved: 'Approved a financial action',
     approval_rejected: 'Rejected a financial action',
+    fee_reminders_run: 'Ran fee reminders',
     link_issued: 'Issued a portal link',
     link_revoked: 'Revoked a portal link',
   },

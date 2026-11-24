@@ -29,6 +29,7 @@ export const activity = {
     approval_requested: 'طلب اعتماداً ثانياً',
     approval_approved: 'اعتمد عملية مالية',
     approval_rejected: 'رفض عملية مالية',
+    fee_reminders_run: 'شغّل تذكيرات الرسوم',
     link_issued: 'أصدر رابط بوابة',
     link_revoked: 'ألغى رابط بوابة',
   },
