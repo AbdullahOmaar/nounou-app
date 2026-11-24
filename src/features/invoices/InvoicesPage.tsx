@@ -16,6 +16,9 @@ import { fmtPeriod } from '../../i18n/format'
 import { currentPeriod, formatMoney, waLinkWithText } from '../../lib/format'
 import { useNurserySettings } from '../settings/hooks'
 import { useInvoices, useInvoiceMutations, useOverdue } from './hooks'
+import { runFeeReminders } from './reminders'
+import { useAuth } from '../../lib/AuthProvider'
+import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 
 /**
  * الفواتير (للمالك فقط — المشرفات لا يصلن هنا أصلاً بحكم RLS فتظهر لهن
@@ -28,6 +31,10 @@ export function InvoicesPage() {
   const [period, setPeriod] = useState(currentPeriod())
   const invoices = useInvoices(period)
   const overdue = useOverdue()
+  const [reminding, setReminding] = useState(false)
+  const { user } = useAuth()
+  const nursery = useCurrentNursery()
+  const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : null
   const settings = useNurserySettings()
   const mutations = useInvoiceMutations()
   const [issueOpen, setIssueOpen] = useState(false)
@@ -153,10 +160,36 @@ export function InvoicesPage() {
         <section>
           <div className="flex items-center justify-between mb-2">
             <h2 className="type-section">{t('invoices.overdueTitle')}</h2>
-            <Button variant="ghost" size="sm" onClick={copyOverdue}>
-              <Copy size={16} />
-              {t('invoices.copyOverdue')}
-            </Button>
+            <span className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={reminding}
+                onClick={async () => {
+                  setReminding(true)
+                  try {
+                    const run = await runFeeReminders(nurseryId!, user?.id ?? null)
+                    showToast(
+                      t('invoices.remindersRun', {
+                        attempted: run.attempted,
+                        skipped: run.skippedRecent,
+                      }),
+                    )
+                  } catch {
+                    showToast(t('common.errorGeneric'), 'error')
+                  } finally {
+                    setReminding(false)
+                  }
+                }}
+              >
+                <MessageCircle size={16} />
+                {t('invoices.remindAll')}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={copyOverdue}>
+                <Copy size={16} />
+                {t('invoices.copyOverdue')}
+              </Button>
+            </span>
           </div>
           <div className="flex flex-col gap-2">
             {(overdue.data ?? []).map((item) => {

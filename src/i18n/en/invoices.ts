@@ -61,4 +61,6 @@ export const invoices = {
   printReceipt: 'Print receipt',
   receiptTitle: 'Payment receipt',
   cancelHasPayments: 'This invoice has recorded payments — reverse the payments first, then cancel',
+  remindAll: 'Remind all',
+  remindersRun: '{attempted} reminder attempts logged — {skipped} skipped (reminded within a week)',
 }
