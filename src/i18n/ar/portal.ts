@@ -61,4 +61,9 @@ export const portal = {
     message: 'رسالة جديدة من الحضانة',
     announcement: 'إعلان جديد: {title}',
   },
+  rsvpYes: "هحضر",
+  rsvpNo: "مش هقدر",
+  rsvpGuests: "+{count} مرافق",
+  rsvpDoneYes: "تمام — أكدت حضورك",
+  rsvpDoneNo: "تمام — سجلنا اعتذارك",
 }

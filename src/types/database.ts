@@ -536,6 +536,7 @@ export interface AnnouncementRow {
   audience: AnnouncementAudience
   class_id: string | null
   published_at: string | null
+  wants_rsvp: boolean
   created_by: string | null
   created_at: string
   updated_at: string

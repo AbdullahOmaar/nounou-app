@@ -95,7 +95,7 @@ export function PortalPage() {
     )
   }
 
-  const { nursery, guardian, children, announcements } = overview.data
+  const { nursery, guardian, children } = overview.data
   const viewOnly = overview.data.access_scope === 'view'
   const nurseryWa = waLink(nursery.phone)
 
@@ -240,19 +240,7 @@ export function PortalPage() {
           </>
         )}
 
-        {announcements.length > 0 && (
-          <section>
-            <h2 className="type-section mb-2">{t('portal.announcementsTitle')}</h2>
-            <div className="flex flex-col gap-2">
-              {announcements.map((a) => (
-                <Card key={a.id}>
-                  <div className="type-body font-semibold">{a.title}</div>
-                  <p className="type-secondary whitespace-pre-wrap">{a.body}</p>
-                </Card>
-              ))}
-            </div>
-          </section>
-        )}
+        <CircularsSection token={token!} viewOnly={viewOnly} />
 
         {nurseryWa && (
           <a
@@ -879,5 +867,113 @@ function MessagesButton({ token }: MessagesButtonProps) {
         </div>
       </Sheet>
     </>
+  )
+}
+
+
+function CircularsSection({
+  token,
+  viewOnly,
+}: {
+  token: string
+  viewOnly: boolean
+}) {
+  const t = useT()
+  const qc = useQueryClient()
+  const circulars = useQuery({
+    queryKey: ['portal-circulars', token],
+    queryFn: () => api.fetchCirculars(token),
+  })
+  const markedRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    for (const c of circulars.data ?? []) {
+      if (!c.read && !markedRef.current.has(c.id)) {
+        markedRef.current.add(c.id)
+        void api.markCircularRead(token, c.id)
+      }
+    }
+  }, [circulars.data, token])
+  const rsvp = useMutation({
+    mutationFn: (args: { id: string; attending: boolean; guests: number }) =>
+      api.circularRsvp(token, args.id, args.attending, args.guests),
+    onSuccess: () =>
+      void qc.invalidateQueries({ queryKey: ['portal-circulars', token] }),
+  })
+  const items = circulars.data ?? []
+  if (items.length === 0) return null
+  return (
+    <section>
+      <h2 className="type-section mb-2">{t('portal.announcementsTitle')}</h2>
+      <div className="flex flex-col gap-2">
+        {items.map((a) => (
+          <Card key={a.id}>
+            <div className="type-body font-semibold">{a.title}</div>
+            <p className="type-secondary whitespace-pre-wrap">{a.body}</p>
+            {a.wants_rsvp && !viewOnly && (
+              <div className="flex items-center gap-2 mt-2">
+                <Button
+                  onClick={() =>
+                    rsvp.mutate({
+                      id: a.id,
+                      attending: true,
+                      guests: a.my_rsvp?.guests ?? 0,
+                    })
+                  }
+                >
+                  {t('portal.rsvpYes')}
+                </Button>
+                <Button
+                  onClick={() =>
+                    rsvp.mutate({ id: a.id, attending: false, guests: 0 })
+                  }
+                >
+                  {t('portal.rsvpNo')}
+                </Button>
+                {a.my_rsvp?.attending && (
+                  <span className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      aria-label="-"
+                      onClick={() =>
+                        rsvp.mutate({
+                          id: a.id,
+                          attending: true,
+                          guests: Math.max(0, (a.my_rsvp?.guests ?? 0) - 1),
+                        })
+                      }
+                    >
+                      −
+                    </button>
+                    <span className="type-secondary">
+                      {t('portal.rsvpGuests', { count: a.my_rsvp.guests })}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="+"
+                      onClick={() =>
+                        rsvp.mutate({
+                          id: a.id,
+                          attending: true,
+                          guests: Math.min(20, (a.my_rsvp?.guests ?? 0) + 1),
+                        })
+                      }
+                    >
+                      +
+                    </button>
+                  </span>
+                )}
+              </div>
+            )}
+            {a.my_rsvp && (
+              <div className="type-badge text-muted mt-1">
+                {a.my_rsvp.attending
+                  ? t('portal.rsvpDoneYes')
+                  : t('portal.rsvpDoneNo')}
+              </div>
+            )}
+          </Card>
+        ))}
+      </div>
+    </section>
   )
 }

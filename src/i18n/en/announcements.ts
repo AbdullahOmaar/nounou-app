@@ -14,4 +14,9 @@ export const announcements = {
   emptyTitle: 'No announcements yet',
   emptyBody: 'Publish your first announcement — it will reach all parents in their portal instead of the group chaos',
   deleteConfirm: 'Delete this announcement?',
+  rsvpLabel: "Ask for an RSVP",
+  rsvpYes: "Yes — ask",
+  rsvpNo: "No",
+  readBy: "Read by {count} guardians",
+  rsvpSummary: "Attending {attending} (+{guests} guests) • declined {declined}",
 }

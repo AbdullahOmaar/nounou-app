@@ -388,3 +388,53 @@ export async function askPortalQuestion(
   })
   if (error) throw error
 }
+
+export interface PortalCircular {
+  id: string
+  title: string
+  body: string
+  published_at: string
+  wants_rsvp: boolean
+  read: boolean
+  my_rsvp: { attending: boolean; guests: number } | null
+}
+
+export async function fetchCirculars(
+  token: string,
+): Promise<PortalCircular[]> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('nursery_portal_circulars_by_token', {
+    p_token: token,
+  })
+  if (error) throw error
+  const res = data as { items?: PortalCircular[] }
+  return res.items ?? []
+}
+
+export async function markCircularRead(
+  token: string,
+  announcementId: string,
+): Promise<void> {
+  const db = requireSupabase()
+  await db.rpc('nursery_portal_mark_circular_read', {
+    p_token: token,
+    p_announcement_id: announcementId,
+  })
+}
+
+export async function circularRsvp(
+  token: string,
+  announcementId: string,
+  attending: boolean,
+  guests: number,
+): Promise<{ status: string }> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('nursery_portal_circular_rsvp', {
+    p_token: token,
+    p_announcement_id: announcementId,
+    p_attending: attending,
+    p_guests: guests,
+  })
+  if (error) throw error
+  return data as { status: string }
+}

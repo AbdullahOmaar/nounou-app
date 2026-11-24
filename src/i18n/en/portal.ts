@@ -61,4 +61,9 @@ export const portal = {
     message: 'A new message from the nursery',
     announcement: 'New announcement: {title}',
   },
+  rsvpYes: "Attending",
+  rsvpNo: "Can't make it",
+  rsvpGuests: "+{count} guests",
+  rsvpDoneYes: "Done — your attendance is confirmed",
+  rsvpDoneNo: "Done — noted, thank you",
 }
