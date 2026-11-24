@@ -1,5 +1,11 @@
 import { requireSupabase } from '../../lib/supabase'
-import type { ExpenseCategory, NurseryExpenseRow } from '../../types/database'
+import type {
+  CashboxCloseRow,
+  CashboxEntryRow,
+  CashboxKind,
+  ExpenseCategory,
+  NurseryExpenseRow,
+} from '../../types/database'
 import { logActivity } from '../settings/api'
 
 export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
@@ -174,4 +180,167 @@ export async function dayCashbox(
     })),
   ]
   return { inTotal, outTotal, net: inTotal - outTotal, movements }
+}
+
+// ---------------------------------------------------------------------------
+// دفتر الخزنة وإقفال الوردية (مهمة 1.3)
+
+export async function listCashboxEntries(
+  nurseryId: string,
+  dateISO: string,
+): Promise<CashboxEntryRow[]> {
+  const db = requireSupabase()
+  const { data, error } = await db
+    .from('cashbox_entries')
+    .select('*')
+    .eq('nursery_id', nurseryId)
+    .eq('entry_date', dateISO)
+    .order('created_at')
+  if (error) throw error
+  return (data ?? []) as CashboxEntryRow[]
+}
+
+export async function addCashboxEntry(
+  nurseryId: string,
+  actorId: string | null,
+  input: {
+    entry_date: string
+    kind: CashboxKind
+    title: string
+    amount: number
+  },
+): Promise<void> {
+  const db = requireSupabase()
+  const direction = input.kind === 'sale' || input.kind === 'misc_in' ? 'in' : 'out'
+  const { error } = await db.from('cashbox_entries').insert({
+    nursery_id: nurseryId,
+    entry_date: input.entry_date,
+    direction,
+    kind: input.kind,
+    title: input.title.trim(),
+    amount: input.amount,
+    created_by: actorId,
+  })
+  if (error) throw error
+  await logActivity(
+    nurseryId,
+    actorId,
+    'cashbox_entry_added',
+    `${input.title.trim()} — ${input.amount}`,
+  )
+}
+
+export async function deleteCashboxEntry(
+  nurseryId: string,
+  actorId: string | null,
+  entry: CashboxEntryRow,
+): Promise<void> {
+  const db = requireSupabase()
+  const { error } = await db.from('cashbox_entries').delete().eq('id', entry.id)
+  if (error) throw error
+  await logActivity(
+    nurseryId,
+    actorId,
+    'cashbox_entry_deleted',
+    `${entry.title} — ${entry.amount}`,
+  )
+}
+
+export async function getCashboxClose(
+  nurseryId: string,
+  dateISO: string,
+): Promise<CashboxCloseRow | null> {
+  const db = requireSupabase()
+  const { data, error } = await db
+    .from('cashbox_closes')
+    .select('*')
+    .eq('nursery_id', nurseryId)
+    .eq('shift_date', dateISO)
+    .maybeSingle()
+  if (error) throw error
+  return (data as CashboxCloseRow | null) ?? null
+}
+
+export interface CloseBreakdown {
+  cashPayments: number
+  ledgerIn: number
+  ledgerOut: number
+  expensesOut: number
+  expected: number
+}
+
+/** المتوقع في الدرج: دفعات نقدية + داخل الدفتر − خارج الدفتر − مصروفات اليوم */
+export async function closeBreakdown(
+  nurseryId: string,
+  dateISO: string,
+  entries: CashboxEntryRow[],
+): Promise<CloseBreakdown> {
+  const db = requireSupabase()
+  const { data, error } = await db
+    .from('payments')
+    .select('amount')
+    .eq('nursery_id', nurseryId)
+    .eq('method', 'cash')
+    .gte('paid_at', `${dateISO}T00:00:00`)
+    .lt('paid_at', `${dateISO}T23:59:59.999`)
+    .in('proof_status', ['approved', 'not_required'])
+    .is('reverses_id', null)
+    .is('reversed_by_id', null)
+  if (error) throw error
+  const cashPayments = (data ?? []).reduce(
+    (s, p) => s + Number((p as { amount: number }).amount),
+    0,
+  )
+  const { data: expData, error: expErr } = await db
+    .from('nursery_expenses')
+    .select('amount')
+    .eq('nursery_id', nurseryId)
+    .eq('expense_date', dateISO)
+  if (expErr) throw expErr
+  const expensesOut = (expData ?? []).reduce(
+    (s, e) => s + Number((e as { amount: number }).amount),
+    0,
+  )
+  const ledgerIn = entries
+    .filter((e) => e.direction === 'in')
+    .reduce((s, e) => s + Number(e.amount), 0)
+  const ledgerOut = entries
+    .filter((e) => e.direction === 'out')
+    .reduce((s, e) => s + Number(e.amount), 0)
+  return {
+    cashPayments,
+    ledgerIn,
+    ledgerOut,
+    expensesOut,
+    expected: cashPayments + ledgerIn - ledgerOut - expensesOut,
+  }
+}
+
+export async function closeCashbox(
+  nurseryId: string,
+  actorId: string | null,
+  dateISO: string,
+  expected: number,
+  counted: number,
+  handoverTo: string,
+  note: string | null,
+): Promise<void> {
+  const db = requireSupabase()
+  const { error } = await db.from('cashbox_closes').insert({
+    nursery_id: nurseryId,
+    shift_date: dateISO,
+    expected_total: expected,
+    counted_total: counted,
+    difference: counted - expected,
+    handover_to: handoverTo.trim(),
+    note,
+    closed_by: actorId,
+  })
+  if (error) throw error
+  await logActivity(
+    nurseryId,
+    actorId,
+    'cashbox_closed',
+    `${dateISO} → ${handoverTo.trim()}`,
+  )
 }

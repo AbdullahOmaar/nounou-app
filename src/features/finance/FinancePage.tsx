@@ -17,6 +17,7 @@ import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { useChildren } from '../children/hooks'
 import type { ExpenseCategory, NurseryExpenseRow } from '../../types/database'
 import * as api from './api'
+import { CashboxSection } from './CashboxSection'
 
 function catLabel(t: ReturnType<typeof useT>, c: ExpenseCategory): string {
   switch (c) {
@@ -246,6 +247,8 @@ export function FinancePage() {
           )}
         </Card>
       </section>
+
+      <CashboxSection nurseryId={nurseryId!} actorId={user?.id ?? null} />
 
       <Sheet
         open={addOpen}

@@ -251,6 +251,37 @@ export interface NurseryExpenseRow {
   created_at: string
 }
 
+export type CashboxKind = 'purchase' | 'sale' | 'misc_in' | 'misc_out'
+
+/** صف ‏cashbox_entries (مهمة 1.3؛ مالك فقط بـRLS) */
+export interface CashboxEntryRow {
+  id: string
+  nursery_id: string
+  entry_date: string
+  direction: 'in' | 'out'
+  kind: CashboxKind
+  title: string
+  amount: number
+  ref_type: string | null
+  ref_id: string | null
+  created_by: string | null
+  created_at: string
+}
+
+/** صف ‏cashbox_closes (إقفال وردية — وثيقة تسليم) */
+export interface CashboxCloseRow {
+  id: string
+  nursery_id: string
+  shift_date: string
+  expected_total: number
+  counted_total: number
+  difference: number
+  handover_to: string
+  note: string | null
+  closed_by: string | null
+  created_at: string
+}
+
 /** صف view ‏invoice_balances */
 export interface InvoiceBalanceRow {
   invoice_id: string
