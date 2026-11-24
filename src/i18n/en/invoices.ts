@@ -57,4 +57,5 @@ export const invoices = {
   emptyBody: "Issue the month's invoices with one tap",
   filterPeriod: 'Month',
   filterStatus: 'Status',
+  cancelPendingApproval: 'This invoice has payments — cancellation was saved for a second approval on the Finance page',
 }

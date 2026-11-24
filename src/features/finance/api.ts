@@ -42,7 +42,7 @@ export async function listExpenses(
   return (data ?? []) as NurseryExpenseRow[]
 }
 
-export async function addExpense(
+export async function addExpenseRecord(
   nurseryId: string,
   actorId: string | null,
   input: ExpenseInput,
@@ -65,6 +65,29 @@ export async function addExpense(
     'expense_recorded',
     `${input.title.trim()} — ${input.amount}`,
   )
+}
+
+/** بوابة الاعتماد الثاني (1.5): مصروف فوق الحد يُحفظ معلّقاً */
+export async function addExpense(
+  nurseryId: string,
+  actorId: string | null,
+  input: ExpenseInput,
+): Promise<'done' | 'pending'> {
+  const { EXPENSE_APPROVAL_LIMIT, requestApproval } = await import(
+    '../approvals/api'
+  )
+  if (input.amount > EXPENSE_APPROVAL_LIMIT) {
+    await requestApproval(
+      nurseryId,
+      actorId,
+      'expense_large',
+      { ...input, note: input.note },
+      `${input.title.trim()} — ${input.amount}`,
+    )
+    return 'pending'
+  }
+  await addExpenseRecord(nurseryId, actorId, input)
+  return 'done'
 }
 
 export async function deleteExpense(

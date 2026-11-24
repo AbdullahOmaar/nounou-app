@@ -8,6 +8,7 @@ import { ErrorState, LoadingState } from '../../components/ui/states'
 import { Field, Select, TextInput } from '../../components/ui/form'
 import { Sheet } from '../../components/ui/Sheet'
 import { useT } from '../../i18n'
+import { useToast } from '../../components/ui/toast'
 import { fmtPeriod } from '../../i18n/format'
 import { formatDateTimeAr, formatMoney } from '../../lib/format'
 import type { InvoiceLineType, PaymentRow } from '../../types/database'
@@ -18,6 +19,7 @@ const LINE_TYPES: InvoiceLineType[] = ['base', 'discount', 'adjustment', 'bus', 
 
 export function InvoiceDetailPage() {
   const t = useT()
+  const showToast = useToast()
   const { invoiceId } = useParams()
   const bundle = useInvoice(invoiceId)
   const mutations = useInvoiceMutations()
@@ -280,8 +282,9 @@ export function InvoiceDetailPage() {
         confirmLabel={t('invoices.cancelInvoice')}
         danger
         onConfirm={async () => {
-          await mutations.cancel.mutateAsync(invoice.id)
+          const result = await mutations.cancel.mutateAsync(invoice.id)
           setCancelOpen(false)
+          if (result === 'pending') showToast(t('invoices.cancelPendingApproval'))
         }}
       />
     </div>

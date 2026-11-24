@@ -88,6 +88,12 @@ export function ActivityLogPage() {
         return t('activity.kind.order_added')
       case 'supplier_paid':
         return t('activity.kind.supplier_paid')
+      case 'approval_requested':
+        return t('activity.kind.approval_requested')
+      case 'approval_approved':
+        return t('activity.kind.approval_approved')
+      case 'approval_rejected':
+        return t('activity.kind.approval_rejected')
       case 'link_issued':
         return t('activity.kind.link_issued')
       case 'link_revoked':

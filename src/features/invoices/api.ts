@@ -246,13 +246,45 @@ export async function deleteInvoiceLine(lineId: string): Promise<void> {
   if (error) throw error
 }
 
-export async function cancelInvoice(invoiceId: string): Promise<void> {
+export async function cancelInvoiceInternal(invoiceId: string): Promise<void> {
   const db = requireSupabase()
   const { error } = await db
     .from('invoices')
     .update({ status: 'cancelled' })
     .eq('id', invoiceId)
   if (error) throw error
+}
+
+/**
+ * بوابة الاعتماد الثاني (1.5): إلغاء فاتورة فيها أي دفعة صالحة لا
+ * يُنفَّذ فوراً — يُحفظ طلباً معلّقاً لاعتماد مالك.
+ */
+export async function cancelInvoice(
+  nurseryId: string,
+  actorId: string | null,
+  invoiceId: string,
+): Promise<'done' | 'pending'> {
+  const db = requireSupabase()
+  const { count } = await db
+    .from('payments')
+    .select('id', { count: 'exact', head: true })
+    .eq('invoice_id', invoiceId)
+    .in('proof_status', ['approved', 'not_required'])
+    .is('reverses_id', null)
+    .is('reversed_by_id', null)
+  if ((count ?? 0) > 0) {
+    const { requestApproval } = await import('../approvals/api')
+    await requestApproval(
+      nurseryId,
+      actorId,
+      'invoice_cancel_paid',
+      { invoiceId },
+      `invoice — ${invoiceId.slice(0, 8)}`,
+    )
+    return 'pending'
+  }
+  await cancelInvoiceInternal(invoiceId)
+  return 'done'
 }
 
 export interface RecordPaymentInput {

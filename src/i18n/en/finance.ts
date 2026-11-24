@@ -57,4 +57,11 @@ export const finance = {
     misc_in: 'Other in',
     misc_out: 'Other out',
   },
+  approvalPending: 'Saved for a second approval — find it at the top of the Finance page',
+  approvalsTitle: 'Pending approvals',
+  approve: 'Approve & execute',
+  reject: 'Reject',
+  approvedDone: 'Approved and executed',
+  rejectedDone: 'Request rejected',
+  selfNote: 'Your own request — approval is a deliberate second step',
 }

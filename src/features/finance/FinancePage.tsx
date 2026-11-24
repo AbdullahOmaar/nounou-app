@@ -18,6 +18,7 @@ import { useChildren } from '../children/hooks'
 import type { ExpenseCategory, NurseryExpenseRow } from '../../types/database'
 import * as api from './api'
 import { CashboxSection } from './CashboxSection'
+import { ApprovalsSection } from '../approvals/ApprovalsSection'
 
 function catLabel(t: ReturnType<typeof useT>, c: ExpenseCategory): string {
   switch (c) {
@@ -88,7 +89,7 @@ export function FinancePage() {
   })
 
   const refresh = () =>
-    invalidatePrefixes(qc, ['expenses', 'month-money', 'day-cashbox', 'home'])
+    invalidatePrefixes(qc, ['expenses', 'month-money', 'day-cashbox', 'home', 'approvals'])
   const add = useMutation({
     mutationFn: () =>
       api.addExpense(nurseryId!, user?.id ?? null, {
@@ -98,8 +99,9 @@ export function FinancePage() {
         amount: parseFloat(amount) || 0,
         note: note.trim() || null,
       }),
-    onSuccess: () => {
+    onSuccess: (result) => {
       refresh()
+      if (result === 'pending') showToast(t('finance.approvalPending'))
       setAddOpen(false)
       setTitle('')
       setAmount('')
@@ -135,6 +137,7 @@ export function FinancePage() {
   const cb = cashbox.data
   return (
     <div className="flex flex-col gap-4">
+      <ApprovalsSection nurseryId={nurseryId!} actorId={user?.id ?? null} />
       <div className="flex items-center justify-between">
         <h1 className="type-title">{t('finance.title')}</h1>
         <span className="flex gap-1.5">

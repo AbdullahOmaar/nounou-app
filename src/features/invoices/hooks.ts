@@ -68,7 +68,8 @@ export function useInvoiceMutations() {
       onSuccess: refresh,
     }),
     cancel: useMutation({
-      mutationFn: (invoiceId: string) => api.cancelInvoice(invoiceId),
+      mutationFn: (invoiceId: string) =>
+        api.cancelInvoice(nurseryId!, user?.id ?? null, invoiceId),
       onSuccess: refresh,
     }),
     recordPayment: useMutation({
