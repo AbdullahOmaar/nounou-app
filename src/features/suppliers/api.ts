@@ -96,9 +96,9 @@ export async function listNurseryPayments(
 }
 
 /**
- * دفع أمر شراء: قيد دفعة + قيد خزنة مقابل في نفس اليوم (ref للدفعة)
- * — الدفعة تتدفق لإقفال الوردية ولربح الشهر (طبقة المالية تخصمها
- * من supplier_payments مباشرة، لا من جدول المصروفات: لا ازدواج).
+ * دفع أمر شراء عبر RPC ذرّية واحدة (1.7): قيد الخزنة + الدفعة +
+ * الربط المتبادل في معاملة واحدة، وسقف صارم بمتبقي الأمر —
+ * إما الكل أو لا شيء (ملاحظتا مراجعة 1.4).
  */
 export async function payOrder(
   nurseryId: string,
@@ -109,39 +109,14 @@ export async function payOrder(
   paidDate: string,
 ): Promise<void> {
   const db = requireSupabase()
-  const { data: entry, error: eErr } = await db
-    .from('cashbox_entries')
-    .insert({
-      nursery_id: nurseryId,
-      entry_date: paidDate,
-      direction: 'out',
-      kind: 'purchase',
-      title: `${supplier.name} — ${order.title}`,
-      amount,
-      ref_type: 'supplier_payment',
-      created_by: actorId,
-    })
-    .select('id')
-    .single()
-  if (eErr) throw eErr
-  const entryId = (entry as { id: string }).id
-  const { data: payment, error } = await db
-    .from('supplier_payments')
-    .insert({
-      nursery_id: nurseryId,
-      order_id: order.id,
-      amount,
-      paid_date: paidDate,
-      cashbox_entry_id: entryId,
-      created_by: actorId,
-    })
-    .select('id')
-    .single()
+  const { error } = await db.rpc('pay_supplier_order', {
+    p_nursery: nurseryId,
+    p_supplier: supplier.id,
+    p_order: order.id,
+    p_amount: amount,
+    p_date: paidDate,
+  })
   if (error) throw error
-  await db
-    .from('cashbox_entries')
-    .update({ ref_id: (payment as { id: string }).id })
-    .eq('id', entryId)
   await logActivity(
     nurseryId,
     actorId,

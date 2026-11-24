@@ -21,4 +21,5 @@ export const suppliers = {
   paid: 'Payment recorded in the cashbox',
   payDate: 'Payment date',
   payHint: 'The payment is recorded as a cashbox-out entry on its day and deducted from the month profit.',
+  overpay: 'Amount exceeds the order remaining',
 }

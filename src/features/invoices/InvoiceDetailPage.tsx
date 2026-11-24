@@ -10,6 +10,7 @@ import { ErrorState, LoadingState } from '../../components/ui/states'
 import { Field, Select, TextInput } from '../../components/ui/form'
 import { Sheet } from '../../components/ui/Sheet'
 import { useT } from '../../i18n'
+import { useToast } from '../../components/ui/toast'
 import { fmtPeriod } from '../../i18n/format'
 import { formatDateTimeAr, formatMoney } from '../../lib/format'
 import type { InvoiceLineType, PaymentRow } from '../../types/database'
@@ -20,6 +21,7 @@ const LINE_TYPES: InvoiceLineType[] = ['base', 'discount', 'adjustment', 'bus', 
 
 export function InvoiceDetailPage() {
   const t = useT()
+  const showToast = useToast()
   const { invoiceId } = useParams()
   const bundle = useInvoice(invoiceId)
   const mutations = useInvoiceMutations()
@@ -309,8 +311,19 @@ export function InvoiceDetailPage() {
         confirmLabel={t('invoices.cancelInvoice')}
         danger
         onConfirm={async () => {
-          await mutations.cancel.mutateAsync(invoice.id)
-          setCancelOpen(false)
+          try {
+            await mutations.cancel.mutateAsync(invoice.id)
+            setCancelOpen(false)
+          } catch (e) {
+            // حارس 0013-V1: فاتورة فيها دفعة فعّالة لا تُلغى — الرسالة
+            // الصريحة بدل خطأ عام (سلامة مال V1، مهمة 1.7)
+            showToast(
+              String(e).includes('invoice_has_payments')
+                ? t('invoices.cancelHasPayments')
+                : t('common.errorGeneric'),
+              'error',
+            )
+          }
         }}
       />
     </div>

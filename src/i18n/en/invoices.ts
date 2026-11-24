@@ -60,4 +60,5 @@ export const invoices = {
   cancelPendingApproval: 'This invoice has payments — cancellation was saved for a second approval on the Finance page',
   printReceipt: 'Print receipt',
   receiptTitle: 'Payment receipt',
+  cancelHasPayments: 'This invoice has recorded payments — reverse the payments first, then cancel',
 }
