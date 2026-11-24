@@ -1191,6 +1191,30 @@ def main():
               s == 200 and isinstance(b, dict) and b.get("found") is False,
               f"got {s} {str(b)[:100]}")
 
+        # ---- tour booking (3.6, migration 0041) ----
+        sql(ref, f"update nurseries set public_enabled = true "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/public_book_tour",
+                    None, body={"p_slug": "authz-public",
+                                "p_parent_name": "Authz Parent",
+                                "p_parent_phone": "01012345678",
+                                "p_child_name": "Authz Kid",
+                                "p_preferred_at": None, "p_note": None})
+        check("a visitor books a tour on the public site (3.6)",
+              s == 200 and isinstance(b, dict) and b.get("ok") is True,
+              f"got {s} {str(b)[:100]}")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/tour_requests?select=id&limit=3",
+                    staff_jwt)
+        check("staff reads tour requests; anon table is closed",
+              s == 200 and isinstance(b, list) and len(b) >= 1, f"got {s}")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/tour_requests?select=id&limit=3")
+        check("anon cannot read tour requests (3.6)",
+              not (isinstance(b, list) and len(b) > 0), f"got {s}")
+        sql(ref, f"update nurseries set public_enabled = false "
+                 f"where id = '{nursery_a}'")
+
         # ---- nursery identity (3.4, migration 0040) ----
         sql(ref, f"update nurseries set brand_color = '#123ABC', "
                  f"public_instapay = null where id = '{nursery_a}'")

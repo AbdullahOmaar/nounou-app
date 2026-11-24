@@ -79,6 +79,7 @@ const PublicHome = lazy(() =>
 const PublicClasses = lazy(() =>
   import('./features/public/PublicPage').then((m) => ({ default: m.PublicClasses })),
 )
+const VisitPage = lazy(() => import('./features/public/VisitPage'))
 const PublicAbout = lazy(() =>
   import('./features/public/PublicPage').then((m) => ({ default: m.PublicAbout })),
 )
@@ -139,6 +140,7 @@ registerRouteLoaders({
   '/suppliers': () => import('./features/suppliers/SuppliersPage'),
   '/messages': () => import('./features/messages/MessagesPage'),
   '/qa': () => import('./features/qa/QaPage'),
+  '/tours': () => import('./features/tours/ToursPage'),
   '/settings': () => import('./features/settings/SettingsPage'),
   '/members': () => import('./features/settings/MembersPage'),
   '/export': () => import('./features/settings/ExportPage'),
@@ -199,6 +201,14 @@ export default function App() {
                   element={
                     <Suspense fallback={<LoadingState />}>
                       <PublicAbout />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="visit"
+                  element={
+                    <Suspense fallback={<LoadingState />}>
+                      <VisitPage />
                     </Suspense>
                   }
                 />

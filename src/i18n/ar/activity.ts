@@ -31,10 +31,11 @@ export const activity = {
     approval_rejected: 'رفض عملية مالية',
     fee_reminders_run: 'شغّل تذكيرات الرسوم',
     qa_session_created: 'أعلن جلسة أسئلة',
+    tour_converted: 'تحويل جولة لتسجيل',
     message_sent: 'بعت رسالة لولي أمر',
     link_issued: 'أصدر رابط بوابة',
     link_revoked: 'ألغى رابط بوابة',
   },
   byActor: 'بواسطة {name}',
   filterAll: 'كل النشاط',
-} as const
+}

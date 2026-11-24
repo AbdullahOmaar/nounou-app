@@ -98,6 +98,8 @@ export function ActivityLogPage() {
         return t('activity.kind.fee_reminders_run')
       case 'qa_session_created':
         return t('activity.kind.qa_session_created')
+      case 'tour_converted':
+        return t('activity.kind.tour_converted')
       case 'message_sent':
         return t('activity.kind.message_sent')
       case 'link_issued':
