@@ -76,4 +76,5 @@ export const common = {
   notFoundHint: 'يمكن الرابط اتغيّر أو اتنقل.',
   notFoundHome: 'ارجع للرئيسية',
   offline: 'مفيش نت — شغلك محفوظ على الجهاز ويرتفع تلقائياً عند عودة الاتصال',
-} as const
+  aiGenerated: "مولّد بالذكاء الاصطناعي",
+}

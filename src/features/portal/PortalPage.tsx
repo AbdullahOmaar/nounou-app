@@ -211,7 +211,7 @@ export function PortalPage() {
             ) : (
               <>
                 <DaySection day={day.data} />
-                <PhotosSection token={token!} photos={day.data.photos} />
+                <PhotosSection token={token!} photos={day.data.photos} watermark={nursery.name} />
                 <StatementSection day={day.data} />
                 {!viewOnly && (
                 <PaySection
@@ -358,9 +358,11 @@ function DaySection({ day }: { day: api.PortalChildDay }) {
 function PhotosSection({
   token,
   photos,
+  watermark,
 }: {
   token: string
   photos: api.PortalDayPhoto[]
+  watermark: string
 }) {
   const t = useT()
   const [urls, setUrls] = useState<Map<string, string>>(new Map())
@@ -409,21 +411,36 @@ function PhotosSection({
           const url = urls.get(p.id)
           if (url && !failed.has(p.id)) {
             return (
-              <img
-                key={p.id}
-                src={url}
-                alt={p.caption ?? ''}
-                className="w-full aspect-square object-cover rounded-xl"
-                loading="lazy"
-                onError={() => {
-                  if (!retriedRef.current.has(p.id)) {
-                    retriedRef.current.add(p.id)
-                    void refreshPhoto(p.id)
-                  } else {
-                    setFailed((prev) => new Set(prev).add(p.id))
-                  }
-                }}
-              />
+              <div key={p.id} className="relative overflow-hidden rounded-xl">
+                <img
+                  src={url}
+                  alt={p.caption ?? ''}
+                  className="w-full aspect-square object-cover"
+                  loading="lazy"
+                  onError={() => {
+                    if (!retriedRef.current.has(p.id)) {
+                      retriedRef.current.add(p.id)
+                      void refreshPhoto(p.id)
+                    } else {
+                      setFailed((prev) => new Set(prev).add(p.id))
+                    }
+                  }}
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 flex items-center justify-center"
+                >
+                  <span
+                    className="type-badge text-white opacity-40 select-none"
+                    style={{
+                      transform: 'rotate(-24deg)',
+                      textShadow: '0 1px 3px rgba(0,0,0,0.6)',
+                    }}
+                  >
+                    {watermark}
+                  </span>
+                </div>
+              </div>
             )
           }
           if (failed.has(p.id)) {
