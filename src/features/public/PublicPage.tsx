@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, NavLink, Outlet, useOutletContext, useParams } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useOutletContext, useParams } from 'react-router-dom'
+import { useEffect } from 'react'
 import { MapPin, MessageCircle, Phone, ShieldCheck } from 'lucide-react'
 import * as api from './api'
 import type { PublicPageData } from './api'
@@ -21,6 +22,17 @@ export default function PublicSiteLayout() {
     queryFn: () => api.fetchPublicPage(slug!),
     enabled: !!slug,
   })
+
+  const location = useLocation()
+  const pageName: api.PublicPageName = location.pathname.endsWith('/classes')
+    ? 'classes'
+    : location.pathname.endsWith('/about')
+      ? 'about'
+      : 'home'
+  const found = Boolean(page.data?.found)
+  useEffect(() => {
+    if (slug && found) void api.trackPublicPage(slug, 'view', pageName)
+  }, [slug, pageName, found])
 
   if (page.isPending) return <LoadingState />
   if (page.isError) {
@@ -83,6 +95,9 @@ export default function PublicSiteLayout() {
             href={wa}
             target="_blank"
             rel="noreferrer"
+            onClick={() => {
+              if (slug) void api.trackPublicPage(slug, 'whatsapp_click', pageName)
+            }}
             className="inline-flex items-center justify-center gap-2 rounded-2xl bg-primary text-white py-3 type-body"
           >
             <MessageCircle size={18} />

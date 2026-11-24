@@ -94,6 +94,37 @@ export async function updatePublicPageSettings(
   await logActivityAuto(nurseryId, 'settings_updated', 'public_page')
 }
 
+export interface PublicPageStats {
+  views: number
+  clicks: number
+  byPage: Record<string, number>
+}
+
+export async function getPublicPageStats(
+  nurseryId: string,
+): Promise<PublicPageStats> {
+  const db = requireSupabase()
+  const since = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+  const { data, error } = await db
+    .from('public_page_events')
+    .select('kind, page')
+    .eq('nursery_id', nurseryId)
+    .gte('created_at', since)
+    .limit(5000)
+  if (error) throw error
+  const rows = (data ?? []) as Array<{ kind: string; page: string }>
+  const stats: PublicPageStats = { views: 0, clicks: 0, byPage: {} }
+  for (const r of rows) {
+    if (r.kind === 'view') {
+      stats.views++
+      stats.byPage[r.page] = (stats.byPage[r.page] ?? 0) + 1
+    } else if (r.kind === 'whatsapp_click') {
+      stats.clicks++
+    }
+  }
+  return stats
+}
+
 export interface MemberListItem extends NurseryMemberRow {
   display_name: string
 }

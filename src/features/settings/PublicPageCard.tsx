@@ -56,6 +56,11 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
 
   const slugOk = /^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug.trim())
   const url = slugOk ? `${window.location.origin}/n/${slug.trim()}` : null
+  const stats = useQuery({
+    queryKey: ['public-page-stats', nurseryId],
+    queryFn: () => api.getPublicPageStats(nurseryId),
+    enabled: enabled,
+  })
 
   return (
     <Card>
@@ -100,6 +105,14 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
       >
         {t('common.save')}
       </Button>
+      {enabled && stats.data && (
+        <div className="type-secondary text-muted mt-3">
+          {t('pub.statsLine', {
+            views: stats.data.views,
+            clicks: stats.data.clicks,
+          })}
+        </div>
+      )}
       {enabled && url && (
         <a
           href={url}
