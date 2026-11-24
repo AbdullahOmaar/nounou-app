@@ -17,6 +17,42 @@ import { invalidatePrefixes } from '../../lib/invalidate'
 import { useClasses } from '../classes/hooks'
 import type { AnnouncementRow } from '../../types/database'
 
+
+/**
+ * تنبيه واتساب عند النشر (3.11): يمر عبر بوابات 2.2 — يُسجَّل في
+ * السجل دائماً ولا يُرسل فعلياً قبل وجود المرسل. مالك فقط (قيد
+ * الـRPC) وأفضل جهد: فشله لا يُفشل النشر أبداً.
+ */
+async function enqueueAnnouncementAlert(
+  nurseryId: string,
+  title: string,
+  isOwner: boolean,
+): Promise<void> {
+  if (!isOwner) return
+  try {
+    const db = requireSupabase()
+    const { data } = await db
+      .from('guardians')
+      .select('id')
+      .eq('nursery_id', nurseryId)
+      .limit(500)
+    for (const g of (data ?? []) as { id: string }[]) {
+      try {
+        await db.rpc('whatsapp_enqueue', {
+          p_nursery: nurseryId,
+          p_guardian: g.id,
+          p_template: 'announcement',
+          p_params: { title },
+        })
+      } catch {
+        // أفضل جهد لكل وصي — البوابة سجّلت أو رفضت، النشر تم
+      }
+    }
+  } catch {
+    // التنبيه لا يُفشل النشر
+  }
+}
+
 /** إعلانات الحضانة: مسودة → نشر يظهر في بوابات الأهالي فوراً */
 export function AnnouncementsPage() {
   const t = useT()
@@ -64,24 +100,40 @@ export function AnnouncementsPage() {
         created_by: user?.id ?? null,
       })
       if (error) throw error
+      return publish
     },
-    onSuccess: () => {
+    onSuccess: (wasPublish) => {
       refresh()
       setSheetOpen(false)
+      if (wasPublish) {
+        void enqueueAnnouncementAlert(
+          nurseryId!,
+          title.trim(),
+          nursery.status === 'ready' && nursery.isOwner,
+        )
+      }
       setTitle('')
       setBody('')
     },
   })
   const publish = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (a: AnnouncementRow) => {
       const db = requireSupabase()
       const { error } = await db
         .from('announcements')
         .update({ published_at: new Date().toISOString() })
-        .eq('id', id)
+        .eq('id', a.id)
       if (error) throw error
+      return a
     },
-    onSuccess: refresh,
+    onSuccess: (a) => {
+      refresh()
+      void enqueueAnnouncementAlert(
+        nurseryId!,
+        a.title,
+        nursery.status === 'ready' && nursery.isOwner,
+      )
+    },
   })
   const remove = useMutation({
     mutationFn: async (id: string) => {
@@ -139,7 +191,7 @@ export function AnnouncementsPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => publish.mutate(a.id)}
+                      onClick={() => publish.mutate(a)}
                       aria-label={t('announcements.publish')}
                     >
                       <Send size={16} />
