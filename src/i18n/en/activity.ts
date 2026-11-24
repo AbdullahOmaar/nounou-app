@@ -32,6 +32,7 @@ export const activity = {
     fee_reminders_run: 'Ran fee reminders',
     qa_session_created: 'Announced a Q&A session',
     tour_converted: 'Tour converted to enrolment',
+    event_created: 'Created an event',
     message_sent: 'Sent a parent message',
     link_issued: 'Issued a portal link',
     link_revoked: 'Revoked a portal link',

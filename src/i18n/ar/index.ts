@@ -22,6 +22,7 @@ import { messages } from './messages'
 import { qa } from './qa'
 import { pub } from './pub'
 import { tours } from './tours'
+import { events } from './events'
 
 /**
  * قاموس العربية — لغة نونو الأولى (والإنجليزية مرآة بنيوية كاملة في
@@ -54,4 +55,5 @@ export const ar = {
   qa,
   pub,
   tours,
+  events,
 } as const

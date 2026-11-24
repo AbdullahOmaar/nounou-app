@@ -1,0 +1,18 @@
+export const events = {
+  title: "مناسبات الحضانة",
+  new: "مناسبة جديدة",
+  empty: "لا مناسبات بعد",
+  emptyHint: "اعمل مناسبة وشارك رابط دعوتها مع الأهالي",
+  eventTitle: "عنوان المناسبة",
+  eventKind: "النوع",
+  startsAt: "التاريخ والوقت",
+  location: "المكان",
+  mapsUrl: "رابط خرائط جوجل (اختياري)",
+  copyLink: "نسخ رابط الدعوة",
+  linkCopied: "اتنسخ رابط الدعوة",
+  openMap: "افتح الخريطة",
+  addCalendar: "أضف للتقويم",
+  rsvp: "تأكيد الحضور واتساب",
+  rsvpText: "هحضر بإذن الله:",
+  kinds: { graduation: "تخرج", open_day: "يوم مفتوح", aqeeqa: "عقيقة", misc: "أخرى" },
+}

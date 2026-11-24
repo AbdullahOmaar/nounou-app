@@ -66,6 +66,8 @@ function resolveRoute(pathname: string): {
     return { screen: 'qa', tab: 'more', title: 'shell.title.qa' }
   if (pathname.startsWith('/tours'))
     return { screen: 'tours', tab: 'more', title: 'shell.title.tours' }
+  if (pathname.startsWith('/events'))
+    return { screen: 'events', tab: 'more', title: 'shell.title.events' }
   if (pathname.startsWith('/activity'))
     return { screen: 'activity', tab: 'more', title: 'shell.title.activity' }
   if (pathname.startsWith('/members'))
