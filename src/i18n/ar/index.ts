@@ -14,6 +14,7 @@ import { reports } from './reports'
 import { bus } from './bus'
 import { announcements } from './announcements'
 import { notifications } from './notifications'
+import { licensing } from './licensing'
 import { settings } from './settings'
 import { activity } from './activity'
 import { finance } from './finance'
@@ -48,6 +49,7 @@ export const ar = {
   announcements,
   notifications,
   settings,
+  licensing,
   activity,
   finance,
   suppliers,
