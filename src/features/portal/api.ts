@@ -470,3 +470,24 @@ export async function createDataRequest(
   if (error) throw error
   return (data as { status?: string }).status ?? 'error'
 }
+
+export interface PortalPhotoView {
+  viewer_kind: 'guardian' | 'staff'
+  is_self: boolean
+  created_at: string
+  child_name: string
+}
+
+export async function fetchPhotoViews(
+  token: string,
+): Promise<PortalPhotoView[]> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc(
+    'nursery_portal_photo_views_by_token',
+    { p_token: token },
+  )
+  if (error) throw error
+  const res = data as { views?: PortalPhotoView[] }
+  return res.views ?? []
+}
+
