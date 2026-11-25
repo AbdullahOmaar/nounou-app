@@ -1491,8 +1491,12 @@ def main():
               f"got {s} linked={linked.get('c')}")
 
         # ---- WhatsApp budget (4.17, migration 0054) ----
+        used = one(ref, "select count(*) as c from whatsapp_send_log "
+                        f"where nursery_id = '{nursery_a}' "
+                        "and created_at >= date_trunc('month', now())")
+        cap_now = int(used["c"]) + 1
         sql(ref, "insert into whatsapp_budgets (nursery_id, monthly_cap) "
-                 f"values ('{nursery_a}', 1)")
+                 f"values ('{nursery_a}', {cap_now})")
         s, b = rest(url, anon, "POST", "/rest/v1/rpc/whatsapp_enqueue",
                     owner_a_jwt,
                     body={"p_nursery": nursery_a, "p_guardian": a_guardian,
