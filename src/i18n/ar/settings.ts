@@ -80,6 +80,8 @@ export const settings = {
     test: 'اختبار البوابة',
     testResult: 'نتيجة الاختبار: {status}',
     logTitle: 'آخر المحاولات المسجلة',
+budgetLabel: "سقف رسائل واتساب الشهري",
+    budgetPlaceholder: "بلا سقف",
   },
   identitySection: "هوية الحضانة",
   logoUpload: "رفع الشعار",

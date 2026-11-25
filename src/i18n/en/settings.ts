@@ -80,6 +80,8 @@ export const settings = {
     test: 'Test the gate',
     testResult: 'Test result: {status}',
     logTitle: 'Recent logged attempts',
+budgetLabel: "Monthly WhatsApp message cap",
+    budgetPlaceholder: "No cap",
   },
   identitySection: "Nursery identity",
   logoUpload: "Upload logo",
