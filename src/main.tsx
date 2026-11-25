@@ -6,6 +6,12 @@ import '@fontsource/ibm-plex-sans-arabic/400.css'
 import '@fontsource/ibm-plex-sans-arabic/500.css'
 import '@fontsource/ibm-plex-sans-arabic/600.css'
 import '@fontsource/ibm-plex-sans-arabic/700.css'
+// خط العناوين Baloo Bhaijaan 2 مضمّن محلياً كذلك (هوية نونو — الموجة 0،
+// DESIGN §2.3): عناوين الشاشات + كلمة الشعار + الأرقام الكبيرة فقط
+import '@fontsource/baloo-bhaijaan-2/400.css'
+import '@fontsource/baloo-bhaijaan-2/600.css'
+import '@fontsource/baloo-bhaijaan-2/700.css'
+import '@fontsource/baloo-bhaijaan-2/800.css'
 import './index.css'
 import App from './App.tsx'
 import { ErrorBoundary } from './components/ui/ErrorBoundary.tsx'
