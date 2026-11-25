@@ -14,6 +14,7 @@ import { reports } from './reports'
 import { bus } from './bus'
 import { announcements } from './announcements'
 import { notifications } from './notifications'
+import { iso } from './iso'
 import { licensing } from './licensing'
 import { staff } from './staff'
 import { licensingTrack } from './licensingTrack'
@@ -52,6 +53,7 @@ export const ar = {
   notifications,
   settings,
   licensing,
+  iso,
   staff,
   licensingTrack,
   activity,
