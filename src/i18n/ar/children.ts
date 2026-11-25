@@ -96,4 +96,11 @@ export const children = {
   issueViewLink: 'رابط مشاهدة للعائلة',
   copyViewLink: 'نسخ رابط المشاهدة',
   revokeViewLink: 'إلغاء رابط المشاهدة',
+  growthFile: "ملف النمو",
+  growthTitle: "ملف نمو {name}",
+  growthCode: "الكود",
+  growthPhotos: "صور في الملف",
+  growthReports: "تقارير في الملف",
+  growthDate: "التاريخ",
+  growthNote: "ملحوظة/أنشطة",
 }

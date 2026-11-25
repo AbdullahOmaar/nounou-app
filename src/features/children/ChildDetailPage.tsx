@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Archive, Link2, Plus, Trash2 } from 'lucide-react'
+import { Archive, BookOpen, Link2, Plus, Trash2 } from 'lucide-react'
+import { openPrintDocument } from '../../lib/printDoc'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -52,6 +53,7 @@ export function ChildDetailPage() {
   const [pickupOpen, setPickupOpen] = useState(false)
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [freshLink, setFreshLink] = useState<string | null>(null)
+  const [growthBusy, setGrowthBusy] = useState(false)
 
   const attendance = useChildAttendance(tab === 'attendance' ? childId : undefined)
   const photos = useQuery({
@@ -113,6 +115,93 @@ export function ChildDetailPage() {
                 : `🚫 ${t('children.photoConsent')}`}
             </div>
           </div>
+        </div>
+        <div className="mt-3">
+          <Button
+            variant="soft"
+            size="sm"
+            disabled={growthBusy}
+            onClick={async () => {
+              if (nursery.status !== 'ready') return
+              setGrowthBusy(true)
+              try {
+                const [childPhotos, childReports] = await Promise.all([
+                  child.photo_consent
+                    ? reportsApi.listChildPhotos(child.id, 24)
+                    : Promise.resolve([]),
+                  reportsApi.listChildReports(child.id, 12),
+                ])
+                const moodText = (m: string | null): string =>
+                  m === 'happy'
+                    ? t('reports.moodHappy')
+                    : m === 'calm'
+                      ? t('reports.moodCalm')
+                      : m === 'sad'
+                        ? t('reports.moodSad')
+                        : m === 'tired'
+                          ? t('reports.moodTired')
+                          : '—'
+                const opened = openPrintDocument({
+                  nurseryName: nursery.nursery.name,
+                  logoUrl: nursery.nursery.logo_url,
+                  brandColor: nursery.nursery.brand_color,
+                  title: t('children.growthTitle', { name: child.full_name }),
+                  sections: [
+                    {
+                      type: 'kv',
+                      rows: [
+                        { label: t('children.class'), value: classRow?.name ?? t('children.noClass') },
+                        { label: t('children.growthCode'), value: '#' + child.public_code },
+                        { label: t('children.growthPhotos'), value: String(childPhotos.length) },
+                        { label: t('children.growthReports'), value: String(childReports.length) },
+                      ],
+                    },
+                    ...(childPhotos.length > 0
+                      ? [
+                          {
+                            type: 'images' as const,
+                            urls: childPhotos
+                              .map((ph) => ph.url)
+                              .filter((u): u is string => Boolean(u)),
+                          },
+                        ]
+                      : []),
+                    ...(childReports.length > 0
+                      ? [
+                          {
+                            type: 'table' as const,
+                            head: [
+                              t('children.growthDate'),
+                              t('reports.mood'),
+                              t('reports.nap'),
+                              t('children.growthNote'),
+                            ],
+                            rows: childReports.map((r) => [
+                              r.date,
+                              moodText(r.mood),
+                              r.nap_slept ? t('reports.quickSlept') : t('reports.quickNoSleep'),
+                              (r.note ?? '') ||
+                                (Array.isArray(r.activities)
+                                  ? r.activities.join(', ')
+                                  : (r.activities ?? '')),
+                            ]),
+                          },
+                        ]
+                      : []),
+                  ],
+                  footerNote: t('pub.poweredBy'),
+                })
+                if (!opened) showToast(t('common.errorGeneric'), 'error')
+              } catch {
+                showToast(t('common.errorGeneric'), 'error')
+              } finally {
+                setGrowthBusy(false)
+              }
+            }}
+          >
+            <BookOpen size={16} />
+            {t('children.growthFile')}
+          </Button>
         </div>
         {canManage && (
           <div className="flex gap-2 mt-3 flex-wrap">

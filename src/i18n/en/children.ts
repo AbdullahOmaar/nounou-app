@@ -96,4 +96,11 @@ export const children = {
   issueViewLink: 'Family view link',
   copyViewLink: 'Copy view link',
   revokeViewLink: 'Revoke view link',
+  growthFile: "Growth file",
+  growthTitle: "Growth file — {name}",
+  growthCode: "Code",
+  growthPhotos: "Photos included",
+  growthReports: "Reports included",
+  growthDate: "Date",
+  growthNote: "Note/activities",
 }
