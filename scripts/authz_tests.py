@@ -1490,6 +1490,13 @@ def main():
               s == 200 and (linked.get("c") or 0) >= 1,
               f"got {s} linked={linked.get('c')}")
 
+        # ---- AI governance (4.15, migration 0053) ----
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/ai_spend_caps?select=nursery_id"
+                    f"&nursery_id=eq.{nursery_a}", staff_jwt)
+        check("staff cannot read AI spend caps (4.15 owner-only)",
+              s == 200 and b == [], f"got {s}")
+
         # ---- data requests (4.13, migration 0052) ----
         raw_dr = "authz-dr-" + secrets.token_urlsafe(24)
         sql(ref, "insert into guardian_access_tokens "
