@@ -15,6 +15,7 @@ import { bus } from './bus'
 import { announcements } from './announcements'
 import { notifications } from './notifications'
 import { iso } from './iso'
+import { dataRights } from './dataRights'
 import { licensing } from './licensing'
 import { staff } from './staff'
 import { licensingTrack } from './licensingTrack'
@@ -56,6 +57,7 @@ export const en: Dict = {
   settings,
   licensing,
   iso,
+  dataRights,
   staff,
   licensingTrack,
   activity,

@@ -1490,6 +1490,25 @@ def main():
               s == 200 and (linked.get("c") or 0) >= 1,
               f"got {s} linked={linked.get('c')}")
 
+        # ---- data requests (4.13, migration 0052) ----
+        raw_dr = "authz-dr-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', "
+                 f"'{token_hash(raw_dr)}', 'authz dr')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_data_request_by_token",
+                    None, body={"p_token": raw_dr, "p_kind": "export"})
+        check("a guardian files a data-export request (4.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("status") == "ok", f"got {s}")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_data_request_by_token",
+                    None, body={"p_token": raw_dr, "p_kind": "wipe"})
+        check("an unknown data-request kind is rejected (4.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("status") == "bad_kind", f"got {s}")
+
         # ---- licensing steps (4.12, migration 0051) ----
         s, b = rest(url, anon, "GET",
                     "/rest/v1/licensing_steps?select=step_key"

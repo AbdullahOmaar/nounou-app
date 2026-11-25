@@ -242,6 +242,8 @@ export function PortalPage() {
 
         <CircularsSection token={token!} viewOnly={viewOnly} />
 
+        <DataRightsSection token={token!} viewOnly={viewOnly} />
+
         {nurseryWa && (
           <a
             href={nurseryWa}
@@ -992,5 +994,73 @@ function CircularsSection({
         ))}
       </div>
     </section>
+  )
+}
+
+
+function DataRightsSection({
+  token,
+  viewOnly,
+}: {
+  token: string
+  viewOnly: boolean
+}) {
+  const t = useT()
+  const qc = useQueryClient()
+  const showToast = useToast()
+  const mine = useQuery({
+    queryKey: ['portal-data-requests', token],
+    queryFn: () => api.fetchMyDataRequests(token),
+  })
+  const create = useMutation({
+    mutationFn: (kind: 'export' | 'deletion') => api.createDataRequest(token, kind),
+    onSuccess: (status) => {
+      if (status === 'ok') {
+        showToast(t('portal.dataRequestSent'))
+        void qc.invalidateQueries({ queryKey: ['portal-data-requests', token] })
+      } else {
+        showToast(t('common.errorGeneric'), 'error')
+      }
+    },
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
+  })
+  const statusLabel = (s: string): string =>
+    s === 'done'
+      ? t('portal.dataStatusDone')
+      : s === 'rejected'
+        ? t('portal.dataStatusRejected')
+        : t('portal.dataStatusPending')
+  return (
+    <Card className="flex flex-col gap-2">
+      <h2 className="type-section">{t('portal.dataRightsTitle')}</h2>
+      <p className="type-secondary text-muted">{t('portal.dataRightsBody')}</p>
+      {(mine.data ?? []).map((r, i) => (
+        <p key={i} className="type-secondary">
+          {r.kind === 'export' ? t('portal.dataExport') : t('portal.dataDeletion')}
+          {' — '}
+          {statusLabel(r.status)}
+        </p>
+      ))}
+      {!viewOnly && (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="soft"
+            disabled={create.isPending}
+            onClick={() => create.mutate('export')}
+          >
+            {t('portal.dataExportBtn')}
+          </Button>
+          <Button
+            size="sm"
+            variant="soft"
+            disabled={create.isPending}
+            onClick={() => create.mutate('deletion')}
+          >
+            {t('portal.dataDeletionBtn')}
+          </Button>
+        </div>
+      )}
+    </Card>
   )
 }

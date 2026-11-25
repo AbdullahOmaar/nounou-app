@@ -12,6 +12,7 @@ import { WhatsAppSettingsCard } from './WhatsAppSettingsCard'
 import { PublicPageCard } from './PublicPageCard'
 import { LicensingCard } from './LicensingCard'
 import { IsoCard } from './IsoCard'
+import { DataRequestsCard } from './DataRequestsCard'
 import { IdentityCard } from './IdentityCard'
 import { useAuth } from '../../lib/AuthProvider'
 import { useNurserySettings, useSettingsMutations } from './hooks'
@@ -224,6 +225,7 @@ export function SettingsPage() {
         <>
           <WhatsAppSettingsCard nurseryId={nursery.nurseryId} />
           <PublicPageCard nurseryId={nursery.nurseryId} />
+          <DataRequestsCard nurseryId={nursery.nurseryId} />
           <LicensingCard
             nurseryId={nursery.nurseryId}
             nurseryName={nursery.nursery.name}

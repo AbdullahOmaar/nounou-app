@@ -40,4 +40,5 @@ export const activity = {
   byActor: 'بواسطة {name}',
   filterAll: 'كل النشاط',
   salaryPaid: "اتصرف مرتب",
+  dataRequestHandled: "اتعالج طلب بيانات",
 }

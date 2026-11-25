@@ -40,4 +40,5 @@ export const activity = {
   byActor: 'By {name}',
   filterAll: 'All activity',
   salaryPaid: "Salary paid",
+  dataRequestHandled: "Data request handled",
 }
