@@ -15,6 +15,7 @@ import { bus } from './bus'
 import { announcements } from './announcements'
 import { notifications } from './notifications'
 import { licensing } from './licensing'
+import { staff } from './staff'
 import { settings } from './settings'
 import { activity } from './activity'
 import { finance } from './finance'
@@ -52,6 +53,7 @@ export const en: Dict = {
   notifications,
   settings,
   licensing,
+  staff,
   activity,
   finance,
   suppliers,

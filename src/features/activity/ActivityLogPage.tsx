@@ -72,7 +72,9 @@ export function ActivityLogPage() {
         return t('activity.kind.pickup_code_failed')
       case 'bus_trip_closed':
         return t('activity.kind.bus_trip_closed')
-      case 'expense_recorded':
+      case 'salary_paid':
+      return t('activity.salaryPaid')
+    case 'expense_recorded':
         return t('activity.kind.expense_recorded')
       case 'expense_deleted':
         return t('activity.kind.expense_deleted')
