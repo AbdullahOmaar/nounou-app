@@ -76,6 +76,8 @@ export function ActivityLogPage() {
       return t('activity.dataRequestHandled')
     case 'salary_paid':
       return t('activity.salaryPaid')
+    case 'assistant_executed':
+      return t('activity.assistantExecuted')
     case 'expense_recorded':
         return t('activity.kind.expense_recorded')
       case 'expense_deleted':

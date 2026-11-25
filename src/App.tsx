@@ -146,6 +146,7 @@ registerRouteLoaders({
   '/staff': () => import('./features/staff/StaffPage'),
   '/licensing': () => import('./features/licensing/LicensingPage'),
   '/ops': () => import('./features/ops/OpsPage'),
+  '/assistant': () => import('./features/assistant/AssistantPage'),
   '/events': () => import('./features/events/EventsPage'),
   '/settings': () => import('./features/settings/SettingsPage'),
   '/members': () => import('./features/settings/MembersPage'),
