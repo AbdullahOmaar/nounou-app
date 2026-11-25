@@ -1490,6 +1490,28 @@ def main():
               s == 200 and (linked.get("c") or 0) >= 1,
               f"got {s} linked={linked.get('c')}")
 
+        # ---- WhatsApp budget (4.17, migration 0054) ----
+        used = one(ref, "select count(*) as c from whatsapp_send_log "
+                        f"where nursery_id = '{nursery_a}' "
+                        "and created_at >= date_trunc('month', now())")
+        cap_now = int(used["c"]) + 1
+        sql(ref, "insert into whatsapp_budgets (nursery_id, monthly_cap) "
+                 f"values ('{nursery_a}', {cap_now})")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/whatsapp_enqueue",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a, "p_guardian": a_guardian,
+                          "p_template": "fee_reminder", "p_params": {}})
+        first_status = b
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/whatsapp_enqueue",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a, "p_guardian": a_guardian,
+                          "p_template": "fee_reminder", "p_params": {}})
+        check("the WhatsApp monthly budget blocks over-cap sends (4.17)",
+              first_status != "blocked_budget" and b == "blocked_budget",
+              f"got first={first_status} second={b}")
+        sql(ref, f"delete from whatsapp_budgets where nursery_id = "
+                 f"'{nursery_a}'")
+
         # ---- AI governance (4.15, migration 0053) ----
         s, b = rest(url, anon, "GET",
                     "/rest/v1/ai_spend_caps?select=nursery_id"
