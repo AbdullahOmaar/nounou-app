@@ -1532,6 +1532,32 @@ def main():
                     f"&nursery_id=eq.{nursery_a}", staff_jwt)
         check("staff cannot read feature flags (4.21 owner-only)",
               s == 200 and b == [], f"got {s}")
+        # ---- photo view log (4.14, migration 0058) ----
+        photo_row = one(
+            ref, "insert into child_photos (nursery_id, storage_path) "
+                 f"values ('{nursery_a}', '{nursery_a}/authz-view.jpg') "
+                 "returning id")
+        photo_id = photo_row["id"]
+        sql(ref, "insert into photo_children (photo_id, child_id) "
+                 f"values ('{photo_id}', '{a_child1}')")
+        raw_view = "authz-view-" + secrets.token_hex(8)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, expires_at) "
+                 f"values ('{nursery_a}', '{a_guardian}', "
+                 f"'{token_hash(raw_view)}', now() + interval '30 days')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/log_portal_photo_view",
+                    body={"p_token": raw_view, "p_photo_id": photo_id})
+        check("a guardian photo view is logged (4.14)",
+              s == 200 and b.get("status") == "ok", f"got {s} {b}")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_photo_views_by_token",
+                    body={"p_token": raw_view})
+        views = b.get("views") or []
+        check("the guardian reads back the view log (4.14)",
+              s == 200 and len(views) == 1
+              and views[0].get("is_self") is True,
+              f"got {s} {str(b)[:80]}")
 
         # ---- AI governance (4.15, migration 0053) ----
         s, b = rest(url, anon, "GET",

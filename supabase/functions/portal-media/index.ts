@@ -90,5 +90,14 @@ Deno.serve(async (req: Request) => {
     return json({ error: "forbidden" }, 403);
   }
 
+  // سجل المشاهدة (4.14): «بياناتك لا تُقرأ» قابلة للإثبات —
+  // كل توقيع ناجح = مشاهدة موثقة يراها الوصي في بوابته.
+  // فشل التسجيل لا يحجب المشاهدة المشروعة؛ يُسجَّل خادمياً.
+  const { error: logError } = await admin.rpc("log_portal_photo_view", {
+    p_token: token,
+    p_photo_id: photoId,
+  });
+  if (logError) console.error("photo view log failed", logError.message);
+
   return json({ url: signed.signedUrl }, 200);
 });

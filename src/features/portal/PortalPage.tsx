@@ -243,6 +243,7 @@ export function PortalPage() {
         <CircularsSection token={token!} viewOnly={viewOnly} />
 
         <DataRightsSection token={token!} viewOnly={viewOnly} />
+        <TrustSection token={token!} />
 
         {nurseryWa && (
           <a
@@ -997,6 +998,40 @@ function CircularsSection({
   )
 }
 
+
+
+function TrustSection({ token }: { token: string }) {
+  const t = useT()
+  const views = useQuery({
+    queryKey: ['portal-photo-views', token],
+    queryFn: () => api.fetchPhotoViews(token),
+  })
+  const rows = views.data ?? []
+  return (
+    <section className="space-y-2">
+      <Card className="space-y-1">
+        <p className="font-bold">{t('portal.trustTitle')}</p>
+        <p className="text-sm text-muted">{t('portal.trustLine1')}</p>
+        <p className="text-sm text-muted">{t('portal.trustLine2')}</p>
+        <p className="text-sm text-muted">{t('portal.trustLine3')}</p>
+      </Card>
+      {rows.length > 0 && (
+        <Card className="space-y-1">
+          <p className="font-bold">{t('portal.viewsTitle')}</p>
+          {rows.slice(0, 10).map((v, i) => (
+            <p key={i} className="text-sm text-muted">
+              {v.child_name} — {v.is_self
+                ? t('portal.viewSelf')
+                : v.viewer_kind === 'staff'
+                  ? t('portal.viewStaff')
+                  : t('portal.viewGuardian')} — {formatDateTimeAr(v.created_at)}
+            </p>
+          ))}
+        </Card>
+      )}
+    </section>
+  )
+}
 
 function DataRightsSection({
   token,
