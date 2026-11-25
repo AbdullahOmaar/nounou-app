@@ -1512,6 +1512,13 @@ def main():
         sql(ref, f"delete from whatsapp_budgets where nursery_id = "
                  f"'{nursery_a}'")
 
+        # ---- feature flags (4.21, migration 0057) ----
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/nursery_feature_flags?select=flag_key"
+                    f"&nursery_id=eq.{nursery_a}", staff_jwt)
+        check("staff cannot read feature flags (4.21 owner-only)",
+              s == 200 and b == [], f"got {s}")
+
         # ---- AI governance (4.15, migration 0053) ----
         s, b = rest(url, anon, "GET",
                     "/rest/v1/ai_spend_caps?select=nursery_id"
