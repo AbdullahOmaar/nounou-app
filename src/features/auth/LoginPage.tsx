@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Field, FormError, TextInput } from '../../components/ui/form'
-import { Mascot } from '../../components/mascot/Mascot'
 import { useLocale, setLocale } from '../../i18n/locale'
 import { useT } from '../../i18n'
 import {
@@ -108,7 +107,12 @@ export function LoginPage() {
         </div>
         <div className="text-center mb-6 rise-in">
           <div className="flex justify-center mb-3">
-            <Mascot size={84} className="rounded-[22px] shadow-card select-none" />
+            {/* هوية نونو — الموجة 1: نونا النصفية ترحيباً بدل الماسكوت القديم */}
+            <img
+              src="/nouna/nouna-half.png"
+              alt=""
+              className="w-[200px] rounded-[24px] shadow-card select-none"
+            />
           </div>
           <h1 className="type-title mb-1">{t('auth.welcome')}</h1>
           <p className="text-muted type-secondary">{t('auth.welcomeBody')}</p>
@@ -152,7 +156,12 @@ export function LoginPage() {
                 {notice}
               </p>
             )}
-            <Button type="submit" disabled={busy} full>
+            <Button
+              type="submit"
+              variant="accent"
+              disabled={busy}
+              full
+            >
               {mode === 'signin' ? t('auth.signIn') : t('auth.signUp')}
             </Button>
           </form>
@@ -187,6 +196,14 @@ export function LoginPage() {
           <Button variant="soft" onClick={handleDemo} disabled={busy}>
             {t('auth.demoCta')}
           </Button>
+        </Card>
+
+        {/* هوية نونو — الموجة 1: ملاحظة نونا (الـ accent الوحيد غير الزر) */}
+        <Card className="mt-4 border-s-4 border-accent rise-in">
+          <div className="type-section text-accent-text mb-1">
+            {t('auth.nounaSays')}
+          </div>
+          <p className="type-body">{t('auth.nounaNote')}</p>
         </Card>
       </div>
     </div>

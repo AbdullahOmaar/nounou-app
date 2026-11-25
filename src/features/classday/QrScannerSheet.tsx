@@ -47,12 +47,19 @@ export function QrScannerSheet({ open, onClose, onCode }: Props) {
   return (
     <Sheet open={open} onClose={onClose} title={t('attendance.scanQr')}>
       <div className="flex flex-col items-center gap-3">
-        <video
-          ref={videoRef}
-          className="w-full max-w-[320px] aspect-square object-cover rounded-2xl bg-black"
-          muted
-          playsInline
-        />
+        {/* هوية نونو — الموجة 1: إطار كحلي + خط مسح كهرماني (DESIGN §5) */}
+        <div className="relative w-full max-w-[320px] aspect-square rounded-2xl border-2 border-primary overflow-hidden bg-black">
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover"
+            muted
+            playsInline
+          />
+          <div
+            aria-hidden
+            className="qr-scanline absolute inset-x-0 h-[3px] bg-accent"
+          />
+        </div>
         <p className="type-secondary text-muted">{t('attendance.scanQrHint')}</p>
       </div>
     </Sheet>

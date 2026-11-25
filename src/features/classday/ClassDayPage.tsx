@@ -1,5 +1,5 @@
 import { Suspense, lazy, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Camera, Check, Clock, Home, QrCode, Undo2, X } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
@@ -10,14 +10,13 @@ import { Field, TextInput } from '../../components/ui/form'
 import { Sheet } from '../../components/ui/Sheet'
 import { useToast } from '../../components/ui/toast'
 import { useT } from '../../i18n'
-import { formatClock12, todayISO } from '../../lib/format'
+import { formatClock12, fmtWeekdayDate, todayISO } from '../../lib/format'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
+import { useClasses } from '../classes/hooks'
 import { enqueuePickupCode } from '../settings/whatsapp'
 import { useNurserySettings } from '../settings/hooks'
 import * as api from './api'
 import { useAttendanceWriter, useClassDay, useDayChildren } from './hooks'
-import { useClasses } from '../classes/hooks'
-import { fmtWeekdayDate } from '../../lib/format'
 // ماسح QR يُحمَّل كسولاً عند أول فتح فقط (3A-335): مكتبة @zxing/browser
 // كانت تضخّم حزمة شاشة اليوم (486KB) رغم أن المسح فعل اختياري نادر،
 // فصارت حزمة منفصلة لا تصل الجهاز إلا عند ضغط زر المسح.
@@ -33,14 +32,16 @@ const QrScannerSheet = lazy(() =>
 export function ClassDayPage() {
   const t = useT()
   const { classId } = useParams()
+  const navigate = useNavigate()
   const nursery = useCurrentNursery()
+  const classes = useClasses()
+  const className =
+    classes.data?.find((c) => c.id === classId)?.name ?? ''
   const canAttend =
     nursery.status === 'ready' && nursery.can('can_take_attendance')
   const settings = useNurserySettings()
   const date = todayISO()
   const day = useClassDay(classId, date)
-  const classes = useClasses()
-  const className = (classes.data ?? []).find((c) => c.id === classId)?.name ?? ''
   const children = useDayChildren(classId, day.data?.id)
   const { write, queued, actorId, nurseryId } = useAttendanceWriter()
   const showToast = useToast()
@@ -188,50 +189,72 @@ export function ClassDayPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div>
+      {/* هوية نونو — الموجة 1: ترويسة الفصل + شريحة التاريخ الكامل
+          (يوم الأسبوع + التاريخ من إصلاح الإنتاج D1/D8 — مثبّت على القاهرة) */}
+      <div className="flex items-center justify-between">
         <h1 className="type-title">{className}</h1>
-        <p className="type-secondary text-muted">{fmtWeekdayDate(date)}</p>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <TextInput
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('attendance.searchPlaceholder')}
-          />
-        </div>
-        <Button variant="soft" onClick={() => setScannerOpen(true)} aria-label={t('attendance.scanQr')}>
-          <QrCode size={20} />
-        </Button>
+        <span className="type-badge bg-soft text-primary rounded-full px-2.5 py-1">
+          {fmtWeekdayDate(date)}
+        </span>
       </div>
 
-      <div className="flex items-center justify-between">
-        <span className="type-secondary text-muted">
-          {t('attendance.progress', { done: doneCount, total })}
-        </span>
-        {queued > 0 && (
-          <span className="type-badge text-bad-text bg-bad-soft rounded-full px-2 py-1">
-            {t('attendance.syncPending', { count: queued })}
-          </span>
-        )}
-      </div>
-      <div className="h-2 rounded-full bg-soft overflow-hidden">
-        <div
-          className="h-full bg-primary transition-all"
-          style={{ width: total ? `${(doneCount / total) * 100}%` : '0%' }}
+      <div className="relative flex-1">
+        <TextInput
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t('attendance.searchPlaceholder')}
         />
       </div>
+
+      {/* بطاقة تقدّم التسجيل: عنوان + عدّاد + شريط كهرماني + تلميح */}
+      <Card className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className="type-section">{t('attendance.progressTitle')}</span>
+          <span className="flex items-center gap-2">
+            {queued > 0 && (
+              <span className="type-badge text-bad-text bg-bad-soft rounded-full px-2 py-1">
+                {t('attendance.syncPending', { count: queued })}
+              </span>
+            )}
+            <span className="type-section text-accent-text">
+              {t('attendance.progress', { done: doneCount, total })}
+            </span>
+          </span>
+        </div>
+        <div className="h-2.5 rounded-full bg-soft overflow-hidden">
+          <div
+            className="h-full bg-accent transition-all"
+            style={{ width: total ? `${(doneCount / total) * 100}%` : '0%' }}
+          />
+        </div>
+        {total - doneCount > 0 && (
+          <p className="type-secondary text-muted">
+            {t('attendance.progressRemaining', { count: total - doneCount })}
+          </p>
+        )}
+      </Card>
+
+      {/* زر QR الكهرماني — الإجراء البارز في الشاشة */}
+      <Button
+        variant="accent"
+        full
+        onClick={() => setScannerOpen(true)}
+        aria-label={t('attendance.scanQr')}
+      >
+        <QrCode size={20} />
+        {t('attendance.scanQrCta')}
+      </Button>
 
       {list.length === 0 ? (
         <EmptyState title={t('children.emptyTitle')} hint={t('children.emptyBody')} />
       ) : (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-2">
           {list.map((d) => {
             const att = d.attendance
             const picked = Boolean(att?.picked_up_at)
             return (
               <Card key={d.child.id} className="flex flex-col gap-2 py-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-h-[56px]">
                   <Avatar name={d.child.full_name} />
                   <div className="min-w-0">
                     <div className="type-body truncate">{d.child.full_name}</div>
@@ -257,7 +280,6 @@ export function ClassDayPage() {
                     {!att || att.status !== 'present' ? (
                       <>
                         <Button
-                          size="sm"
                           className="flex-1"
                           onClick={() => markArrived(d)}
                         >
@@ -265,17 +287,16 @@ export function ClassDayPage() {
                           {t('attendance.markArrived')}
                         </Button>
                         <Button
-                          size="sm"
                           variant="soft"
                           onClick={() => markStatus(d, 'absent')}
                           aria-label={t('attendance.markAbsent')}
                         >
                           <X size={16} />
+                          {t('attendance.markAbsent')}
                         </Button>
                       </>
                     ) : (
                       <Button
-                        size="sm"
                         variant="soft"
                         className="flex-1"
                         onClick={() => {
@@ -289,7 +310,6 @@ export function ClassDayPage() {
                     )}
                     {att && (
                       <Button
-                        size="sm"
                         variant="ghost"
                         onClick={() => undoDay(d)}
                         aria-label={t('attendance.undo')}
@@ -309,10 +329,6 @@ export function ClassDayPage() {
             )
           })}
         </div>
-      )}
-
-      {total > 0 && doneCount === total && (
-        <p className="type-body text-center text-good-text">{t('attendance.allMarked')}</p>
       )}
 
       {(() => {
@@ -348,6 +364,14 @@ export function ClassDayPage() {
           </Card>
         )
       })()}
+
+      {/* إقفال اليوم: زر واحد أسفل — إرسال تقارير اليوم (الخطوة التي
+          تُقفِل اليوم فعلياً في المنتج؛ لا زر إغلاق وهمي بلا تنفيذ) */}
+      {total > 0 && doneCount === total && (
+        <Button full onClick={() => navigate('/reports')}>
+          {t('attendance.sendReportsCta')}
+        </Button>
+      )}
 
       <Sheet
         open={Boolean(pickupChild)}

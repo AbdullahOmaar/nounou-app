@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ageLabel,
   currentPeriod,
+  fmtWeekday,
   fmtWeekdayDate,
   formatClock12,
   formatMoney,
@@ -50,6 +51,18 @@ describe('تواريخ ISO وفترات', () => {
     expect(shiftISODate('2026-11-22', -1)).toBe('2026-11-21')
     expect(shiftISODate('2026-01-01', -1)).toBe('2025-12-31')
     expect(shiftISODate('2024-02-28', 1)).toBe('2024-02-29')
+  })
+})
+
+describe('fmtWeekday — اسم يوم الأسبوع مثبّت على القاهرة', () => {
+  it('2026-11-25 أربعاء مهما كان توقيت المتصفح', () => {
+    // التاريخ يُبنى ظهراً فلا يتأثر بإزاحة UTC؛ والتثبيت على القاهرة
+    // يمنع انزلاق اليوم قرب منتصف الليل
+    expect(fmtWeekday('2026-11-25')).toBe('الأربعاء')
+    expect(fmtWeekday('2026-11-24')).toBe('الثلاثاء')
+  })
+  it('تاريخ فارغ: سلسلة فارغة', () => {
+    expect(fmtWeekday('')).toBe('')
   })
 })
 

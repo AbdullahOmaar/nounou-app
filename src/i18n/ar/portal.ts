@@ -1,6 +1,5 @@
 /** بوابة ولي الأمر (الرابط الموقّع) + إدارة الروابط */
 export const portal = {
-  welcome: 'أهلاً، {name}',
   nurseryLine: 'بوابة {nursery}',
   yourChildren: 'أطفالك',
   balanceDue: 'المتبقي عليك',
@@ -84,4 +83,24 @@ export const portal = {
   dataStatusPending: "قيد التنفيذ",
   dataStatusDone: "تم",
   dataStatusRejected: "مرفوض",
+  // هوية نونو — الموجة 1: ترويسة نونا + بطل الاستلام الآمن + ملخص بصوتها + خط اليوم
+  nounaGreeting: 'أهلًا بيك يا {name}',
+  nounaIntro: 'أنا نونا، هطمنك على {name} خطوة بخطوة',
+  heroArrived: '{name} وصل بأمان ✓',
+  heroPickedUp: 'اتسلّم الساعة {time} · استلمته {person}',
+  heroPickedUpTime: 'اتسلّم الساعة {time}',
+  heroStillHere: 'وصل الساعة {time} · لسه في الحضانة',
+  heroNotArrived: '{name} لسه ما وصلش النهارده',
+  heroNotArrivedSub: 'هنبلّغك أول ما يوصل',
+  heroAbsent: '{name} غايب النهارده',
+  heroLeave: '{name} في إجازة النهارده',
+  nounaVoiceTitle: 'نونا بتطمنك:',
+  timelineTitle: 'خط يوم {name}',
+  tlArrival: 'الوصول والاستلام الآمن',
+  tlBreakfast: 'الفطار + اللعب الحر',
+  tlActivity: 'أنشطة اليوم',
+  tlNap: 'الغدا + نومة الضهر',
+  tlDeparture: 'الانصراف',
+  tlPending: 'لسه — هنبلّغك أول ما يتحرك',
+  tlNotYet: 'لسه',
 }

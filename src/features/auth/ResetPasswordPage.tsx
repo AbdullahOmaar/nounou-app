@@ -4,7 +4,6 @@ import { Card } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 import { Field, TextInput } from '../../components/ui/form'
 import { useAuth } from '../../lib/AuthProvider'
-import { Mascot } from '../../components/mascot/Mascot'
 import { Check } from 'lucide-react'
 import { updatePassword } from './api'
 import { t } from '../../i18n'
@@ -58,7 +57,12 @@ export function ResetPasswordPage() {
       <div className="relative w-full max-w-[640px] px-4 pt-14 pb-10">
         <div className="text-center mb-6 rise-in">
           <div className="flex justify-center mb-3">
-            <Mascot size={84} className="rounded-[22px] shadow-card select-none" />
+            {/* هوية نونو — الموجة 1: نونا النصفية (نفس قالب الدخول) */}
+            <img
+              src="/nouna/nouna-half.png"
+              alt=""
+              className="w-[200px] rounded-[24px] shadow-card select-none"
+            />
           </div>
           <h1 className="type-screen m-0">{t('auth.resetTitle')}</h1>
         </div>
@@ -70,7 +74,12 @@ export function ResetPasswordPage() {
               <p className="bg-soft text-primary text-[14px] rounded-xl px-3 py-2 mb-4 mt-0">
                 {t('auth.resetSuccess')}
               </p>
-              <Button full type="button" onClick={() => navigate('/', { replace: true })}>
+              <Button
+                full
+                type="button"
+                variant="accent"
+                onClick={() => navigate('/', { replace: true })}
+              >
                 <Check size={18} />
                 {t('auth.continueToApp')}
               </Button>
@@ -113,7 +122,7 @@ export function ResetPasswordPage() {
                   required
                 />
               </Field>
-              <Button full type="submit" disabled={busy}>
+              <Button full type="submit" variant="accent" disabled={busy}>
                 <Check size={18} />
                 {busy ? t('auth.saving') : t('auth.savePassword')}
               </Button>

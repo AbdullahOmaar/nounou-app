@@ -1,6 +1,5 @@
 /** Parent portal (signed link) + link management */
 export const portal = {
-  welcome: 'Hello, {name}',
   nurseryLine: '{nursery} portal',
   yourChildren: 'Your children',
   balanceDue: 'Your outstanding balance',
@@ -84,4 +83,24 @@ export const portal = {
   dataStatusPending: "Pending",
   dataStatusDone: "Done",
   dataStatusRejected: "Rejected",
+  // Nouna identity — Wave 1: Nouna header + safe-pickup hero + her voice + day timeline
+  nounaGreeting: 'Welcome, {name}',
+  nounaIntro: 'I’m Nouna — I’ll keep you posted on {name}, step by step',
+  heroArrived: '{name} arrived safely ✓',
+  heroPickedUp: 'Picked up at {time} · by {person}',
+  heroPickedUpTime: 'Picked up at {time}',
+  heroStillHere: 'Arrived at {time} · still at the nursery',
+  heroNotArrived: '{name} hasn’t arrived yet today',
+  heroNotArrivedSub: 'We’ll let you know as soon as they arrive',
+  heroAbsent: '{name} is absent today',
+  heroLeave: '{name} is on leave today',
+  nounaVoiceTitle: 'Nouna reassures you:',
+  timelineTitle: "{name}'s day timeline",
+  tlArrival: 'Arrival & safe handover',
+  tlBreakfast: 'Breakfast & free play',
+  tlActivity: "Today's activities",
+  tlNap: 'Lunch & nap',
+  tlDeparture: 'Pick-up',
+  tlPending: 'Not yet — we’ll let you know as soon as it happens',
+  tlNotYet: 'Not yet',
 }
