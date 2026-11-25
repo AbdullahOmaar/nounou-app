@@ -41,4 +41,5 @@ export const activity = {
   filterAll: 'كل النشاط',
   salaryPaid: "اتصرف مرتب",
   dataRequestHandled: "اتعالج طلب بيانات",
+  assistantExecuted: "المساعد نفّذ",
 }

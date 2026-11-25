@@ -16,6 +16,7 @@ import { announcements } from './announcements'
 import { notifications } from './notifications'
 import { iso } from './iso'
 import { ops } from './ops'
+import { assistant } from './assistant'
 import { dataRights } from './dataRights'
 import { licensing } from './licensing'
 import { staff } from './staff'
@@ -57,6 +58,7 @@ export const ar = {
   licensing,
   iso,
   ops,
+  assistant,
   dataRights,
   staff,
   licensingTrack,
