@@ -1511,6 +1511,20 @@ def main():
               f"got first={first_status} second={b}")
         sql(ref, f"delete from whatsapp_budgets where nursery_id = "
                  f"'{nursery_a}'")
+        # ---- platform ops dashboard (4.18, migration 0056) ----
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/platform_overview",
+                    staff_jwt, body={})
+        check("a non-operator cannot read the platform overview (4.18)",
+              s >= 400, f"got {s}")
+        sql(ref, "insert into platform_operators (user_id) "
+                 f"values ('{staff_uid}')")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/platform_overview",
+                    staff_jwt, body={})
+        check("a platform operator reads the tenant overview (4.18)",
+              s == 200 and isinstance(b, list) and len(b) >= 2,
+              f"got {s} {str(b)[:80]}")
+        sql(ref, f"delete from platform_operators where user_id = "
+                 f"'{staff_uid}'")
 
         # ---- AI governance (4.15, migration 0053) ----
         s, b = rest(url, anon, "GET",

@@ -26,6 +26,8 @@ import { useLocale, setLocale } from '../../i18n/locale'
 import { prefetchRoutesIdle } from '../../lib/routePrefetch'
 import { useEffect } from 'react'
 import { useAuth } from '../../lib/AuthProvider'
+import { useQuery } from '@tanstack/react-query'
+import { checkIsOperator } from '../ops/api'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { setActiveNurseryId } from '../../lib/workspace'
 
@@ -37,6 +39,11 @@ export function MorePage() {
   const { signOut } = useAuth()
   const nursery = useCurrentNursery()
   const isOwner = nursery.status === 'ready' && nursery.isOwner
+  const operator = useQuery({
+    queryKey: ['is-platform-operator'],
+    queryFn: checkIsOperator,
+  })
+  const isOperator = operator.data === true
 
   useEffect(() => {
     return prefetchRoutesIdle([
@@ -57,6 +64,7 @@ export function MorePage() {
     label: string
     path: string
     ownerOnly?: boolean
+    opsOnly?: boolean
   }[] = [
     { icon: LayoutGrid, label: t('shell.more.classes'), path: '/classes' },
     { icon: FileText, label: t('shell.more.reports'), path: '/reports' },
@@ -70,6 +78,7 @@ export function MorePage() {
     { icon: MessageCircleQuestion, label: t('shell.more.qa'), path: '/qa' },
     { icon: CalendarCheck, label: t('shell.more.tours'), path: '/tours' },
     { icon: Route, label: t('shell.more.licensing'), path: '/licensing', ownerOnly: true },
+    { icon: ShieldCheck, label: t('shell.more.ops'), path: '/ops', opsOnly: true },
     { icon: PartyPopper, label: t('shell.more.events'), path: '/events' },
     {
       icon: ShieldCheck,
@@ -109,6 +118,7 @@ export function MorePage() {
       )}
       {items
         .filter((i) => !i.ownerOnly || isOwner)
+        .filter((i) => !i.opsOnly || isOperator)
         .map((item) => {
           const Icon = item.icon
           return (
