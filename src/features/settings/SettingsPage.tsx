@@ -11,6 +11,7 @@ import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { WhatsAppSettingsCard } from './WhatsAppSettingsCard'
 import { PublicPageCard } from './PublicPageCard'
 import { LicensingCard } from './LicensingCard'
+import { IsoCard } from './IsoCard'
 import { IdentityCard } from './IdentityCard'
 import { useAuth } from '../../lib/AuthProvider'
 import { useNurserySettings, useSettingsMutations } from './hooks'
@@ -230,6 +231,12 @@ export function SettingsPage() {
             brandColor={nursery.nursery.brand_color}
             address={nursery.nursery.address}
             phone={nursery.nursery.phone}
+          />
+          <IsoCard
+            nurseryId={nursery.nurseryId}
+            nurseryName={nursery.nursery.name}
+            logoUrl={nursery.nursery.logo_url}
+            brandColor={nursery.nursery.brand_color}
           />
         </>
       )}
