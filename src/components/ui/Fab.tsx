@@ -44,7 +44,7 @@ export function Fab({ onClick, ariaLabel, label, icon: Icon = Plus }: FabProps) 
         type="button"
         onClick={onClick}
         aria-label={ariaLabel}
-        className="fixed z-30 bottom-[calc(88px+env(safe-area-inset-bottom,0px))] end-4 h-14 w-14 bg-primary text-on-primary shadow-raised cursor-pointer border-0 flex items-center justify-center rounded-full hover:bg-primary-d transition-colors"
+        className="fixed z-30 bottom-[calc(88px+env(safe-area-inset-bottom,0px))] end-[max(1rem,calc(50vw-320px+1rem))] h-14 w-14 bg-primary text-on-primary shadow-raised cursor-pointer border-0 flex items-center justify-center rounded-full hover:bg-primary-d transition-colors"
       >
         <Icon size={24} className="shrink-0" />
       </button>
@@ -57,7 +57,7 @@ export function Fab({ onClick, ariaLabel, label, icon: Icon = Plus }: FabProps) 
       onClick={onClick}
       aria-label={ariaLabel}
       data-expanded={expanded}
-      className={`fixed z-30 bottom-[calc(88px+env(safe-area-inset-bottom,0px))] end-4 h-14 min-w-14 max-w-[calc(100vw-2rem)] bg-primary text-on-primary shadow-raised cursor-pointer border-0 flex items-center justify-center font-bold text-[15px] rounded-full hover:bg-primary-d transition-all duration-300 ${
+      className={`fixed z-30 bottom-[calc(88px+env(safe-area-inset-bottom,0px))] end-[max(1rem,calc(50vw-320px+1rem))] h-14 min-w-14 max-w-[calc(100vw-2rem)] bg-primary text-on-primary shadow-raised cursor-pointer border-0 flex items-center justify-center font-bold text-[15px] rounded-full hover:bg-primary-d transition-all duration-300 ${
         expanded ? 'px-5 gap-2' : 'px-0 gap-0'
       }`}
     >

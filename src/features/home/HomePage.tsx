@@ -12,7 +12,8 @@ import { Card } from '../../components/ui/Card'
 import { ErrorState, LoadingState } from '../../components/ui/states'
 import { PullToRefresh } from '../../components/ui/PullToRefresh'
 import { useT } from '../../i18n'
-import { formatMoney } from '../../lib/format'
+import { fmtWeekdayDate } from '../../lib/format'
+import { formatMoney, todayISO } from '../../lib/format'
 import { useAuth } from '../../lib/AuthProvider'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { useHomeSummary } from './hooks'
@@ -51,6 +52,7 @@ export function HomePage() {
           <h1 className="type-title">
             {t('home.greeting', { name: displayName || t('shell.appName') })}
           </h1>
+          <p className="type-secondary text-muted">{fmtWeekdayDate(todayISO())}</p>
           <p className="type-secondary text-muted">{t('home.todaySummary')}</p>
         </div>
 

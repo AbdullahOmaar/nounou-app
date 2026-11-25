@@ -30,6 +30,8 @@ export const reports = {
   note: 'ملاحظة للأهل',
   notePlaceholder: 'حاجة حلوة أو ملحوظة عن يوم الطفل…',
   applyToAll: 'طبّق على الكل',
+  noPresentHint: "مفيش أطفال حاضرين في الفصل ده النهارده — سجّل الحضور الأول من شاشة اليوم.",
+  photoLoadFailed: "الصورة مش راضية تتحمل — جرّب تاني",
   editChild: 'تعديل {name}',
   publish: 'نشر التقارير للأهالي',
   publishConfirm: 'نشر {count} تقرير؟ الأهالي هيشوفوهم في بوابتهم فوراً',

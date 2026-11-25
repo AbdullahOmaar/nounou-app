@@ -95,6 +95,7 @@ export const children = {
   siblingBadge: 'أخ/أخت في الحضانة',
   issueViewLink: 'رابط مشاهدة للعائلة',
   copyViewLink: 'نسخ رابط المشاهدة',
+  linkIssued: "اتصدر الرابط — انسخه أو ابعته لولي الأمر",
   revokeViewLink: 'إلغاء رابط المشاهدة',
   growthFile: "ملف النمو",
   growthTitle: "ملف نمو {name}",

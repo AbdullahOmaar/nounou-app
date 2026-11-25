@@ -39,6 +39,8 @@ function resolveRoute(pathname: string): {
     return { screen: 'child', tab: 'children', title: 'shell.title.child' }
   if (pathname.startsWith('/children'))
     return { screen: 'children', tab: 'children', title: 'shell.title.children' }
+  if (pathname.startsWith('/today/'))
+    return { screen: 'classday', tab: 'today', title: 'shell.title.today' }
   if (pathname.startsWith('/today'))
     return { screen: 'today', tab: 'today', title: 'shell.title.today' }
   if (pathname.startsWith('/invoices/'))

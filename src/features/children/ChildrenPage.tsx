@@ -116,14 +116,14 @@ export function ChildrenPage() {
         <>
           <button
             onClick={() => navigate('/qr-cards')}
-            className="fixed bottom-56 end-4 z-10 w-12 h-12 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-text cursor-pointer"
+            className="fixed bottom-56 end-[max(1rem,calc(50vw-320px+1rem))] z-10 w-12 h-12 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-text cursor-pointer"
             aria-label={t('children.qr.title')}
           >
             <QrCode size={20} />
           </button>
           <button
             onClick={() => setImportOpen(true)}
-            className="fixed bottom-40 end-4 z-10 w-12 h-12 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-text cursor-pointer"
+            className="fixed bottom-40 end-[max(1rem,calc(50vw-320px+1rem))] z-10 w-12 h-12 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-text cursor-pointer"
             aria-label={t('children.import.title')}
           >
             <Upload size={20} />

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCheck, Copy, MessageCircle, OctagonX } from 'lucide-react'
+import { CheckCheck, ChevronLeft, ChevronRight, Copy, MessageCircle, OctagonX } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -12,6 +12,7 @@ import { Sheet } from '../../components/ui/Sheet'
 import { Field, FormError, TextInput } from '../../components/ui/form'
 import { useToast } from '../../components/ui/toast'
 import { useT } from '../../i18n'
+import { useLocale } from '../../i18n/locale'
 import { fmtPeriod } from '../../i18n/format'
 import { currentPeriod, formatMoney, waLinkWithText } from '../../lib/format'
 import { useNurserySettings } from '../settings/hooks'
@@ -27,6 +28,7 @@ import { useCurrentNursery } from '../../hooks/useCurrentNursery'
  */
 export function InvoicesPage() {
   const t = useT()
+  const locale = useLocale()
   const navigate = useNavigate()
   const showToast = useToast()
   const [period, setPeriod] = useState(currentPeriod())
@@ -45,14 +47,25 @@ export function InvoicesPage() {
   const [issueError, setIssueError] = useState<string | null>(null)
   const [issueResult, setIssueResult] = useState<string | null>(null)
 
+  // عيب 4 (فرق 100 ج): «المتبقي» = مجموع الأرصدة الموجبة فقط — نفس
+  // تعريف الرئيسية (child_balances > 0) — والزيادة المدفوعة سطر مستقل
+  // بدل ما تُخصم خفيةً من المتبقي (مريم دفعت 900 مقابل فاتورة 800).
   const totals = useMemo(() => {
     const list = (invoices.data ?? []).filter((i) => i.status !== 'cancelled')
     return {
       total: list.reduce((s, i) => s + i.total, 0),
       paid: list.reduce((s, i) => s + i.paid, 0),
-      balance: list.reduce((s, i) => s + i.balance, 0),
+      balance: list.reduce((s, i) => s + Math.max(i.balance, 0), 0),
+      overpaid: list.reduce((s, i) => s + Math.max(-i.balance, 0), 0),
     }
   }, [invoices.data])
+
+  function shiftPeriod(p: string, delta: number): string {
+    const [y, m] = p.split('-').map((x) => parseInt(x, 10))
+    const d = new Date(y, (m - 1) + delta, 1)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
+  }
 
   async function handleIssue() {
     setIssueError(null)
@@ -101,14 +114,23 @@ export function InvoicesPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-2">
-        <TextInput
-          type="month"
-          value={period}
-          onChange={(e) => setPeriod(e.target.value)}
-          className="w-44"
-          aria-label={t('invoices.filterPeriod')}
-        />
-        <span className="type-secondary text-muted">{fmtPeriod(period)}</span>
+        <Button
+          variant="soft"
+          size="sm"
+          aria-label={t('invoices.prevMonth')}
+          onClick={() => setPeriod(shiftPeriod(period, -1))}
+        >
+          <ChevronRight size={18} className={locale === 'ar' ? undefined : 'rotate-180'} />
+        </Button>
+        <span className="type-section whitespace-nowrap">{fmtPeriod(period)}</span>
+        <Button
+          variant="soft"
+          size="sm"
+          aria-label={t('invoices.nextMonth')}
+          onClick={() => setPeriod(shiftPeriod(period, 1))}
+        >
+          <ChevronLeft size={18} className={locale === 'ar' ? undefined : 'rotate-180'} />
+        </Button>
       </div>
 
       <Card className="flex justify-around text-center py-3">
@@ -124,6 +146,12 @@ export function InvoicesPage() {
           <div className="type-badge text-muted">{t('invoices.balance')}</div>
           <div className="type-section text-bad-text">{formatMoney(totals.balance)}</div>
         </div>
+        {totals.overpaid > 0 && (
+          <div>
+            <div className="type-badge text-muted">{t('invoices.overpaid')}</div>
+            <div className="type-section text-good-text">{formatMoney(totals.overpaid)}</div>
+          </div>
+        )}
       </Card>
 
       {invoices.isPending ? (
@@ -151,7 +179,11 @@ export function InvoicesPage() {
               trailing={
                 inv.status === 'cancelled' ? (
                   <span className="type-badge text-muted">{t('invoices.statusCancelled')}</span>
-                ) : inv.balance <= 0 ? (
+                ) : inv.balance < 0 ? (
+                  <span className="type-badge text-good-text bg-good-soft rounded-full px-2 py-1">
+                    {t('invoices.overpaidBadge', { amount: formatMoney(-inv.balance) })}
+                  </span>
+                ) : inv.balance === 0 ? (
                   <span className="type-badge text-good-text">{t('invoices.settled')}</span>
                 ) : (
                   <span className="type-badge text-bad-text bg-bad-soft rounded-full px-2 py-1">

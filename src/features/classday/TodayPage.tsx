@@ -4,6 +4,7 @@ import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { ErrorState, LoadingState } from '../../components/ui/states'
 import { useT } from '../../i18n'
+import { fmtWeekdayDate, todayISO } from '../../lib/format'
 import { useLocale } from '../../i18n/locale'
 import { useClasses } from '../classes/hooks'
 
@@ -28,6 +29,7 @@ export function TodayPage() {
 
   return (
     <div className="flex flex-col gap-2">
+      <p className="type-secondary text-muted">{fmtWeekdayDate(todayISO())}</p>
       <p className="type-secondary text-muted">{t('attendance.pickClass')}</p>
       {list.map((c) => (
         <Card
