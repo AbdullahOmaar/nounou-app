@@ -20,6 +20,7 @@ import { Onboarding } from '../../features/auth/Onboarding'
 import { OfflineStrip } from './OfflineStrip'
 import { InstallButton } from '../InstallButton'
 import { LoadingState } from '../ui/states'
+import { VersionLine } from '../ui/VersionLine'
 import { Mascot } from '../mascot/Mascot'
 import { useT, type I18nKey } from '../../i18n'
 import { useLocale } from '../../i18n/locale'
@@ -199,6 +200,7 @@ export function AppShell() {
             <Outlet />
           )}
         </div>
+        <VersionLine className="mt-6" />
       </main>
 
       <InstallButton />

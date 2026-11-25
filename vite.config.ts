@@ -14,6 +14,7 @@ const pkgVersion = (JSON.parse(readFileSync(new URL('./package.json', import.met
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkgVersion),
+    __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
   },
   plugins: [react(), tailwindcss()],
   build: {
