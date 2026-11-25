@@ -15,6 +15,7 @@ import json
 import statistics
 import sys
 import time
+import urllib.parse
 import urllib.request
 
 PROD_REF = "eodzmizxvkwxelrexopl"
@@ -33,6 +34,7 @@ def call(url, key, path, body, timeout=15):
     )
     start = time.perf_counter()
     try:
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected -- الرابط مُتحقق منه في main() قبل أي نداء: scheme ‏https فقط والمضيف ‏supabase.co أو ‏localhost — الأداة داخلية بهدف واحد معلن.
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             resp.read()
             return resp.status, (time.perf_counter() - start) * 1000
@@ -63,6 +65,14 @@ def main():
     ap.add_argument("--seconds", type=int, default=30)
     ap.add_argument("--allow-production", action="store_true")
     args = ap.parse_args()
+    parsed = urllib.parse.urlparse(args.url)
+    host_ok = parsed.hostname is not None and (
+        parsed.hostname.endswith(".supabase.co")
+        or parsed.hostname in ("localhost", "127.0.0.1")
+    )
+    if parsed.scheme != "https" or not host_ok:
+        print("REFUSED: url must be https://<ref>.supabase.co or localhost")
+        return 2
     if PROD_REF in args.url and not args.allow_production:
         print("REFUSED: production target needs --allow-production")
         return 2
