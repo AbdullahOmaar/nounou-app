@@ -63,4 +63,9 @@ export const invoices = {
   cancelHasPayments: 'الفاتورة دي فيها دفعات مسجلة — اعكس الدفعات الأول وبعدين ألغي الفاتورة',
   remindAll: 'تذكير الكل',
   remindersRun: 'اتسجلت {attempted} محاولة تذكير — واتخطى {skipped} اتذكروا من أقل من أسبوع',
+  receiptNoLabel: "رقم الإيصال",
+  receiptChild: "الطفل",
+  receiptMethod: "طريقة الدفع",
+  receiptDate: "التاريخ",
+  receiptPeriod: "الشهر",
 }

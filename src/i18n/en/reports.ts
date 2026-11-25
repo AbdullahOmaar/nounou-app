@@ -70,4 +70,6 @@ export const reports = {
   quickNoSleep: "Did not sleep",
   voiceNote: "Voice note",
   voiceListening: "Listening…",
+  printTitle: "Day report — {name}",
+  printReport: "Print",
 }
