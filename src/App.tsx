@@ -144,6 +144,7 @@ registerRouteLoaders({
   '/qa': () => import('./features/qa/QaPage'),
   '/tours': () => import('./features/tours/ToursPage'),
   '/staff': () => import('./features/staff/StaffPage'),
+  '/licensing': () => import('./features/licensing/LicensingPage'),
   '/events': () => import('./features/events/EventsPage'),
   '/settings': () => import('./features/settings/SettingsPage'),
   '/members': () => import('./features/settings/MembersPage'),

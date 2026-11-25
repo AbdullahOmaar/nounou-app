@@ -1490,6 +1490,13 @@ def main():
               s == 200 and (linked.get("c") or 0) >= 1,
               f"got {s} linked={linked.get('c')}")
 
+        # ---- licensing steps (4.12, migration 0051) ----
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/licensing_steps?select=step_key"
+                    f"&nursery_id=eq.{nursery_a}", staff_jwt)
+        check("staff cannot read licensing steps (4.12 owner-only)",
+              s == 200 and b == [], f"got {s}")
+
         # ---- staff payroll (4.6, migration 0050) ----
         staff_member = one(ref, "select id from nursery_members where "
                                 f"nursery_id='{nursery_a}' and "
