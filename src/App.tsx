@@ -143,6 +143,7 @@ registerRouteLoaders({
   '/messages': () => import('./features/messages/MessagesPage'),
   '/qa': () => import('./features/qa/QaPage'),
   '/tours': () => import('./features/tours/ToursPage'),
+  '/staff': () => import('./features/staff/StaffPage'),
   '/events': () => import('./features/events/EventsPage'),
   '/settings': () => import('./features/settings/SettingsPage'),
   '/members': () => import('./features/settings/MembersPage'),

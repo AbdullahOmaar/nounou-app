@@ -558,3 +558,32 @@ export interface GuardianAccessTokenRow {
   created_at: string
   access_scope: 'full' | 'view'
 }
+
+export interface StaffProfileRow {
+  id: string
+  nursery_id: string
+  member_id: string
+  monthly_salary: number
+  job_title: string | null
+  created_at: string
+}
+
+export interface StaffAttendanceRow {
+  id: string
+  nursery_id: string
+  member_id: string
+  day: string
+  status: 'present' | 'absent' | 'late' | 'leave'
+  created_at: string
+}
+
+export interface StaffPayrollRow {
+  id: string
+  nursery_id: string
+  member_id: string
+  period: string
+  amount: number
+  absent_days: number
+  expense_id: string | null
+  created_at: string
+}

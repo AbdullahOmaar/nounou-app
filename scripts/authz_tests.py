@@ -1489,6 +1489,41 @@ def main():
         check("supplier payment lands atomically with a linked cashbox entry",
               s == 200 and (linked.get("c") or 0) >= 1,
               f"got {s} linked={linked.get('c')}")
+
+        # ---- staff payroll (4.6, migration 0050) ----
+        staff_member = one(ref, "select id from nursery_members where "
+                                f"nursery_id='{nursery_a}' and "
+                                f"user_id='{staff_uid}'")
+        staff_member_id = staff_member.get("id")
+        sql(ref, "insert into staff_profiles (nursery_id, member_id, "
+                 "monthly_salary) values "
+                 f"('{nursery_a}', '{staff_member_id}', 3000)")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/staff_profiles?select=id"
+                    f"&nursery_id=eq.{nursery_a}", staff_jwt)
+        check("staff cannot read salary profiles (4.6 owner-only)",
+              s == 200 and b == [], f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/staff_attendance",
+                    staff_jwt,
+                    body={"nursery_id": nursery_a,
+                          "member_id": staff_member_id,
+                          "day": "2026-11-02", "status": "absent"})
+        check("a member can mark staff attendance (4.6)",
+              s in (200, 201), f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/pay_staff_salary",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a,
+                          "p_member": staff_member_id,
+                          "p_period": "2026-11"})
+        check("paying a salary deducts absent days (4.6: 3000-100=2900)",
+              s == 200 and float(b) == 2900.0, f"got {s} {b}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/pay_staff_salary",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a,
+                          "p_member": staff_member_id,
+                          "p_period": "2026-11"})
+        check("a second pay for the same month is rejected (4.6)",
+              s >= 400 and "already_paid" in str(b), f"got {s}")
     finally:
         # ---------- cleanup ----------
         ids = [u for u in (owner_a_uid, owner_b_uid, staff_uid) if u]

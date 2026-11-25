@@ -64,6 +64,7 @@ export function MorePage() {
     { icon: Link2, label: t('shell.more.portalLinks'), path: '/portal-links' },
     { icon: Wallet, label: t('shell.more.finance'), path: '/finance', ownerOnly: true },
     { icon: Truck, label: t('shell.more.suppliers'), path: '/suppliers', ownerOnly: true },
+    { icon: Wallet, label: t('shell.more.staff'), path: '/staff', ownerOnly: true },
     { icon: MessageCircle, label: t('shell.more.messages'), path: '/messages' },
     { icon: MessageCircleQuestion, label: t('shell.more.qa'), path: '/qa' },
     { icon: CalendarCheck, label: t('shell.more.tours'), path: '/tours' },

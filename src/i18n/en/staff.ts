@@ -1,0 +1,15 @@
+export const staff = {
+  title: "Staff & payroll",
+  empty: "No active team members yet",
+  present: "Present",
+  absent: "Absent",
+  late: "Late",
+  leave: "Leave",
+  salary: "Monthly salary (EGP)",
+  pay: "Pay salary",
+  paidBadge: "Paid {amount}",
+  paidOk: "Paid {amount}",
+  alreadyPaid: "This month's salary was already paid",
+  period: "Payroll month",
+  ruleNote: "Pay rule: salary minus absent-day deduction (salary / 30 x absent days that month). Paying posts an expense in Finance automatically.",
+} as const
