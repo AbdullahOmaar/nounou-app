@@ -2,6 +2,12 @@
 export const settings = {
   title: 'الإعدادات',
   nurserySection: 'بيانات الحضانة',
+  groupNursery: 'الحضانة',
+  groupAccountTeam: 'الحساب والفريق',
+  groupDataSupport: 'البيانات والدعم',
+  groupOwner: 'المالك',
+  groupStaff: 'المشرفات',
+  memberInvitedShort: 'مدعوة — لسه ما قبلتش',
   nurseryName: 'اسم الحضانة',
   nurseryPhone: 'موبايل الحضانة (بيظهر للأهالي)',
   nurseryAddress: 'العنوان',

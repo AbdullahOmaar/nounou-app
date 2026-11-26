@@ -2,6 +2,12 @@
 export const settings = {
   title: 'Settings',
   nurserySection: 'Nursery details',
+  groupNursery: 'Nursery',
+  groupAccountTeam: 'Account & team',
+  groupDataSupport: 'Data & support',
+  groupOwner: 'Owner',
+  groupStaff: 'Staff',
+  memberInvitedShort: 'Invited — not accepted yet',
   nurseryName: 'Nursery name',
   nurseryPhone: 'Nursery phone (shown to parents)',
   nurseryAddress: 'Address',

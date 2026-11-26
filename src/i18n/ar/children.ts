@@ -42,6 +42,7 @@ export const children = {
   issueLink: 'إنشاء رابط جديد',
   revokeLink: 'إلغاء الرابط',
   linkActive: 'رابط شغّال',
+  viewLinkBadge: 'رابط مشاهدة',
   linkExpires: 'ينتهي {date}',
   linkRevoked: 'اتلغى',
   linkNeverUsed: 'لم يُستخدم بعد',

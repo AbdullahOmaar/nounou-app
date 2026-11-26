@@ -72,5 +72,8 @@ export const shell = {
     export: 'تصدير البيانات',
     signOut: 'تسجيل الخروج',
     language: 'لغة الواجهة',
+    groupAdmin: 'الإدارة',
+    groupComms: 'التواصل',
+    groupAccount: 'الحساب',
   },
 } as const

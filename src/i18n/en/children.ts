@@ -42,6 +42,7 @@ export const children = {
   issueLink: 'Create a new link',
   revokeLink: 'Revoke link',
   linkActive: 'Active link',
+  viewLinkBadge: 'View link',
   linkExpires: 'Expires {date}',
   linkRevoked: 'Revoked',
   linkNeverUsed: 'Not used yet',

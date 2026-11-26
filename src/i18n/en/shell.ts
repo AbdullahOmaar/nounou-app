@@ -72,5 +72,8 @@ export const shell = {
     export: 'Export data',
     signOut: 'Sign out',
     language: 'Interface language',
+    groupAdmin: 'Admin',
+    groupComms: 'Communication',
+    groupAccount: 'Account',
   },
 }
