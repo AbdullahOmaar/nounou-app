@@ -86,6 +86,11 @@ function resolveRoute(pathname: string): {
 
 const ROOT_SCREENS = new Set(['home', 'children', 'today', 'invoices', 'more'])
 
+// قواعد نونا (DESIGN §3): المالية والإدارية بلا حضور نونا — علامة
+// الترويسة تُحجب على الشاشتين الجذريتين الماليتين/الإداريتين
+// (الفواتير والمزيد)، ويبقى مكانها فارغاً حتى لا يهتز التخطيط.
+const NO_NOUNA_SCREENS = new Set(['invoices', 'more'])
+
 /**
  * قشرة نونو: ترويسة (رجوع/شعار + اسم الحضانة + جرس بشارة أنواع التنبيهات
  * + مظهر + حساب) وشريط سفلي بخمس وجهات. بوابة الهوية: بلا حضانة نشطة
@@ -142,6 +147,8 @@ export function AppShell() {
                 className={locale === 'ar' ? undefined : 'rotate-180'}
               />
             </button>
+          ) : NO_NOUNA_SCREENS.has(screen) ? (
+            <span className="w-12 h-12 shrink-0" />
           ) : (
             <span className="w-12 h-12 shrink-0 flex items-center justify-center">
               <Mascot size={34} />
