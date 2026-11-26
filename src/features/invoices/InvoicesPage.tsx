@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCheck, ChevronLeft, ChevronRight, Copy, MessageCircle, OctagonX } from 'lucide-react'
+import { CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Copy, MessageCircle, OctagonX } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -14,7 +14,7 @@ import { useToast } from '../../components/ui/toast'
 import { useT } from '../../i18n'
 import { useLocale } from '../../i18n/locale'
 import { fmtPeriod } from '../../i18n/format'
-import { currentPeriod, formatMoney, waLinkWithText } from '../../lib/format'
+import { currentPeriod, formatMoney, todayISO, waLinkWithText } from '../../lib/format'
 import { useNurserySettings } from '../settings/hooks'
 import { useInvoices, useInvoiceMutations, useOverdue } from './hooks'
 import { runFeeReminders } from './reminders'
@@ -43,6 +43,7 @@ export function InvoicesPage() {
   const settings = useNurserySettings()
   const mutations = useInvoiceMutations()
   const [issueOpen, setIssueOpen] = useState(false)
+  const [paidOpen, setPaidOpen] = useState(false)
   const [dueDate, setDueDate] = useState('')
   const [issueError, setIssueError] = useState<string | null>(null)
   const [issueResult, setIssueResult] = useState<string | null>(null)
@@ -59,6 +60,71 @@ export function InvoicesPage() {
       overpaid: list.reduce((s, i) => s + Math.max(-i.balance, 0), 0),
     }
   }, [invoices.data])
+
+  // مجموعات الهوية (الموجة 4): متأخرة (رصيد قائم واستحقاقه فات) ثم
+  // مستحقة ثم مدفوعة (مطوية افتراضيًا — قرار التصميم §5) ثم ملغاة.
+  // التجميع من نفس الحقول المعروضة (balance/due_date/status) — المبالغ
+  // والشارات كما هي حرفيًا.
+  const groups = useMemo(() => {
+    const list = invoices.data ?? []
+    const today = todayISO()
+    const isOverdue = (i: (typeof list)[number]) =>
+      i.balance > 0 && i.due_date !== null && i.due_date < today
+    return [
+      {
+        key: 'overdue',
+        label: t('invoices.groupOverdue'),
+        items: list.filter((i) => i.status !== 'cancelled' && isOverdue(i)),
+      },
+      {
+        key: 'due',
+        label: t('invoices.groupDue'),
+        items: list.filter((i) => i.status !== 'cancelled' && i.balance > 0 && !isOverdue(i)),
+      },
+      {
+        key: 'paid',
+        label: t('invoices.groupPaid'),
+        items: list.filter((i) => i.status !== 'cancelled' && i.balance <= 0),
+      },
+      {
+        key: 'cancelled',
+        label: t('invoices.statusCancelled'),
+        items: list.filter((i) => i.status === 'cancelled'),
+      },
+    ].filter((g) => g.items.length > 0)
+  }, [invoices.data, t])
+
+  function invoiceRow(inv: NonNullable<typeof invoices.data>[number]) {
+    return (
+      <button
+        key={inv.id}
+        type="button"
+        className="text-start cursor-pointer bg-transparent border-0 p-0 w-full"
+        onClick={() => navigate(`/invoices/${inv.id}`)}
+      >
+        <ListRow
+          leading={<Avatar name={inv.childName} />}
+          title={inv.childName}
+          secondary={`${t('invoices.total')} ${formatMoney(inv.total)}`}
+          trailing={
+            inv.status === 'cancelled' ? (
+              <span className="type-badge text-muted">{t('invoices.statusCancelled')}</span>
+            ) : inv.balance < 0 ? (
+              <span className="type-badge text-ok-text bg-ok-soft rounded-full px-2 py-1">
+                {t('invoices.overpaidBadge', { amount: formatMoney(-inv.balance) })}
+              </span>
+            ) : inv.balance === 0 ? (
+              <span className="type-badge text-ok-text">{t('invoices.settled')}</span>
+            ) : (
+              <span className="type-badge text-bad-text bg-bad-soft rounded-full px-2 py-1">
+                {formatMoney(inv.balance)}
+              </span>
+            )
+          }
+        />
+      </button>
+    )
+  }
 
   function shiftPeriod(p: string, delta: number): string {
     const [y, m] = p.split('-').map((x) => parseInt(x, 10))
@@ -133,25 +199,27 @@ export function InvoicesPage() {
         </Button>
       </div>
 
-      <Card className="flex justify-around text-center py-3">
+      <Card className="flex flex-col gap-3">
         <div>
-          <div className="type-badge text-muted">{t('invoices.total')}</div>
-          <div className="type-section">{formatMoney(totals.total)}</div>
+          <div className="type-badge text-muted">{t('invoices.collected')}</div>
+          <div className="type-title">{formatMoney(totals.paid)}</div>
         </div>
-        <div>
-          <div className="type-badge text-muted">{t('invoices.paid')}</div>
-          <div className="type-section text-good-text">{formatMoney(totals.paid)}</div>
-        </div>
-        <div>
-          <div className="type-badge text-muted">{t('invoices.balance')}</div>
-          <div className="type-section text-bad-text">{formatMoney(totals.balance)}</div>
-        </div>
-        {totals.overpaid > 0 && (
-          <div>
-            <div className="type-badge text-muted">{t('invoices.overpaid')}</div>
-            <div className="type-section text-good-text">{formatMoney(totals.overpaid)}</div>
+        <div className="flex gap-2 text-center">
+          <div className="flex-1 bg-soft rounded-xl py-2">
+            <div className="type-badge text-muted">{t('invoices.total')}</div>
+            <div className="type-section">{formatMoney(totals.total)}</div>
           </div>
-        )}
+          <div className="flex-1 bg-soft rounded-xl py-2">
+            <div className="type-badge text-muted">{t('invoices.balance')}</div>
+            <div className="type-section text-bad-text">{formatMoney(totals.balance)}</div>
+          </div>
+          {totals.overpaid > 0 && (
+            <div className="flex-1 bg-soft rounded-xl py-2">
+              <div className="type-badge text-muted">{t('invoices.overpaid')}</div>
+              <div className="type-section text-ok-text">{formatMoney(totals.overpaid)}</div>
+            </div>
+          )}
+        </div>
       </Card>
 
       {invoices.isPending ? (
@@ -164,35 +232,32 @@ export function InvoicesPage() {
       ) : (invoices.data ?? []).length === 0 ? (
         <EmptyState title={t('invoices.emptyTitle')} hint={t('invoices.emptyBody')} />
       ) : (
-        <div className="flex flex-col gap-2">
-          {(invoices.data ?? []).map((inv) => (
-            <button
-              key={inv.id}
-              type="button"
-              className="text-start cursor-pointer bg-transparent border-0 p-0 w-full"
-              onClick={() => navigate(`/invoices/${inv.id}`)}
-            >
-            <ListRow
-              leading={<Avatar name={inv.childName} />}
-              title={inv.childName}
-              secondary={`${t('invoices.total')} ${formatMoney(inv.total)}`}
-              trailing={
-                inv.status === 'cancelled' ? (
-                  <span className="type-badge text-muted">{t('invoices.statusCancelled')}</span>
-                ) : inv.balance < 0 ? (
-                  <span className="type-badge text-good-text bg-good-soft rounded-full px-2 py-1">
-                    {t('invoices.overpaidBadge', { amount: formatMoney(-inv.balance) })}
+        <div className="flex flex-col gap-4">
+          {groups.map((g) => (
+            <section key={g.key}>
+              {g.key === 'paid' ? (
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between mb-2 cursor-pointer bg-transparent border-0 p-0"
+                  onClick={() => setPaidOpen((v) => !v)}
+                  aria-expanded={paidOpen}
+                >
+                  <span className="type-section">{g.label}</span>
+                  <span className="flex items-center gap-1 type-badge text-muted">
+                    {g.items.length}
+                    <ChevronDown size={16} className={paidOpen ? 'rotate-180' : undefined} />
                   </span>
-                ) : inv.balance === 0 ? (
-                  <span className="type-badge text-good-text">{t('invoices.settled')}</span>
-                ) : (
-                  <span className="type-badge text-bad-text bg-bad-soft rounded-full px-2 py-1">
-                    {formatMoney(inv.balance)}
-                  </span>
-                )
-              }
-            />
-            </button>
+                </button>
+              ) : (
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="type-section">{g.label}</h2>
+                  <span className="type-badge text-muted">{g.items.length}</span>
+                </div>
+              )}
+              {(g.key !== 'paid' || paidOpen) && (
+                <div className="flex flex-col gap-2">{g.items.map(invoiceRow)}</div>
+              )}
+            </section>
           ))}
         </div>
       )}

@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { Download } from 'lucide-react'
+import { Download, FileSpreadsheet, Receipt, Users } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { useT } from '../../i18n'
 import { toCsv } from '../../lib/csv'
+import { formatDateTimeAr } from '../../lib/format'
 import { requireSupabase } from '../../lib/supabase'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
+import { useNurserySettings } from './hooks'
 
 /**
  * تصدير بيانات الحضانة CSV (أطفال + فواتير + مدفوعات للمالك): ملفات
@@ -18,6 +20,7 @@ export function ExportPage() {
   const isOwner = nursery.status === 'ready' && nursery.isOwner
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState(false)
+  const settings = useNurserySettings()
 
   function download(name: string, csv: string) {
     const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' })
@@ -108,14 +111,54 @@ export function ExportPage() {
   }
 
   return (
-    <Card className="flex flex-col gap-3">
-      <h2 className="type-section">{t('settings.exportTitle')}</h2>
-      <p className="type-secondary text-muted">{t('settings.exportBody')}</p>
-      <Button onClick={handleExport} disabled={busy || !nurseryId}>
-        <Download size={18} />
-        {t('settings.exportNow')}
-      </Button>
-      {done && <p className="type-body text-good-text">{t('common.savedOk')}</p>}
-    </Card>
+    <div className="flex flex-col gap-4">
+      <Card className="flex flex-col gap-3">
+        <h2 className="type-section">{t('settings.exportTitle')}</h2>
+        <p className="type-secondary text-muted">{t('settings.exportBody')}</p>
+        <div className="flex flex-col gap-2">
+          <div className="type-badge text-muted">{t('settings.exportIncludes')}</div>
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 shrink-0 rounded-xl bg-soft text-primary flex items-center justify-center">
+              <Users size={18} />
+            </span>
+            <span className="type-body">{t('settings.exportFileChildren')}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 shrink-0 rounded-xl bg-soft text-primary flex items-center justify-center">
+              <Receipt size={18} />
+            </span>
+            <span className="type-body">{t('settings.exportFileInvoices')}</span>
+            {!isOwner && (
+              <span className="type-badge text-warn-text bg-warn-soft rounded-full px-2 py-1">
+                {t('settings.exportOwnerOnly')}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 shrink-0 rounded-xl bg-soft text-primary flex items-center justify-center">
+              <FileSpreadsheet size={18} />
+            </span>
+            <span className="type-body">{t('settings.exportFilePayments')}</span>
+            {!isOwner && (
+              <span className="type-badge text-warn-text bg-warn-soft rounded-full px-2 py-1">
+                {t('settings.exportOwnerOnly')}
+              </span>
+            )}
+          </div>
+        </div>
+      </Card>
+      <Card className="flex flex-col gap-3">
+        {settings.data?.last_export_at && (
+          <p className="type-secondary text-muted">
+            {t('settings.lastExport', { date: formatDateTimeAr(settings.data.last_export_at) })}
+          </p>
+        )}
+        <Button onClick={handleExport} disabled={busy || !nurseryId} full>
+          <Download size={18} />
+          {t('settings.exportNow')}
+        </Button>
+        {done && <p className="type-body text-ok-text">{t('common.savedOk')}</p>}
+      </Card>
+    </div>
   )
 }

@@ -102,27 +102,31 @@ export function InvoiceDetailPage() {
             </div>
           </div>
           {settled && (
-            <span className="type-badge text-good-text bg-good-soft rounded-full px-2 py-1">
+            <span className="type-badge text-ok-text bg-ok-soft rounded-full px-2 py-1">
               {t('invoices.settled')}
             </span>
           )}
         </div>
-        <div className="flex justify-around text-center mt-3">
-          <div>
-            <div className="type-badge text-muted">{t('invoices.total')}</div>
-            <div className="type-section">{formatMoney(balance?.total ?? 0)}</div>
+        <div className="flex flex-col divide-y divide-border mt-2">
+          <div className="flex items-center justify-between py-2">
+            <span className="type-secondary text-muted">{t('invoices.total')}</span>
+            <span className="type-body font-semibold">{formatMoney(balance?.total ?? 0)}</span>
           </div>
-          <div>
-            <div className="type-badge text-muted">{t('invoices.paid')}</div>
-            <div className="type-section text-good-text">
+          <div className="flex items-center justify-between py-2">
+            <span className="type-secondary text-muted">{t('invoices.paid')}</span>
+            <span className="type-body font-semibold text-ok-text">
               {formatMoney(balance?.paid ?? 0)}
-            </div>
+            </span>
           </div>
-          <div>
-            <div className="type-badge text-muted">{t('invoices.balance')}</div>
-            <div className="type-section text-bad-text">
+          <div className="flex items-center justify-between py-2">
+            <span className="type-secondary text-muted">{t('invoices.balance')}</span>
+            <span
+              className={`type-body font-semibold ${
+                (balance?.balance ?? 0) > 0 ? 'text-bad-text' : 'text-ok-text'
+              }`}
+            >
               {formatMoney(balance?.balance ?? 0)}
-            </div>
+            </span>
           </div>
         </div>
       </Card>

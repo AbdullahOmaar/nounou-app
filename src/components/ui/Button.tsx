@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes } from 'react'
 
-type Variant = 'primary' | 'ghost' | 'danger' | 'soft' | 'accent'
+type Variant = 'primary' | 'ghost' | 'danger' | 'soft' | 'accent' | 'ok' | 'dangerGhost'
 type Size = 'md' | 'sm'
 
 const variants: Record<Variant, string> = {
@@ -13,6 +13,11 @@ const variants: Record<Variant, string> = {
   // كهرماني (هوية نونو — الموجة 1): الزر الوحيد بلون التمييز في الشاشة
   // (زر QR للحضور + زر الدخول) — نص داكن #4A2E00 عليه (6.16:1، §2.1.1)
   accent: 'bg-accent text-on-accent hover:opacity-90',
+  // اعتماد مالي (هوية نونو — الموجة 4): أخضر الحالة بحشوة كاملة ونص عبر
+  // توكن --on-ok (أبيض على #166B4D = 6.47:1 فاتح؛ داكن على #34D399 داكن)
+  ok: 'bg-ok text-on-ok hover:opacity-90',
+  // رفض مالي: حدّ ونصّ بلون الخطر على شفاف — أهدى من الحشوة الكاملة
+  dangerGhost: 'bg-transparent border border-bad text-bad-text hover:bg-bad-soft',
 }
 
 // سلم أحجام موحّد (3A-317 — تدقيق الأزرار): md هو الأساس (هدف لمس 48px)،
