@@ -498,6 +498,9 @@ export function ReportsPage() {
               >
                 {t('reports.applyToAll')}
               </Button>
+              {presentChildren.length === 0 && (
+                <p className="type-badge text-muted mt-2">{t('reports.noPresentHint')}</p>
+              )}
               {bulkSaving && (
                 <Button
                   variant="soft"
@@ -763,6 +766,7 @@ function PhotosSection({
   const [caption, setCaption] = useState('')
   const [uploading, setUploading] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<(typeof photos)[number] | null>(null)
+  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(new Set())
 
   async function handleUpload() {
     if (files.length === 0) return
@@ -940,15 +944,22 @@ function PhotosSection({
         <div className="grid grid-cols-3 gap-2">
           {photos.map((p) => (
             <div key={p.id} className="relative">
-              {p.url ? (
+              {p.url && !failedPhotos.has(p.id) ? (
                 <img
                   src={p.url}
                   alt={p.caption ?? ''}
                   className="w-full aspect-square object-cover rounded-xl"
                   loading="lazy"
+                  onError={() =>
+                    setFailedPhotos((prev) => new Set(prev).add(p.id))
+                  }
                 />
               ) : (
-                <div className="w-full aspect-square rounded-xl bg-soft" />
+                <div className="w-full aspect-square rounded-xl bg-soft flex items-center justify-center px-2">
+                  <span className="type-badge text-muted text-center">
+                    {t('reports.photoLoadFailed')}
+                  </span>
+                </div>
               )}
               {canPhotos && (
                 <button

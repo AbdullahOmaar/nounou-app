@@ -96,12 +96,15 @@ export function PortalLinksPage() {
     },
     onSuccess: ({ guardianId, url }) => {
       setFreshLinks((prev) => new Map(prev).set(guardianId, url))
+      showToast(t('children.linkIssued'))
       refresh()
     },
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
   })
   const revoke = useMutation({
     mutationFn: (tokenId: string) => api.revokeToken(tokenId),
     onSuccess: refresh,
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
   })
   const issueView = useMutation({
     mutationFn: async (guardianId: string) => {
@@ -110,8 +113,10 @@ export function PortalLinksPage() {
     },
     onSuccess: ({ guardianId, url }) => {
       setFreshViewLinks((prev) => new Map(prev).set(guardianId, url))
+      showToast(t('children.linkIssued'))
       refresh()
     },
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
   })
 
   const list = useMemo(
@@ -159,7 +164,11 @@ export function PortalLinksPage() {
             </div>
             <div className="flex gap-2 mt-3 flex-wrap">
               {canManage && !activeToken && (
-                <Button size="sm" onClick={() => issue.mutate(guardian.id)}>
+                <Button
+                  size="sm"
+                  disabled={issue.isPending}
+                  onClick={() => issue.mutate(guardian.id)}
+                >
                   <Link2 size={16} />
                   {t('children.issueLink')}
                 </Button>
@@ -195,6 +204,7 @@ export function PortalLinksPage() {
                 <Button
                   size="sm"
                   variant="ghost"
+                  disabled={revoke.isPending}
                   onClick={() => revoke.mutate(activeToken.id)}
                 >
                   <X size={16} />
@@ -207,6 +217,7 @@ export function PortalLinksPage() {
                     <Button
                       size="sm"
                       variant="ghost"
+                      disabled={issueView.isPending}
                       onClick={() => issueView.mutate(guardian.id)}
                     >
                       <Eye size={16} />
@@ -227,6 +238,7 @@ export function PortalLinksPage() {
                     <Button
                       size="sm"
                       variant="ghost"
+                      disabled={revoke.isPending}
                       onClick={() => revoke.mutate(viewToken.id)}
                     >
                       <X size={16} />

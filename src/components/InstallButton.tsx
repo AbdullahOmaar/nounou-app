@@ -63,7 +63,7 @@ export function InstallButton() {
           setHidden(true)
         })
       }}
-      className="fixed z-30 bottom-[calc(88px+env(safe-area-inset-bottom,0px))] start-4 h-12 px-4 rounded-full bg-card text-text border border-border-interactive shadow-raised cursor-pointer flex items-center gap-2 font-bold text-[14px]"
+      className="fixed z-30 bottom-[calc(88px+env(safe-area-inset-bottom,0px))] start-[max(1rem,calc(50vw-320px+1rem))] h-12 px-4 rounded-full bg-card text-text border border-border-interactive shadow-raised cursor-pointer flex items-center gap-2 font-bold text-[14px]"
     >
       <Download size={20} className="text-primary shrink-0" />
       {t('settings.installTitle')}

@@ -16,6 +16,8 @@ import { enqueuePickupCode } from '../settings/whatsapp'
 import { useNurserySettings } from '../settings/hooks'
 import * as api from './api'
 import { useAttendanceWriter, useClassDay, useDayChildren } from './hooks'
+import { useClasses } from '../classes/hooks'
+import { fmtWeekdayDate } from '../../lib/format'
 // ماسح QR يُحمَّل كسولاً عند أول فتح فقط (3A-335): مكتبة @zxing/browser
 // كانت تضخّم حزمة شاشة اليوم (486KB) رغم أن المسح فعل اختياري نادر،
 // فصارت حزمة منفصلة لا تصل الجهاز إلا عند ضغط زر المسح.
@@ -37,6 +39,8 @@ export function ClassDayPage() {
   const settings = useNurserySettings()
   const date = todayISO()
   const day = useClassDay(classId, date)
+  const classes = useClasses()
+  const className = (classes.data ?? []).find((c) => c.id === classId)?.name ?? ''
   const children = useDayChildren(classId, day.data?.id)
   const { write, queued, actorId, nurseryId } = useAttendanceWriter()
   const showToast = useToast()
@@ -184,6 +188,10 @@ export function ClassDayPage() {
 
   return (
     <div className="flex flex-col gap-3">
+      <div>
+        <h1 className="type-title">{className}</h1>
+        <p className="type-secondary text-muted">{fmtWeekdayDate(date)}</p>
+      </div>
       <div className="flex items-center gap-2">
         <div className="relative flex-1">
           <TextInput

@@ -30,6 +30,8 @@ export const reports = {
   note: 'Note for parents',
   notePlaceholder: "Something nice, or a note about the child's day…",
   applyToAll: 'Apply to all',
+  noPresentHint: "No children are marked present in this class today — record attendance from the Today screen first.",
+  photoLoadFailed: "Photo failed to load — try again",
   editChild: 'Edit {name}',
   publish: 'Publish reports to parents',
   publishConfirm: 'Publish {count} reports? Parents will see them in their portal right away',

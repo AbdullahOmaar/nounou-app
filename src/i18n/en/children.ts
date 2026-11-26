@@ -95,6 +95,7 @@ export const children = {
   siblingBadge: 'Has a sibling at the nursery',
   issueViewLink: 'Family view link',
   copyViewLink: 'Copy view link',
+  linkIssued: "Link issued — copy it or send it to the guardian",
   revokeViewLink: 'Revoke view link',
   growthFile: "Growth file",
   growthTitle: "Growth file — {name}",
