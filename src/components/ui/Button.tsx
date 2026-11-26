@@ -5,7 +5,7 @@ type Size = 'md' | 'sm'
 
 const variants: Record<Variant, string> = {
   // نص الزر الأساسي عبر توكن --on-primary: أبيض في الفاتح، داكن في الداكن
-  // (الأبيض على أساسي الداكن #8B85F7 كان 3.09:1 — الداكن عليه 5.58:1)
+  // (الأبيض على أساسي الداكن #9DB8E8 كان 2.01:1 — الداكن عليه 8.59:1)
   primary: 'bg-primary text-on-primary hover:bg-primary-d',
   ghost: 'bg-transparent border border-border-interactive text-text hover:bg-soft',
   danger: 'bg-bad text-white hover:opacity-90',

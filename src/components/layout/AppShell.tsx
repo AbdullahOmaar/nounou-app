@@ -148,7 +148,7 @@ export function AppShell() {
             </span>
           )}
           <div className="flex-1 min-w-0">
-            <div className="type-section truncate">{t(title)}</div>
+            <div className="type-section font-display truncate">{t(title)}</div>
             {nurseryRes.status === 'ready' && (
               <div className="type-badge text-muted truncate">
                 {nurseryRes.nursery.name}
