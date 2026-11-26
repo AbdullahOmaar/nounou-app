@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { MapPin, MessageCircle, Phone, ShieldCheck } from 'lucide-react'
 import * as api from './api'
 import type { PublicPageData } from './api'
+import { usePublicMeta } from './meta'
 import { bannerUrl, stickerUrl } from './banners'
 import { AiDisclosure } from '../../components/ui/AiDisclosure'
 import { useT } from '../../i18n'
@@ -35,6 +36,7 @@ export default function PublicSiteLayout() {
   useEffect(() => {
     if (slug && found) void api.trackPublicPage(slug, 'view', pageName)
   }, [slug, pageName, found])
+  usePublicMeta(page.data, slug, pageName)
 
   if (page.isPending) return <LoadingState />
   if (page.isError) {

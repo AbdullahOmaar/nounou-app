@@ -42,6 +42,8 @@ export const pub = {
   visitError: "Check the name, mobile number and child name and try again",
   navVisit: "Book a tour",
   visitCta: "Book a tour and see the nursery yourself",
+  metaTitle: "{name} — Nounou",
+  metaDesc: "Discover {name} on Nounou: classes, prices and available places — book a tour and see the nursery yourself.",
   navEvents: "Events",
   eventsTitle: "Nursery events",
   eventsEmpty: "No events announced right now",
