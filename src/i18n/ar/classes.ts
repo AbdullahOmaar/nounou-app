@@ -18,5 +18,11 @@ export const classes = {
   emptyBody: 'أنشئ أول فصل بباقته الشهرية وابدأ تسجيل الأطفال',
   deleteConfirm: 'حذف الفصل «{name}»؟ لا يُحذف وفوقه تسجيلات.',
   openToday: 'يوم النهارده',
+  openAttendance: 'افتح حضور اليوم',
+  startDay: 'ابدأ يوم الفصل',
+  details: 'تفاصيل الفصل',
+  openedChip: '✓ اتفتح',
+  notOpenedChip: 'لسه ما اتفتحش',
+  notStarted: 'الحضور لم يبدأ',
   sortOrder: 'الترتيب',
 } as const

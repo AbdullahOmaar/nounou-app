@@ -18,5 +18,11 @@ export const classes = {
   emptyBody: 'Create your first class with its monthly package and start enrolling children',
   deleteConfirm: 'Delete the class "{name}"? A class with enrollments cannot be deleted.',
   openToday: "Today's day",
+  openAttendance: "Open today's attendance",
+  startDay: "Start the class day",
+  details: 'Class details',
+  openedChip: '✓ Opened',
+  notOpenedChip: 'Not opened yet',
+  notStarted: 'Attendance has not started',
   sortOrder: 'Order',
 }

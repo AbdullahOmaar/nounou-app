@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { Sheet } from '../../components/ui/Sheet'
 import { Button } from '../../components/ui/Button'
 import { Chip, ChipRow, Field, FormError, Select, TextInput } from '../../components/ui/form'
@@ -13,10 +14,16 @@ interface Props {
   initialClassId?: string | null
 }
 
-/** نموذج طفل جديد بالحد الأدنى الإلزامي (قرار ق٤): طفل + وصيّ + فصل */
+/**
+ * نموذج طفل جديد بالحد الأدنى الإلزامي (قرار ق٤): طفل + وصيّ + فصل —
+ * الخطوة الظاهرة وحدها (موجة الهوية 2): الاسم والفصل والوصيّ، والباقي
+ * (الميلاد/النوع/موافقة التصوير) مطوي تحت «بيانات إضافية». الحقول
+ * والقيم والتحقق كما هي — تجميع بصري فقط.
+ */
 export function ChildFormSheet({ open, onClose, onSubmit, initialClassId }: Props) {
   const t = useT()
   const classes = useClasses()
+  const [moreOpen, setMoreOpen] = useState(false)
   const [name, setName] = useState('')
   const [birthDate, setBirthDate] = useState('')
   const [gender, setGender] = useState<'male' | 'female' | null>(null)
@@ -87,49 +94,16 @@ export function ChildFormSheet({ open, onClose, onSubmit, initialClassId }: Prop
         <Field label={t('children.fullName')}>
           <TextInput value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t('children.birthDate')}>
-            <TextInput
-              type="date"
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-            />
-          </Field>
-          <Field label={t('children.class')}>
-            <Select value={classId} onChange={(e) => setClassId(e.target.value)}>
-              <option value="">{t('children.noClass')}</option>
-              {(classes.data ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
-        <Field label={t('children.gender')}>
-          <ChipRow>
-            <Chip active={gender === 'male'} onClick={() => setGender('male')}>
-              {t('children.male')}
-            </Chip>
-            <Chip active={gender === 'female'} onClick={() => setGender('female')}>
-              {t('children.female')}
-            </Chip>
-          </ChipRow>
+        <Field label={t('children.class')}>
+          <Select value={classId} onChange={(e) => setClassId(e.target.value)}>
+            <option value="">{t('children.noClass')}</option>
+            {(classes.data ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
         </Field>
-        <label className="flex items-start gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={consent}
-            onChange={(e) => setConsent(e.target.checked)}
-            className="mt-1 w-5 h-5 accent-[var(--color-primary)]"
-          />
-          <span>
-            <span className="type-body block">{t('children.photoConsent')}</span>
-            <span className="type-badge text-muted block">
-              {t('children.photoConsentHint')}
-            </span>
-          </span>
-        </label>
         <div className="border-t border-border pt-3 flex flex-col gap-3">
           <Field label={t('children.guardianName')}>
             <TextInput
@@ -147,6 +121,50 @@ export function ChildFormSheet({ open, onClose, onSubmit, initialClassId }: Prop
             />
           </Field>
         </div>
+        <button
+          type="button"
+          onClick={() => setMoreOpen((v) => !v)}
+          aria-expanded={moreOpen}
+          className="flex items-center justify-between w-full border-t border-border pt-3 type-section text-primary cursor-pointer bg-transparent"
+        >
+          {t('children.moreData')}
+          {moreOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        </button>
+        {moreOpen && (
+          <div className="flex flex-col gap-3">
+            <Field label={t('children.birthDate')}>
+              <TextInput
+                type="date"
+                value={birthDate}
+                onChange={(e) => setBirthDate(e.target.value)}
+              />
+            </Field>
+            <Field label={t('children.gender')}>
+              <ChipRow>
+                <Chip active={gender === 'male'} onClick={() => setGender('male')}>
+                  {t('children.male')}
+                </Chip>
+                <Chip active={gender === 'female'} onClick={() => setGender('female')}>
+                  {t('children.female')}
+                </Chip>
+              </ChipRow>
+            </Field>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={consent}
+                onChange={(e) => setConsent(e.target.checked)}
+                className="mt-1 w-5 h-5 accent-[var(--color-primary)]"
+              />
+              <span>
+                <span className="type-body block">{t('children.photoConsent')}</span>
+                <span className="type-badge text-muted block">
+                  {t('children.photoConsentHint')}
+                </span>
+              </span>
+            </label>
+          </div>
+        )}
         {error && <FormError message={error} />}
       </div>
     </Sheet>

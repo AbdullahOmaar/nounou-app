@@ -5,7 +5,8 @@ import { Card } from '../../components/ui/Card'
 import { Chip, ChipRow } from '../../components/ui/form'
 import { ErrorState, LoadingState } from '../../components/ui/states'
 import { useT } from '../../i18n'
-import { formatMoney, todayISO } from '../../lib/format'
+import { ageLabel, fmtWeekday, formatMoney, todayISO } from '../../lib/format'
+import { Avatar } from '../../components/ui/Avatar'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { useChildren } from '../children/hooks'
 import { useClasses, useClassMutations, useClassStaff } from './hooks'
@@ -60,7 +61,7 @@ export function ClassDetailPage() {
           )}
         </div>
         <Button className="mt-3" full onClick={() => navigate(`/today/${classRow.id}`)}>
-          {t('classes.openToday')} — {todayISO()}
+          {t('classes.openToday')} — {fmtWeekday(todayISO())}
         </Button>
       </Card>
 
@@ -102,10 +103,18 @@ export function ClassDetailPage() {
           {classChildren.map((c) => (
             <Card
               key={c.id}
-              className="cursor-pointer py-3"
+              className="cursor-pointer py-3 flex items-center gap-3"
               onClick={() => navigate(`/children/${c.id}`)}
             >
-              <span className="type-body">{c.full_name}</span>
+              <Avatar name={c.full_name} />
+              <span className="min-w-0">
+                <span className="type-body block truncate">{c.full_name}</span>
+                <span className="type-badge text-muted block">
+                  {[ageLabel(c.birth_date) ?? '', `#${c.public_code}`]
+                    .filter(Boolean)
+                    .join(' • ')}
+                </span>
+              </span>
             </Card>
           ))}
         </div>
