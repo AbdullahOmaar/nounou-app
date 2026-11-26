@@ -74,4 +74,13 @@ export const reports = {
   voiceListening: "بسمع…",
   printTitle: "تقرير يوم {name}",
   printReport: "طباعة",
+  tabNotWritten: 'لسه ما اتكتبش',
+  tabReady: 'جاهز للإرسال',
+  tabSent: 'اتبعت',
+  emptyNotWritten: 'كل الحاضرين اتكتبت تقاريرهم',
+  emptyReady: 'مفيش تقارير جاهزة للإرسال',
+  emptySent: 'لسه ما اتبعتش تقارير النهارده',
+  writeReport: 'اكتب التقرير',
+  tileMeals: 'الأكل',
+  moreActivities: '+{count} نشاط',
 }

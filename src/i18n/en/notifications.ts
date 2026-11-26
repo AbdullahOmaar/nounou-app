@@ -16,4 +16,8 @@ export const notifications = {
   reportsMissingBody: '{count} reports not published for open days',
   absentStreakBody: '{name} was absent {count} days in the last two weeks',
   photoCapBody: "Today's photos reached the limit set in Settings",
+  filterAll: 'All',
+  refresh: 'Refresh',
+  emptyTitle: 'No new alerts',
+  emptyBody: 'All good — anything that needs you will show up here',
 }

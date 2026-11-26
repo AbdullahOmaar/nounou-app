@@ -10,7 +10,7 @@ import { ErrorState, LoadingState } from '../../components/ui/states'
 import { Sheet } from '../../components/ui/Sheet'
 import { useToast } from '../../components/ui/toast'
 import { useT } from '../../i18n'
-import { formatMoney, todayISO } from '../../lib/format'
+import { formatClock12, formatMoney, todayISO } from '../../lib/format'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { useAuth } from '../../lib/AuthProvider'
 import { invalidatePrefixes } from '../../lib/invalidate'
@@ -137,6 +137,11 @@ export function BusPage() {
 
   const entries = dayList.data?.entries ?? []
   const doneCount = entries.filter((e) => e.status !== 'pending').length
+  const activeRoute = (routes.data ?? []).find((r) => r.id === activeRouteId)
+  const supervisorName = activeRoute?.supervisor_member_id
+    ? (members.data ?? []).find((m) => m.id === activeRoute.supervisor_member_id)
+        ?.display_name
+    : undefined
 
   return (
     <div className="flex flex-col gap-3">
@@ -193,21 +198,65 @@ export function BusPage() {
                   {t('bus.eveningList')}
                 </Chip>
               </ChipRow>
-              <span className="type-secondary text-muted">
-                {t('bus.listProgress', { done: doneCount, total: entries.length })}
-              </span>
               {dayList.isPending ? (
                 <LoadingState />
               ) : entries.length === 0 ? (
                 <EmptyState title={t('bus.emptyList')} />
               ) : (
-                <div className="flex flex-col gap-2">
-                  {entries.map((e) => (
-                    <Card key={e.id} className="flex items-center justify-between py-3">
+                <>
+                  {/* هوية نونو — الموجة 3: بطاقة حالة كحلية + أطفال الخط كمجموعة */}
+                  <div className="bg-primary text-on-primary rounded-2xl p-4 shadow-card">
+                    <div className="flex items-center justify-between gap-2">
+                      <h2 className="type-title">{activeRoute?.name ?? ''}</h2>
+                      <span className="type-badge bg-on-primary/15 rounded-full px-2.5 py-1">
+                        {doneCount === entries.length
+                          ? t('bus.heroDone')
+                          : doneCount > 0
+                            ? t('bus.heroInProgress')
+                            : t('bus.heroNotStarted')}
+                      </span>
+                    </div>
+                    <p className="type-secondary text-on-primary-muted mt-1">
+                      {direction === 'to_nursery'
+                        ? t('bus.morningList')
+                        : t('bus.eveningList')}
+                      {supervisorName
+                        ? ` • ${t('bus.supervisor')}: ${supervisorName}`
+                        : ''}
+                    </p>
+                    <div className="h-2 rounded-full bg-on-primary/15 mt-3 overflow-hidden">
+                      <div
+                        className="h-full bg-accent rounded-full"
+                        style={{
+                          width: `${entries.length ? Math.round((doneCount / entries.length) * 100) : 0}%`,
+                        }}
+                      />
+                    </div>
+                    <p className="type-badge text-on-primary-muted mt-2">
+                      {t('bus.listProgress', { done: doneCount, total: entries.length })}
+                    </p>
+                  </div>
+                  <Card className="p-0 overflow-hidden">
+                    <div className="type-section px-4 pt-3 pb-1">
+                      {t('bus.routeChildren')} ({entries.length})
+                    </div>
+                    <div className="divide-y divide-border">
+                      {entries.map((e) => (
+                        <div key={e.id} className="flex items-center justify-between px-4 py-3">
                       <span className="flex items-center gap-2">
                         <Avatar name={e.childName} />
                         <span className="flex flex-col">
                           <span className="type-body">{e.childName}</span>
+                          {e.status === 'pending' && (
+                            <span className="type-badge text-accent-text">
+                              {t('bus.waiting')}
+                            </span>
+                          )}
+                          {e.status === 'done' && direction === 'to_nursery' && e.done_at && (
+                            <span className="type-badge text-muted">
+                              {t('bus.boardedAt', { time: formatClock12(e.done_at) })}
+                            </span>
+                          )}
                           {e.status === 'done' && direction === 'to_home' && (
                             <span className="type-badge text-muted">
                               {e.handed_to_doorstep
@@ -268,12 +317,14 @@ export function BusPage() {
                             {' ✓'}
                           </Button>
                         ))}
-                    </Card>
-                  ))}
-                </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                </>
               )}
               {canBus && entries.length > 0 && (
-                <Button variant="soft" onClick={() => setCloseOpen(true)}>
+                <Button full onClick={() => setCloseOpen(true)}>
                   {t('bus.closeTrip')}
                 </Button>
               )}

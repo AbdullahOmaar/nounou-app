@@ -16,4 +16,8 @@ export const notifications = {
   reportsMissingBody: '{count} تقرير لم يُنشر لأيام مفتوحة',
   absentStreakBody: '{name} غاب {count} أيام في آخر أسبوعين',
   photoCapBody: 'صور النهارده وصلت الحد المضبوط في الإعدادات',
+  filterAll: 'الكل',
+  refresh: 'تحديث',
+  emptyTitle: 'مفيش تنبيهات جديدة',
+  emptyBody: 'كله تمام — لو حصلت حاجة تحتاجك هتلاقيها هنا',
 } as const

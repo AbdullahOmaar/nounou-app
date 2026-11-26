@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
+import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
-import { EmptyState } from '../../components/ui/EmptyState'
+import { Chip, ChipRow } from '../../components/ui/form'
 import { ErrorState, LoadingState } from '../../components/ui/states'
 import { useT } from '../../i18n'
 import { formatMoney } from '../../lib/format'
@@ -17,12 +18,19 @@ const KIND_ROUTE: Record<AlertKind, string> = {
   absentStreak: '/children',
 }
 
-/** صفحة الإشعارات: أقسام قابلة للطي لكل نوع تنبيه (قاعدة المالك المحفوظة) */
+/**
+ * صفحة الإشعارات: أقسام قابلة للطي لكل نوع تنبيه (قاعدة المالك المحفوظة).
+ * هوية نونو — الموجة 3: رقائق تصفية بالنوع + نونا في الحالة الفارغة.
+ * التنبيهات محسوبة حيًا بلا جدول مخزّن (api.ts)، فلا توقيتات ولا حالة
+ * «مقروء» توجد أصلًا — تجميع اليوم/أمس و«تحديد الكل كمقروء» من الموك أب
+ * لا يقابلان نموذج البيانات، والتنبيه يختفي بحلّ سببه بدل تعليمه مقروءًا.
+ */
 export function NotificationsPage() {
   const t = useT()
   const navigate = useNavigate()
   const alerts = useAlerts()
   const [openKinds, setOpenKinds] = useState<Set<AlertKind>>(new Set())
+  const [kindFilter, setKindFilter] = useState<AlertKind | null>(null)
 
   if (alerts.isPending) return <LoadingState />
   if (alerts.isError)
@@ -33,7 +41,19 @@ export function NotificationsPage() {
       />
     )
   const list = alerts.data ?? []
-  if (list.length === 0) return <EmptyState title={t('notifications.empty')} />
+  if (list.length === 0)
+    return (
+      <div className="flex flex-col items-center text-center gap-2 py-8 px-4">
+        <img src="/nouna/nouna-full.png" alt="" className="w-[130px]" />
+        <div className="type-section">{t('notifications.emptyTitle')}</div>
+        <p className="type-secondary text-muted">{t('notifications.emptyBody')}</p>
+        <div className="mt-2">
+          <Button variant="soft" onClick={() => void alerts.refetch()}>
+            {t('notifications.refresh')}
+          </Button>
+        </div>
+      </div>
+    )
 
   const kindLabel = (kind: AlertKind): string => {
     switch (kind) {
@@ -77,8 +97,24 @@ export function NotificationsPage() {
 
   return (
     <div className="flex flex-col gap-2">
-      {[...byKind.entries()].map(([kind, items]) => {
-        const open = openKinds.has(kind)
+      <ChipRow>
+        <Chip active={kindFilter === null} onClick={() => setKindFilter(null)}>
+          {t('notifications.filterAll')}
+        </Chip>
+        {[...byKind.keys()].map((kind) => (
+          <Chip
+            key={kind}
+            active={kindFilter === kind}
+            onClick={() => setKindFilter(kindFilter === kind ? null : kind)}
+          >
+            {kindLabel(kind)}
+          </Chip>
+        ))}
+      </ChipRow>
+      {[...byKind.entries()]
+        .filter(([kind]) => kindFilter === null || kindFilter === kind)
+        .map(([kind, items]) => {
+        const open = openKinds.has(kind) || kindFilter === kind
         return (
           <Card key={kind} className="py-3">
             <button

@@ -32,4 +32,11 @@ export const bus = {
   emptyList: 'No subscribers on this route — add them from the Subscribers tab',
   pickRoute: 'Choose a route',
   todayLists: "Today's lists",
+  heroDone: 'List complete',
+  heroInProgress: 'Trip in progress',
+  heroNotStarted: 'Not started yet',
+  boardedAt: 'Boarded {time}',
+  deliveredAt: 'Dropped off {time}',
+  waiting: 'Waiting',
+  routeChildren: 'Route children',
 }
