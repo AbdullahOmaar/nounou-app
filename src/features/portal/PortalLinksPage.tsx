@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, Eye, Link2, MessageCircle, X } from 'lucide-react'
+import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -143,9 +144,22 @@ export function PortalLinksPage() {
         const wa = fresh ? waLink(guardian.phone) : null
         return (
           <Card key={guardian.id}>
-            <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <Avatar name={guardian.full_name} />
               <div>
-                <div className="type-body">{guardian.full_name}</div>
+                <div className="type-body flex items-center gap-2">
+                  {guardian.full_name}
+                  {activeToken && (
+                    <span className="type-badge text-ok-text bg-ok-soft rounded-full px-2 py-0.5">
+                      {t('children.linkActive')}
+                    </span>
+                  )}
+                  {viewToken && (
+                    <span className="type-badge text-primary bg-soft rounded-full px-2 py-0.5">
+                      {t('children.viewLinkBadge')}
+                    </span>
+                  )}
+                </div>
                 <div className="type-badge text-muted">
                   {childrenNames.join(' • ')} — <span dir="ltr">{guardian.phone}</span>
                 </div>

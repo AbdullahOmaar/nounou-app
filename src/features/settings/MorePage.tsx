@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Bell,
   Bot,
+  ChevronLeft,
   Building2,
   CalendarCheck,
   Route,
@@ -98,63 +99,109 @@ export function MorePage() {
     { icon: ReceiptText, label: t('shell.nav.invoices'), path: '/invoices', ownerOnly: true },
   ]
 
+  // تجميع الهوية (الموجة 5): 3 مجموعات مسمّاة بحد أقصى (قاعدة الخطة —
+  // «المزيد» سلة ترحيل مقصودة لا مقبرة بنود)، صفوف مدمجة في بطاقة
+  // واحدة لكل مجموعة بدل بطاقة لكل وجهة.
+  const visible = items
+    .filter((i) => !i.ownerOnly || isOwner)
+    .filter((i) => !i.opsOnly || isOperator)
+  const ADMIN_PATHS = new Set([
+    '/classes', '/members', '/settings', '/export', '/finance', '/invoices',
+    '/proofs', '/suppliers', '/staff', '/branches', '/licensing', '/assistant', '/ops',
+  ])
+  const leadFirst = (paths: string[]) => (a: (typeof items)[number], b: (typeof items)[number]) => {
+    const ia = paths.indexOf(a.path)
+    const ib = paths.indexOf(b.path)
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+  }
+  const groups = [
+    {
+      key: 'admin',
+      label: t('shell.more.groupAdmin'),
+      items: visible
+        .filter((i) => ADMIN_PATHS.has(i.path))
+        .sort(leadFirst(['/classes', '/members', '/settings', '/export'])),
+    },
+    {
+      key: 'comms',
+      label: t('shell.more.groupComms'),
+      items: visible
+        .filter((i) => !ADMIN_PATHS.has(i.path))
+        .sort(leadFirst(['/portal-links', '/activity', '/announcements', '/bus'])),
+    },
+  ].filter((g) => g.items.length > 0)
+
+  const row = (
+    icon: typeof LayoutGrid,
+    label: string,
+    onClick: () => void,
+    opts?: { danger?: boolean; active?: boolean },
+  ) => {
+    const Icon = icon
+    return (
+      <button
+        key={label}
+        type="button"
+        onClick={onClick}
+        className={`flex w-full items-center gap-3 py-3 px-1 cursor-pointer border-0 text-start ${
+          opts?.active ? 'bg-soft rounded-xl' : 'bg-transparent'
+        }`}
+      >
+        <span
+          className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${
+            opts?.danger ? 'bg-bad-soft text-bad-text' : 'bg-soft text-primary'
+          }`}
+        >
+          <Icon size={20} />
+        </span>
+        <span
+          className={`type-body flex-1 ${opts?.danger ? 'text-bad-text font-semibold' : ''}`}
+        >
+          {label}
+        </span>
+        <ChevronLeft
+          size={18}
+          className={`text-muted ${locale === 'ar' ? '' : 'rotate-180'}`}
+        />
+      </button>
+    )
+  }
+
   return (
-    <div className="flex flex-col gap-2">
-      {nursery.status === 'ready' && nursery.memberships.length > 1 && (
-        <Card>
-          <div className="type-section mb-2">{t('shell.switchNursery')}</div>
-          <div className="flex flex-col gap-1">
-            {nursery.memberships.map((m) => (
-              <button
-                key={m.id}
-                className={`text-start rounded-xl px-3 py-2 type-body cursor-pointer border-0 ${
-                  m.nursery_id === nursery.nurseryId
-                    ? 'bg-soft text-primary font-semibold'
-                    : 'bg-transparent text-text'
-                }`}
-                onClick={() => setActiveNurseryId(m.nursery_id)}
-              >
-                {m.nursery.name}
-              </button>
-            ))}
+    <div className="flex flex-col gap-4">
+      {groups.map((g) => (
+        <Card key={g.key} className="py-2">
+          <div className="type-section px-1 pb-1">{g.label}</div>
+          <div className="flex flex-col divide-y divide-border">
+            {g.items.map((item) => row(item.icon, item.label, () => navigate(item.path)))}
           </div>
         </Card>
-      )}
-      {items
-        .filter((i) => !i.ownerOnly || isOwner)
-        .filter((i) => !i.opsOnly || isOperator)
-        .map((item) => {
-          const Icon = item.icon
-          return (
-            <Card
-              key={item.path}
-              className="flex items-center gap-3 cursor-pointer py-3"
-              onClick={() => navigate(item.path)}
-            >
-              <span className="w-10 h-10 rounded-full bg-soft text-primary flex items-center justify-center">
-                <Icon size={20} />
-              </span>
-              <span className="type-body">{item.label}</span>
-            </Card>
-          )
-        })}
-      <Card
-        className="flex items-center gap-3 cursor-pointer py-3"
-        onClick={() => setLocale(locale === 'ar' ? 'en' : 'ar')}
-      >
-        <span className="w-10 h-10 rounded-full bg-soft text-primary flex items-center justify-center type-body font-bold">
-          {locale === 'ar' ? 'EN' : t('common.langAr')}
-        </span>
-        <span className="type-body">{t('shell.more.language')}</span>
-      </Card>
-      <Card
-        className="flex items-center gap-3 cursor-pointer py-3"
-        onClick={() => void signOut()}
-      >
-        <span className="w-10 h-10 rounded-full bg-bad-soft text-bad-text flex items-center justify-center">
-          <LogOut size={20} />
-        </span>
-        <span className="type-body">{t('shell.more.signOut')}</span>
+      ))}
+      <Card className="py-2">
+        <div className="type-section px-1 pb-1">{t('shell.more.groupAccount')}</div>
+        <div className="flex flex-col divide-y divide-border">
+          {nursery.status === 'ready' &&
+            nursery.memberships.length > 1 &&
+            nursery.memberships.map((m) => (
+              <div key={m.id}>
+                {row(Building2, m.nursery.name, () => setActiveNurseryId(m.nursery_id), {
+                  active: m.nursery_id === nursery.nurseryId,
+                })}
+              </div>
+            ))}
+          <button
+            type="button"
+            onClick={() => setLocale(locale === 'ar' ? 'en' : 'ar')}
+            className="flex w-full items-center gap-3 py-3 px-1 cursor-pointer bg-transparent border-0 text-start"
+          >
+            <span className="w-10 h-10 shrink-0 rounded-xl bg-soft text-primary flex items-center justify-center type-body font-bold">
+              {locale === 'ar' ? 'EN' : t('common.langAr')}
+            </span>
+            <span className="type-body flex-1">{t('shell.more.language')}</span>
+            <ChevronLeft size={18} className={`text-muted ${locale === 'ar' ? '' : 'rotate-180'}`} />
+          </button>
+          {row(LogOut, t('shell.more.signOut'), () => void signOut(), { danger: true })}
+        </div>
       </Card>
     </div>
   )
