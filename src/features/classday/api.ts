@@ -34,6 +34,25 @@ export async function setClassDayStatus(
   if (error) throw error
 }
 
+/**
+ * الفصول المفتوحة النهارده (قراءة فقط — هوية نونو، الموجة 1: حالة
+ * «اتفتح/لسه» في شاشة اختيار الفصل). لا تُنشئ صفوف أيام؛ الوجود
+ * وحده هو الإشارة (زيارة /today/:id هي التي تفتح اليوم).
+ */
+export async function listTodayClassDays(
+  nurseryId: string,
+  date: string,
+): Promise<string[]> {
+  const db = requireSupabase()
+  const { data, error } = await db
+    .from('class_days')
+    .select('class_id')
+    .eq('nursery_id', nurseryId)
+    .eq('day_date', date)
+  if (error) throw error
+  return (data ?? []).map((d) => d.class_id as string)
+}
+
 export interface DayChild {
   child: ChildRow
   attendance: AttendanceRow | null

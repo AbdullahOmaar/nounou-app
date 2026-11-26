@@ -144,6 +144,20 @@ export function waLinkWithText(
   return base ? `${base}?text=${encodeURIComponent(text)}` : null
 }
 
+/**
+ * اسم يوم الأسبوع فقط («الأربعاء») لتاريخ ISO — مثبّت على توقيت القاهرة
+ * عبر CAIRO_TZ أعلاه (هوية نونو — الموجة 1: عنوان بطل الرئيسية
+ * «يوم {weekday} في حضانتنا»).
+ */
+export function fmtWeekday(iso: string): string {
+  const d = new Date(`${iso}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat(currentLocale() === 'ar' ? 'ar-EG-u-nu-latn' : 'en-US', {
+    weekday: 'long',
+    timeZone: CAIRO_TZ,
+  }).format(d)
+}
+
 /** تاريخ/وقت ISO → عرض محلي قصير */
 export function formatDateTimeAr(iso: string, fallback = ''): string {
   const d = new Date(iso)

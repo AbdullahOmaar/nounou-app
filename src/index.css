@@ -37,6 +37,7 @@
   --color-primary: var(--primary);
   --color-primary-d: var(--primary-d);
   --color-on-primary: var(--on-primary);
+  --color-on-primary-muted: var(--on-primary-muted);
   --color-soft: var(--soft);
   --color-accent: var(--accent);
   --color-accent-text: var(--accent-text);
@@ -73,6 +74,8 @@
   --primary-d: #21365c;
   /* نص الزر الأساسي في الفاتح: أبيض (8.84:1 على #2E4A7A) */
   --on-primary: #ffffff;
+  /* نص ثانوي على البطاقات الكحلية (DESIGN §2.1.1): #C9D8F2 (6.14:1) */
+  --on-primary-muted: #c9d8f2;
   --soft: #dceeff;
   /* الكهرماني للزينة فقط — لا يُستخدم كنص إطلاقاً */
   --accent: #f5a623;
@@ -114,6 +117,8 @@
   --primary-d: #b9cdef;
   /* نص داكن #141A2E على #9DB8E8 = 8.59:1 (≥ AA) */
   --on-primary: #141a2e;
+  /* نص ثانوي على البطاقات الكحلية الفاتحة في الداكن: #21365C */
+  --on-primary-muted: #21365c;
   --soft: #24324f;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -139,6 +144,14 @@
  */
 @utility type-screen {
   /* عنوان الشاشة بخط العناوين Baloo (DESIGN §2.3) */
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.6;
+}
+/* عنوان الصفحة (h1) — نفس سلم عنوان الشاشة بخط Baloo (DESIGN §2.3).
+   كان الكلاس مستخدماً في 31 موضعاً بلا تعريف (بلا أي تنسيق). */
+@utility type-title {
   font-family: var(--font-display);
   font-size: 20px;
   font-weight: 800;
