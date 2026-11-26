@@ -8,6 +8,7 @@ export function NotFoundPage({ standalone = false }: { standalone?: boolean }) {
   const navigate = useNavigate()
   const body = (
     <EmptyState
+      mascot
       icon={Home}
       title={t('common.notFoundTitle')}
       hint={t('common.notFoundHint')}

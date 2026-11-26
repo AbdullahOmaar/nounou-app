@@ -1,10 +1,16 @@
 import type { ReactNode } from 'react'
 
 /**
- * علامة نونو البصرية — بديل خفيف داخل نفس واجهة مكوّن الماسكوت المنقولة
- * من هيكل تطبيق المدرس (توافق استيراد فقط): نونو منتج مستقل بلا تميمة
- * معتمدة، فالعلامة رسم تجريدي (برعم نابت في مربع ملوّن ناعم) بلا شخصية.
- * الحالات (state) تُقبل للتوافق ولا تغيّر الرسم إلا باهتاً في «empty».
+ * حضور نونا العام (موجة الهوية 6 — قرارا 4 و6 معتمدان): نفس واجهة
+ * مكوّن الماسكوت المنقولة من هيكل تطبيق المدرس، لكن الرسم لم يعد
+ * البرعم التجريدي المؤقت: الحالة الافتراضية = علامة نونا المعتمدة
+ * (قصّة الأيقونة — الدبدوب بالفيونكة في المربع الكحلي، نفس شعار
+ * التطبيق)، وحالة «empty» = وجه نونا (قصّة الوجه) لأن الفراغ
+ * والتنبيه اللطيف هما دور الشخصية في DESIGN §3.
+ * قواعد §3 محفوظة: المالية والإدارية بلا حضور شخصية — ترويسة
+ * AppShell تُخفي العلامة أصلاً على شاشتي الفواتير والمزيد الجذريتين،
+ * وحالة الوجه لا تُطلب إلا من أسطح مرحّبة (فراغ/بوابة/404).
+ * «error» مع fallback يعيد الـfallback كما كان (عقد EmptyState).
  */
 export type MascotState =
   | 'idle'
@@ -30,33 +36,28 @@ export function Mascot({
   fallback,
 }: MascotProps) {
   if (state === 'error' && fallback) return <>{fallback}</>
+  if (state === 'empty') {
+    return (
+      <img
+        src="/nouna/nouna-face.png"
+        width={size}
+        height={size}
+        className={`rounded-2xl object-cover ${className ?? ''}`}
+        role="img"
+        aria-label="Nouna"
+        alt=""
+      />
+    )
+  }
   return (
-    <svg
+    <img
+      src="/nouna/nouna-icon.png"
       width={size}
       height={size}
-      viewBox="0 0 64 64"
-      className={className}
+      className={`rounded-[24%] object-cover ${className ?? ''}`}
       role="img"
       aria-label="Nounou"
-    >
-      <rect x="2" y="2" width="60" height="60" rx="16" fill="#3B3FA3" />
-      <path
-        d="M32 46c0-10 0-16 0-22"
-        stroke="#FFA726"
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
-      <path
-        d="M32 30c-8 0-13-5-13-13 8 0 13 5 13 13z"
-        fill="#00D2FF"
-        opacity={state === 'empty' ? 0.55 : 1}
-      />
-      <path
-        d="M32 26c0-8 5-13 13-13 0 8-5 13-13 13z"
-        fill="#7EE2FF"
-        opacity={state === 'empty' ? 0.55 : 1}
-      />
-      <circle cx="32" cy="49" r="3" fill="#FFA726" />
-    </svg>
+      alt=""
+    />
   )
 }
