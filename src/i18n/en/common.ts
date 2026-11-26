@@ -1,5 +1,7 @@
 /** Shared strings across all screens */
 export const common = {
+  version: "Version",
+  publishedAt: "Published",
   save: 'Save',
   cancel: 'Cancel',
   delete: 'Delete',

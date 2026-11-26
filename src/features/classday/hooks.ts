@@ -47,6 +47,17 @@ export function useDayChildren(
   })
 }
 
+/** الفصول المفتوحة النهارده — حالة «اتفتح/لسه» في /today (قراءة فقط) */
+export function useTodayOpenDays(date: string) {
+  const nursery = useCurrentNursery()
+  const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : null
+  return useQuery({
+    queryKey: ['today-open-days', nurseryId, date],
+    enabled: Boolean(nurseryId),
+    queryFn: () => api.listTodayClassDays(nurseryId!, date),
+  })
+}
+
 /**
  * كتابة حضور مع سقوط أوفلاين: محاولة مباشرة، وعند الفشل/غياب الاتصال
  * تُطابَق العملية وتُفرَّغ عند عودة النت (مستمع online + فحص دوري خفيف).

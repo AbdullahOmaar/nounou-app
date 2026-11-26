@@ -1,31 +1,34 @@
 @import "tailwindcss";
 
 /*
- * ثيم التطبيق — الهوية البصرية «نيلي الثقة» (Phase 2، الخطوة 1)
- * القيم الحرفية من UIUX-RESEARCH §4 (الاتجاه أ):
- * فاتح: أساسي #4F46E5 / داكن #4338CA / حاويات #EEF2FF، خلفية #F7F8FC،
- * سطح #FFFFFF، حدود #E3E6F0، نص #141A2E، ثانوي #5B6478.
- * داكن: خلفية #0E1120، سطح #171B2E، حدود #262C47، أساسي #8B85F7،
- * حاويات #232046، نص #F2F4FA، ثانوي #A3AAC2.
- * ألوان الحالات بنسختين (بحث §5): حشوة/خلفية (-soft) + نصية (-text)
- * بتباين ≥4.5:1 على السطح وعلى خلفيتها — القيم الأساسية (--ok/--warn/--bad)
- * للحشوات والأشرطة، و -text للنصوص والشارات النصية.
- * اللهجة الكهرمانية (--accent #F59E0B) للحظات الإنجاز فقط.
+ * ثيم التطبيق — الهوية البصرية «بيت نونا الدافئ» (هوية نونو — الموجة 0)
+ * القيم الحرفية من DESIGN.md §2.1 (§2.1.1 للدرجات التكميلية) و§2.2 للداكن:
+ * فاتح: أساسي #2E4A7A (8.38:1 على الخلفية) / داكن #21365C / خلفية كريمي
+ * #FFF8EE، سطح البطاقة #FFFFFF، سطح دافئ مميز #FFF1DE، حدود #F1E6D2،
+ * نص #2F2A26 (13.45:1)، ثانوي #6B5E52 (5.95:1)، كهرماني #F5A623
+ * للزينة فقط — نصوصه #92400E (6.72:1) أو #4A2E00 على الملء (6.16:1).
+ * داكن «ليل نونا»: خلفية #141A28، سطح #1E2637، أساسي فاتح #9DB8E8،
+ * كهرماني #FFC65C، نص كريمي #F5EDE0، ثانوي #B9AE9F (7.96:1).
+ * ألوان الحالات بنسختين (حشوة/خلفية -soft + نصية -text) بتباين ≥4.5:1
+ * على السطح وعلى خلفيتها — القيم الأساسية (--ok/--warn/--bad) للحشوات
+ * والأشرطة، و -text للنصوص والشارات النصية.
  * Tailwind v4: نربط ألوان الأدوات بمتغيرات CSS عبر @theme inline
  * فيعمل تبديل الثيم الداكن بتغيير المتغيرات فقط.
  *
- * انضباط التوكنز (W6 — R-3): ممنوع هكس يدوي في مكوّنات الواجهة خارج
- * هذا الملف — كل لون واجهة من توكن. الاستثناءات الموثقة حصراً:
+ * انضباط التوكنز: ممنوع هكس يدوي في مكوّنات الواجهة خارج هذا الملف —
+ * كل لون واجهة من توكن. الاستثناءات الموثقة حصراً:
  * • lib/brand.ts — لوحة ألوان هوية السنتر (بيانات يختارها المدرس).
  * • brand/Logo.tsx — العلامة التجارية الثابتة (أصل SVG).
  * • students/StudentCardSheet — بطاقة طالب مطبوعة (لا تتبع ثيم التطبيق).
  * • analytics/charts.tsx — يقرأ التوكنز فعلياً وقيمه الاحتياطية هي
  *   قيم الفاتح (الكانفس يحتاج لوناً محسوساً).
  * • settings: قيمة '#4f46e5' الاحتياطية لبيانات brand_accent (بيانات).
+ * • components/mascot/Mascot.tsx — الماسكوت القديم (يُستبدل بنونا في الموجة 6).
  */
 @theme inline {
   --color-bg: var(--bg);
   --color-card: var(--card);
+  --color-surface: var(--surface);
   --color-elevated: var(--elevated);
   --color-border: var(--border);
   --color-border-interactive: var(--border-interactive);
@@ -34,9 +37,13 @@
   --color-primary: var(--primary);
   --color-primary-d: var(--primary-d);
   --color-on-primary: var(--on-primary);
+  --color-on-primary-muted: var(--on-primary-muted);
   --color-soft: var(--soft);
   --color-accent: var(--accent);
+  --color-accent-text: var(--accent-text);
+  --color-on-accent: var(--on-accent);
   --color-ok: var(--ok);
+  --color-on-ok: var(--on-ok);
   --color-ok-text: var(--ok-text);
   --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);
@@ -46,72 +53,87 @@
   --color-bad-text: var(--bad-text);
   --color-bad-soft: var(--bad-soft);
   --font-sans: "IBM Plex Sans Arabic", system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
+  --font-display: "Baloo Bhaijaan 2", "IBM Plex Sans Arabic", system-ui, sans-serif;
 }
 
 :root {
-  --bg: #f7f8fc;
+  --bg: #fff8ee;
   --card: #ffffff;
-  /* سطح مرتفع (W6 — R-1): أفتح درجة فوق البطاقة للـ Sheets والمنبثقات */
+  /* سطح دافئ مميز (DESIGN §2.1): بطاقات المعالم والأقسام المميزة */
+  --surface: #fff1de;
+  /* سطح مرتفع: أفتح درجة فوق البطاقة للـ Sheets والمنبثقات */
   --elevated: #ffffff;
-  /* حدود زخرفية فقط (W6 — R-2): فواصل وفواصل بطاقات لا تحمل معنى
+  /* حدود زخرفية فقط (DESIGN §2.1.1): فواصل وفواصل بطاقات لا تحمل معنى
      تفاعلياً — أي عنصر يُلمس أو يُدخَل فيه يستخدم --border-interactive */
-  --border: #e3e6f0;
-  /* حدود تفاعلية (W6 — R-2): حقول وأزرار مفرّغة ورقائق — 3.41:1 على
-     البطاقة و3.22:1 على الخلفية (WCAG 1.4.11 ≥ 3:1) */
-  --border-interactive: #7e8ab0;
-  --text: #141a2e;
-  --muted: #5b6478;
-  --primary: #4f46e5;
-  --primary-d: #4338ca;
-  /* نص الزر الأساسي في الفاتح: أبيض (5.9:1 على #4F46E5) */
+  --border: #f1e6d2;
+  /* حدود تفاعلية: بني دافئ #8A7A63 — 4.16:1 على البطاقة و3.95:1 على
+     الخلفية (WCAG 1.4.11 ≥ 3:1) */
+  --border-interactive: #8a7a63;
+  --text: #2f2a26;
+  --muted: #6b5e52;
+  --primary: #2e4a7a;
+  --primary-d: #21365c;
+  /* نص الزر الأساسي في الفاتح: أبيض (8.84:1 على #2E4A7A) */
   --on-primary: #ffffff;
-  --soft: #eef2ff;
-  --accent: #f59e0b;
-  /* ظلال موحدة (بحث §5): بطاقة واحد + مرتفع واحد فقط */
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.05);
-  --shadow-raised: 0 8px 24px rgba(15, 23, 42, 0.16);
-  /* حالات فاتح: حشوة #0E9F6E (3.39:1 كنص — للحشوات فقط)،
-     نصية #047857 (5.48:1 على الأبيض، 5.21:1 على خلفيتها) */
-  --ok: #0e9f6e;
-  --ok-text: #047857;
-  --ok-soft: #ecfdf5;
-  /* تحذير: حشوة كهرمانية #F59E0B، نصية #B45309 (5.02:1 أبيض، 4.51:1 على #FEF3C7) */
-  --warn: #f59e0b;
-  --warn-text: #b45309;
-  --warn-soft: #fef3c7;
-  /* خطر: حشوة #DC2626، نصية #B91C1C (6.47:1 أبيض، 5.91:1 على خلفيتها) */
-  --bad: #dc2626;
-  --bad-text: #b91c1c;
-  --bad-soft: #fef2f2;
+  /* نص ثانوي على البطاقات الكحلية (DESIGN §2.1.1): #C9D8F2 (6.14:1) */
+  --on-primary-muted: #c9d8f2;
+  --soft: #dceeff;
+  /* الكهرماني للزينة فقط — لا يُستخدم كنص إطلاقاً */
+  --accent: #f5a623;
+  /* نص كهرماني على الخلفيات الفاتحة (6.72:1 على #FFF8EE) */
+  --accent-text: #92400e;
+  /* نص داكن على ملء كهرماني (6.16:1 على #F5A623) */
+  --on-accent: #4a2e00;
+  /* ظلال دافئة موحدة (DESIGN §2.4): بطاقة واحد + مرتفع واحد فقط */
+  --shadow-card: 0 1px 2px rgba(91, 64, 32, 0.06);
+  --shadow-raised: 0 8px 24px rgba(91, 64, 32, 0.16);
+  /* حالات فاتح (DESIGN §2.1): اللون النصي هو لون الحشوة نفسه،
+     بتباين ≥4.5:1 على خلفيته الناعمة */
+  --ok: #166b4d;
+  --on-ok: #ffffff;
+  --ok-text: #166b4d;
+  --ok-soft: #e6f4ec;
+  --warn: #8a5a00;
+  --warn-text: #8a5a00;
+  --warn-soft: #fff3d6;
+  --bad: #9c2b2b;
+  --bad-text: #9c2b2b;
+  --bad-soft: #fdecec;
 }
 
 :root[data-theme="dark"] {
-  --bg: #0e1120;
-  --card: #171b2e;
-  /* سطح مرتفع داكن (W6 — R-1): #1E2438 — نصه الأساسي عليه 13.99:1
-     والثانوي 6.66:1، ويُستخدم في الـ Sheets والمنبثقات فقط */
-  --elevated: #1e2438;
-  /* حدود زخرفية فقط في الداكن أيضاً (R-2) */
-  --border: #262c47;
-  /* حدود تفاعلية داكنة (R-2): 3.36:1 على البطاقة و3.70:1 على الخلفية */
-  --border-interactive: #5d6ca3;
-  --text: #f2f4fa;
-  --muted: #a3aac2;
-  --primary: #8b85f7;
-  --primary-d: #a09bf8;
-  /* إصلاح تباين الداكن (خطوة 2): الأبيض على #8B85F7 كان 3.09:1 فقط —
-     نص داكن #141A2E عليه = 5.58:1 (≥ AA) */
+  --bg: #141a28;
+  --card: #1e2637;
+  /* سطح دافئ مميز في الداكن: درجة فوق البطاقة (نفس --elevated) */
+  --surface: #232c40;
+  /* سطح مرتفع داكن: #232C40 — نصه الأساسي عليه 13.02:1
+     والثانوي 6.93:1، ويُستخدم في الـ Sheets والمنبثقات فقط */
+  --elevated: #232c40;
+  /* حدود زخرفية فقط في الداكن أيضاً */
+  --border: #2b3348;
+  /* حدود تفاعلية داكنة: 4.70:1 على البطاقة و5.39:1 على الخلفية */
+  --border-interactive: #7a8fc0;
+  --text: #f5ede0;
+  --muted: #b9ae9f;
+  --primary: #9db8e8;
+  --primary-d: #b9cdef;
+  /* نص داكن #141A2E على #9DB8E8 = 8.59:1 (≥ AA) */
   --on-primary: #141a2e;
-  --soft: #232046;
+  /* نص ثانوي على البطاقات الكحلية الفاتحة في الداكن: #21365C */
+  --on-primary-muted: #21365c;
+  --soft: #24324f;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
   --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --accent: #fbbf24;
+  --accent: #ffc65c;
+  --accent-text: #ffc65c;
+  --on-accent: #141a2e;
   /* حالات داكن مفتّحة: تصلح حشوةً ونصاً على الأسطح الداكنة (≥5.9:1) */
   --ok: #34d399;
+  --on-ok: #141a28;
   --ok-text: #34d399;
   --ok-soft: #0f2e23;
-  --warn: #fbbf24;
-  --warn-text: #fbbf24;
+  --warn: #ffc65c;
+  --warn-text: #ffc65c;
   --warn-soft: #33270e;
   --bad: #f87171;
   --bad-text: #f87171;
@@ -124,6 +146,16 @@
  * حظر نص تفاعلي تحت 13.5px — الشارة (12px) للعرض غير التفاعلي فقط.
  */
 @utility type-screen {
+  /* عنوان الشاشة بخط العناوين Baloo (DESIGN §2.3) */
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.6;
+}
+/* عنوان الصفحة (h1) — نفس سلم عنوان الشاشة بخط Baloo (DESIGN §2.3).
+   كان الكلاس مستخدماً في 31 موضعاً بلا تعريف (بلا أي تنسيق). */
+@utility type-title {
+  font-family: var(--font-display);
   font-size: 20px;
   font-weight: 800;
   line-height: 1.6;
@@ -211,44 +243,10 @@
 .invite-twinkle { animation: invite-twinkle-kf 2.8s ease-in-out infinite; }
 
 /*
- * حركات الماسكوت «دُفّي» الخفيفة (MASCOT-PLAN §٤): تلويح الترحيب، قفزة
- * الاحتفال، تنفّس النوم في الحالات الفارغة، هزّة جرس التنبيهات (دفعة
- * قصيرة في أول الحلقة ثم سكون طويل حتى لا تُزعج)، وتمايل النجاحات
- * الصغيرة. كلها transform فقط (لا إعادة رسم تخطيط)، وقاعدة
- * prefers-reduced-motion العامة أسفل الملف توقفها كلها تلقائياً.
+ * حركات «دُفّي» (تلويح/قفز/تنفّس/هزّة/تمايل) حُذفت في موجة الهوية 6:
+ * كانت كلاسات ميتة بلا أي استخدام في الواجهة، وحضور نونا الجديد
+ * صورة معتمدة بلا حركات مفروضة (نبض التحميل في MascotLoader فقط).
  */
-@keyframes mascot-wave-kf {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-3.5deg); }
-  75% { transform: rotate(3.5deg); }
-}
-.mascot-wave { transform-origin: 50% 92%; animation: mascot-wave-kf 2.4s ease-in-out infinite; }
-@keyframes mascot-jump-kf {
-  0%, 100% { transform: translateY(0) scale(1, 1); }
-  30% { transform: translateY(-9px) scale(0.98, 1.03); }
-  55% { transform: translateY(0) scale(1.04, 0.95); }
-  75% { transform: translateY(-4px) scale(1, 1.01); }
-}
-.mascot-jump { transform-origin: 50% 95%; animation: mascot-jump-kf 0.95s ease-in-out infinite; }
-@keyframes mascot-breathe-kf {
-  0%, 100% { transform: scale(1) translateY(0); }
-  50% { transform: scale(1.025) translateY(-1.5px); }
-}
-.mascot-breathe { transform-origin: 50% 90%; animation: mascot-breathe-kf 3.6s ease-in-out infinite; }
-@keyframes mascot-nudge-kf {
-  0%, 100% { transform: rotate(0deg); }
-  2% { transform: rotate(-2.6deg); }
-  4% { transform: rotate(2.6deg); }
-  6% { transform: rotate(-1.8deg); }
-  8% { transform: rotate(1.2deg); }
-  10% { transform: rotate(0deg); }
-}
-.mascot-nudge { transform-origin: 50% 88%; animation: mascot-nudge-kf 4.5s ease-in-out infinite; }
-@keyframes mascot-bob-kf {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3.5px); }
-}
-.mascot-bob { animation: mascot-bob-kf 2.8s ease-in-out infinite; }
 
 /*
  * حركات دخول التنقّل والمحتوى (3A-312 — بند ٤): انتقال صفحة خفيف عند

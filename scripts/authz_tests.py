@@ -1490,6 +1490,108 @@ def main():
               s == 200 and (linked.get("c") or 0) >= 1,
               f"got {s} linked={linked.get('c')}")
 
+        # ---- WhatsApp budget (4.17, migration 0054) ----
+        used = one(ref, "select count(*) as c from whatsapp_send_log "
+                        f"where nursery_id = '{nursery_a}' "
+                        "and created_at >= date_trunc('month', now())")
+        cap_now = int(used["c"]) + 1
+        sql(ref, "insert into whatsapp_budgets (nursery_id, monthly_cap) "
+                 f"values ('{nursery_a}', {cap_now})")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/whatsapp_enqueue",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a, "p_guardian": a_guardian,
+                          "p_template": "fee_reminder", "p_params": {}})
+        first_status = b
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/whatsapp_enqueue",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a, "p_guardian": a_guardian,
+                          "p_template": "fee_reminder", "p_params": {}})
+        check("the WhatsApp monthly budget blocks over-cap sends (4.17)",
+              first_status != "blocked_budget" and b == "blocked_budget",
+              f"got first={first_status} second={b}")
+        sql(ref, f"delete from whatsapp_budgets where nursery_id = "
+                 f"'{nursery_a}'")
+        # ---- platform ops dashboard (4.18, migration 0056) ----
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/platform_overview",
+                    staff_jwt, body={})
+        check("a non-operator cannot read the platform overview (4.18)",
+              s >= 400, f"got {s}")
+        sql(ref, "insert into platform_operators (user_id) "
+                 f"values ('{staff_uid}')")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/platform_overview",
+                    staff_jwt, body={})
+        check("a platform operator reads the tenant overview (4.18)",
+              s == 200 and isinstance(b, list) and len(b) >= 2,
+              f"got {s} {str(b)[:80]}")
+        sql(ref, f"delete from platform_operators where user_id = "
+                 f"'{staff_uid}'")
+
+        # ---- feature flags (4.21, migration 0057) ----
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/nursery_feature_flags?select=flag_key"
+                    f"&nursery_id=eq.{nursery_a}", staff_jwt)
+        check("staff cannot read feature flags (4.21 owner-only)",
+              s == 200 and b == [], f"got {s}")
+        # ---- photo view log (4.14, migration 0058) ----
+        photo_row = one(
+            ref, "insert into child_photos (nursery_id, storage_path) "
+                 f"values ('{nursery_a}', '{nursery_a}/authz-view.jpg') "
+                 "returning id")
+        photo_id = photo_row["id"]
+        sql(ref, "insert into photo_children (photo_id, child_id) "
+                 f"values ('{photo_id}', '{a_child1}')")
+        raw_view = "authz-view-" + secrets.token_hex(8)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, expires_at) "
+                 f"values ('{nursery_a}', '{a_guardian}', "
+                 f"'{token_hash(raw_view)}', now() + interval '30 days')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/log_portal_photo_view",
+                    body={"p_token": raw_view, "p_photo_id": photo_id})
+        check("a guardian photo view is logged (4.14)",
+              s == 200 and b.get("status") == "ok", f"got {s} {b}")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_photo_views_by_token",
+                    body={"p_token": raw_view})
+        views = b.get("views") or []
+        check("the guardian reads back the view log (4.14)",
+              s == 200 and len(views) == 1
+              and views[0].get("is_self") is True,
+              f"got {s} {str(b)[:80]}")
+
+        # ---- AI governance (4.15, migration 0053) ----
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/ai_spend_caps?select=nursery_id"
+                    f"&nursery_id=eq.{nursery_a}", staff_jwt)
+        check("staff cannot read AI spend caps (4.15 owner-only)",
+              s == 200 and b == [], f"got {s}")
+
+        # ---- data requests (4.13, migration 0052) ----
+        raw_dr = "authz-dr-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', "
+                 f"'{token_hash(raw_dr)}', 'authz dr')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_data_request_by_token",
+                    None, body={"p_token": raw_dr, "p_kind": "export"})
+        check("a guardian files a data-export request (4.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("status") == "ok", f"got {s}")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_data_request_by_token",
+                    None, body={"p_token": raw_dr, "p_kind": "wipe"})
+        check("an unknown data-request kind is rejected (4.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("status") == "bad_kind", f"got {s}")
+
+        # ---- licensing steps (4.12, migration 0051) ----
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/licensing_steps?select=step_key"
+                    f"&nursery_id=eq.{nursery_a}", staff_jwt)
+        check("staff cannot read licensing steps (4.12 owner-only)",
+              s == 200 and b == [], f"got {s}")
+
         # ---- staff payroll (4.6, migration 0050) ----
         staff_member = one(ref, "select id from nursery_members where "
                                 f"nursery_id='{nursery_a}' and "

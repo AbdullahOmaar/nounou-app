@@ -39,5 +39,10 @@ export const activity = {
   },
   byActor: 'By {name}',
   filterAll: 'All activity',
+  today: 'Today',
+  yesterday: 'Yesterday',
+  searchPlaceholder: 'Search the log…',
   salaryPaid: "Salary paid",
+  dataRequestHandled: "Data request handled",
+  assistantExecuted: "Assistant executed",
 }

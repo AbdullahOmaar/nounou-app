@@ -23,6 +23,29 @@ export function useClassStaff(classId: string | undefined) {
   })
 }
 
+/** حالة اليوم لكل الفصول (اتفتح/حاضر/غائب) — قراءة فقط لموجة الهوية 2 */
+export function useClassesToday(date: string) {
+  const nursery = useCurrentNursery()
+  const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : null
+  return useQuery({
+    queryKey: ['classes-today', nurseryId, date],
+    enabled: Boolean(nurseryId),
+    queryFn: () => api.listClassesToday(nurseryId!, date),
+  })
+}
+
+/** أسماء مشرفات كل فصل — قراءة فقط لموجة الهوية 2 */
+export function useClassesStaffNames(classIds: string[]) {
+  const nursery = useCurrentNursery()
+  const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : null
+  const key = classIds.join(',')
+  return useQuery({
+    queryKey: ['classes-staff-names', nurseryId, key],
+    enabled: Boolean(nurseryId && classIds.length > 0),
+    queryFn: () => api.listClassesStaffNames(nurseryId!, classIds),
+  })
+}
+
 export function useClassMutations() {
   const nursery = useCurrentNursery()
   const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : null

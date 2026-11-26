@@ -45,8 +45,10 @@ describe('EmptyState', () => {
     expect(screen.getByText('أضف')).toBeInTheDocument()
   })
 
-  it('مع mascot يعرض علامة نونو (SVG) بدل دائرة الأيقونة', () => {
+  it('مع mascot يعرض وجه نونا (صورة القصّة) بدل دائرة الأيقونة', () => {
     const { container } = render(<EmptyState mascot title="فارغ" />)
-    expect(container.querySelector('svg')).not.toBeNull()
+    expect(
+      container.querySelector('img[src="/nouna/nouna-face.png"]'),
+    ).not.toBeNull()
   })
 })

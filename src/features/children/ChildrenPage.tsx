@@ -2,21 +2,29 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { QrCode, Upload } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
+import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { ErrorState, LoadingState } from '../../components/ui/states'
 import { Fab } from '../../components/ui/Fab'
-import { ListRow } from '../../components/ui/ListRow'
-import { PageToolBar } from '../../components/ui/PageToolBar'
-import { Select } from '../../components/ui/form'
+import {
+  GROUP_HEADER_TOP_WITH_SEARCH,
+  PageToolBar,
+  StickyGroupHeader,
+} from '../../components/ui/PageToolBar'
+import { Chip } from '../../components/ui/form'
 import { useT } from '../../i18n'
 import { ageLabel, formatMoney } from '../../lib/format'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { useClasses } from '../classes/hooks'
 import { useChildren, useChildMutations } from './hooks'
+import type { ChildListItem } from './api'
 import { ChildFormSheet } from './ChildFormSheet'
 import { ChildImportSheet } from './ChildImportSheet'
 
-/** قائمة الأطفال: بحث فوري + تصفية بالفصل + رصيد للمالك + إضافة/استيراد */
+/**
+ * قائمة الأطفال (موجة الهوية 2، موك أب 2): بحث لاصق + رقائق فصول +
+ * تجميع ببطاقة لكل فصل بعنوان لاصق. التصفية والبحث نفسيهما كما هما.
+ */
 export function ChildrenPage() {
   const t = useT()
   const navigate = useNavigate()
@@ -40,6 +48,31 @@ export function ChildrenPage() {
     })
   }, [children.data, search, classFilter])
 
+  const groups = useMemo(() => {
+    const byClass = new Map<string | null, ChildListItem[]>()
+    for (const c of filtered) {
+      const list = byClass.get(c.classId) ?? []
+      list.push(c)
+      byClass.set(c.classId, list)
+    }
+    const out: { key: string; title: string; items: ChildListItem[] }[] = []
+    for (const cls of classes.data ?? []) {
+      const items = byClass.get(cls.id)
+      if (items && items.length > 0) {
+        out.push({
+          key: cls.id,
+          title: t('children.groupTitle', { name: cls.name }),
+          items,
+        })
+      }
+    }
+    const unclassed = byClass.get(null)
+    if (unclassed && unclassed.length > 0) {
+      out.push({ key: 'none', title: t('children.noClass'), items: unclassed })
+    }
+    return out
+  }, [filtered, classes.data, t])
+
   return (
     <div>
       <PageToolBar
@@ -49,19 +82,20 @@ export function ChildrenPage() {
           placeholder: t('children.searchPlaceholder'),
         }}
         chips={
-          <Select
-            value={classFilter}
-            onChange={(e) => setClassFilter(e.target.value)}
-            className="w-36"
-            aria-label={t('children.filterAllClasses')}
-          >
-            <option value="">{t('children.filterAllClasses')}</option>
+          <>
+            <Chip active={classFilter === ''} onClick={() => setClassFilter('')}>
+              {t('children.filterAllClasses')}
+            </Chip>
             {(classes.data ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
+              <Chip
+                key={c.id}
+                active={classFilter === c.id}
+                onClick={() => setClassFilter(c.id)}
+              >
                 {c.name}
-              </option>
+              </Chip>
             ))}
-          </Select>
+          </>
         }
         resultCount={filtered.length}
       />
@@ -79,35 +113,49 @@ export function ChildrenPage() {
           hint={t('children.emptyBody')}
         />
       ) : (
-        <div className="flex flex-col gap-2">
-          {filtered.map((child) => (
-            <button
-              key={child.id}
-              type="button"
-              className="text-start cursor-pointer bg-transparent border-0 p-0"
-              onClick={() => navigate(`/children/${child.id}`)}
-            >
-            <ListRow
-              leading={<Avatar name={child.full_name} />}
-              title={child.full_name}
-              secondary={
-                [
-                  child.className ?? t('children.noClass'),
-                  ageLabel(child.birth_date) ?? '',
-                  `#${child.public_code}`,
-                ]
-                  .filter(Boolean)
-                  .join(' • ')
-              }
-              trailing={
-                isOwner && child.balance > 0 ? (
-                  <span className="type-badge text-bad-text bg-bad-soft rounded-full px-2 py-1">
-                    {formatMoney(child.balance)}
+        <div className="flex flex-col">
+          {groups.map((g) => (
+            <section key={g.key}>
+              <StickyGroupHeader top={GROUP_HEADER_TOP_WITH_SEARCH}>
+                <span className="flex items-center justify-between">
+                  <span className="font-display text-[17px] font-bold text-primary">
+                    {g.title}
                   </span>
-                ) : undefined
-              }
-            />
-            </button>
+                  <span className="type-badge text-accent-text">
+                    {t('format.childCount', { count: g.items.length })}
+                  </span>
+                </span>
+              </StickyGroupHeader>
+              <Card className="p-0 overflow-hidden mb-4">
+                <div className="divide-y divide-border">
+                  {g.items.map((child) => (
+                    <button
+                      key={child.id}
+                      type="button"
+                      className="w-full flex items-center gap-3 px-4 py-3 text-start cursor-pointer bg-transparent border-0 hover:bg-surface"
+                      onClick={() => navigate(`/children/${child.id}`)}
+                    >
+                      <Avatar name={child.full_name} />
+                      <span className="flex-1 min-w-0">
+                        <span className="type-body block truncate">
+                          {child.full_name}
+                        </span>
+                        <span className="type-badge text-muted block">
+                          {[ageLabel(child.birth_date) ?? '', `#${child.public_code}`]
+                            .filter(Boolean)
+                            .join(' • ')}
+                        </span>
+                      </span>
+                      {isOwner && child.balance > 0 && (
+                        <span className="type-badge shrink-0 text-bad-text bg-bad-soft rounded-full px-2 py-1">
+                          {formatMoney(child.balance)}
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </Card>
+            </section>
           ))}
         </div>
       )}
@@ -116,14 +164,14 @@ export function ChildrenPage() {
         <>
           <button
             onClick={() => navigate('/qr-cards')}
-            className="fixed bottom-56 end-4 z-10 w-12 h-12 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-text cursor-pointer"
+            className="fixed bottom-56 end-[max(1rem,calc(50vw-320px+1rem))] z-10 w-12 h-12 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-text cursor-pointer"
             aria-label={t('children.qr.title')}
           >
             <QrCode size={20} />
           </button>
           <button
             onClick={() => setImportOpen(true)}
-            className="fixed bottom-40 end-4 z-10 w-12 h-12 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-text cursor-pointer"
+            className="fixed bottom-40 end-[max(1rem,calc(50vw-320px+1rem))] z-10 w-12 h-12 rounded-full bg-card border border-border shadow-card flex items-center justify-center text-text cursor-pointer"
             aria-label={t('children.import.title')}
           >
             <Upload size={20} />

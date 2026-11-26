@@ -19,4 +19,9 @@ export const announcements = {
   rsvpNo: "No",
   readBy: "Read by {count} guardians",
   rsvpSummary: "Attending {attending} (+{guests} guests) • declined {declined}",
+  draftsTitle: 'Drafts',
+  latestTitle: 'Latest announcements',
+  newBadge: 'New',
+  archiveTitle: 'Archive',
+  classAudience: 'For class {name}',
 }

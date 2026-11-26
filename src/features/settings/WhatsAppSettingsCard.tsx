@@ -37,6 +37,15 @@ export function WhatsAppSettingsCard({ nurseryId }: { nurseryId: string }) {
     queryKey: ['whatsapp-log', nurseryId],
     queryFn: () => wa.listWhatsAppLog(nurseryId),
   })
+  const budget = useQuery({
+    queryKey: ['whatsapp-budget', nurseryId],
+    queryFn: () => wa.getWhatsAppBudget(nurseryId),
+  })
+  const [capDraft, setCapDraft] = useState('')
+  useEffect(() => {
+    if (budget.data !== undefined)
+      setCapDraft(budget.data === null ? '' : String(budget.data))
+  }, [budget.data])
   useEffect(() => {
     if (config.data) {
       setPhoneId(config.data.phone_number_id ?? '')
@@ -152,6 +161,40 @@ export function WhatsAppSettingsCard({ nurseryId }: { nurseryId: string }) {
           {t('settings.wa.test')}
         </Button>
       </span>
+      <div className="flex items-end gap-2">
+        <Field label={t('settings.wa.budgetLabel')}>
+          <TextInput
+            type="number"
+            min="0"
+            value={capDraft}
+            onChange={(e) => setCapDraft(e.target.value)}
+            placeholder={t('settings.wa.budgetPlaceholder')}
+          />
+        </Field>
+        <Button
+          size="sm"
+          variant="soft"
+          onClick={async () => {
+            const value = Number(capDraft)
+            if (!Number.isFinite(value) || value < 0) {
+              showToast(t('common.errorGeneric'), 'error')
+              return
+            }
+            try {
+              await wa.saveWhatsAppBudget(nurseryId, value)
+              showToast(t('common.savedOk'))
+              void qc.invalidateQueries({
+                queryKey: ['whatsapp-budget', nurseryId],
+              })
+            } catch {
+              showToast(t('common.errorGeneric'), 'error')
+            }
+          }}
+        >
+          {t('common.save')}
+        </Button>
+      </div>
+
       {(log.data ?? []).length > 0 && (
         <div className="flex flex-col gap-1">
           <span className="type-badge text-muted">{t('settings.wa.logTitle')}</span>

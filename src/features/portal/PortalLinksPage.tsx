@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Copy, Eye, Link2, MessageCircle, X } from 'lucide-react'
+import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -96,12 +97,15 @@ export function PortalLinksPage() {
     },
     onSuccess: ({ guardianId, url }) => {
       setFreshLinks((prev) => new Map(prev).set(guardianId, url))
+      showToast(t('children.linkIssued'))
       refresh()
     },
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
   })
   const revoke = useMutation({
     mutationFn: (tokenId: string) => api.revokeToken(tokenId),
     onSuccess: refresh,
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
   })
   const issueView = useMutation({
     mutationFn: async (guardianId: string) => {
@@ -110,8 +114,10 @@ export function PortalLinksPage() {
     },
     onSuccess: ({ guardianId, url }) => {
       setFreshViewLinks((prev) => new Map(prev).set(guardianId, url))
+      showToast(t('children.linkIssued'))
       refresh()
     },
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
   })
 
   const list = useMemo(
@@ -138,9 +144,22 @@ export function PortalLinksPage() {
         const wa = fresh ? waLink(guardian.phone) : null
         return (
           <Card key={guardian.id}>
-            <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              <Avatar name={guardian.full_name} />
               <div>
-                <div className="type-body">{guardian.full_name}</div>
+                <div className="type-body flex items-center gap-2">
+                  {guardian.full_name}
+                  {activeToken && (
+                    <span className="type-badge text-ok-text bg-ok-soft rounded-full px-2 py-0.5">
+                      {t('children.linkActive')}
+                    </span>
+                  )}
+                  {viewToken && (
+                    <span className="type-badge text-primary bg-soft rounded-full px-2 py-0.5">
+                      {t('children.viewLinkBadge')}
+                    </span>
+                  )}
+                </div>
                 <div className="type-badge text-muted">
                   {childrenNames.join(' • ')} — <span dir="ltr">{guardian.phone}</span>
                 </div>
@@ -159,7 +178,11 @@ export function PortalLinksPage() {
             </div>
             <div className="flex gap-2 mt-3 flex-wrap">
               {canManage && !activeToken && (
-                <Button size="sm" onClick={() => issue.mutate(guardian.id)}>
+                <Button
+                  size="sm"
+                  disabled={issue.isPending}
+                  onClick={() => issue.mutate(guardian.id)}
+                >
                   <Link2 size={16} />
                   {t('children.issueLink')}
                 </Button>
@@ -195,6 +218,7 @@ export function PortalLinksPage() {
                 <Button
                   size="sm"
                   variant="ghost"
+                  disabled={revoke.isPending}
                   onClick={() => revoke.mutate(activeToken.id)}
                 >
                   <X size={16} />
@@ -207,6 +231,7 @@ export function PortalLinksPage() {
                     <Button
                       size="sm"
                       variant="ghost"
+                      disabled={issueView.isPending}
                       onClick={() => issueView.mutate(guardian.id)}
                     >
                       <Eye size={16} />
@@ -227,6 +252,7 @@ export function PortalLinksPage() {
                     <Button
                       size="sm"
                       variant="ghost"
+                      disabled={revoke.isPending}
                       onClick={() => revoke.mutate(viewToken.id)}
                     >
                       <X size={16} />

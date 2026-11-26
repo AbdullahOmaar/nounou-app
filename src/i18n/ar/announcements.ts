@@ -19,4 +19,9 @@ export const announcements = {
   rsvpNo: "لا",
   readBy: "قرأه {count} ولي أمر",
   rsvpSummary: "هيحضر {attending} (+{guests} مرافق) • اعتذر {declined}",
+  draftsTitle: 'مسودات',
+  latestTitle: 'أحدث الإعلانات',
+  newBadge: 'جديد',
+  archiveTitle: 'الأرشيف',
+  classAudience: 'لفصل {name}',
 }

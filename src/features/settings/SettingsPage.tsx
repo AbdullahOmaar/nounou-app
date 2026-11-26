@@ -11,6 +11,8 @@ import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { WhatsAppSettingsCard } from './WhatsAppSettingsCard'
 import { PublicPageCard } from './PublicPageCard'
 import { LicensingCard } from './LicensingCard'
+import { IsoCard } from './IsoCard'
+import { DataRequestsCard } from './DataRequestsCard'
 import { IdentityCard } from './IdentityCard'
 import { useAuth } from '../../lib/AuthProvider'
 import { useNurserySettings, useSettingsMutations } from './hooks'
@@ -75,6 +77,9 @@ export function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      {isOwner && (
+        <h2 className="type-section">{t('settings.groupNursery')}</h2>
+      )}
       {isOwner && (
         <Card className="flex flex-col gap-3">
           <h2 className="type-section">{t('settings.nurserySection')}</h2>
@@ -223,6 +228,15 @@ export function SettingsPage() {
         <>
           <WhatsAppSettingsCard nurseryId={nursery.nurseryId} />
           <PublicPageCard nurseryId={nursery.nurseryId} />
+        </>
+      )}
+
+      {isOwner && nursery.status === 'ready' && (
+        <h2 className="type-section">{t('settings.groupDataSupport')}</h2>
+      )}
+      {isOwner && nursery.status === 'ready' && (
+        <>
+          <DataRequestsCard nurseryId={nursery.nurseryId} />
           <LicensingCard
             nurseryId={nursery.nurseryId}
             nurseryName={nursery.nursery.name}
@@ -231,9 +245,16 @@ export function SettingsPage() {
             address={nursery.nursery.address}
             phone={nursery.nursery.phone}
           />
+          <IsoCard
+            nurseryId={nursery.nurseryId}
+            nurseryName={nursery.nursery.name}
+            logoUrl={nursery.nursery.logo_url}
+            brandColor={nursery.nursery.brand_color}
+          />
         </>
       )}
 
+      <h2 className="type-section">{t('settings.groupAccountTeam')}</h2>
       <Card className="flex flex-col gap-3">
         <h2 className="type-section">{t('settings.appearanceSection')}</h2>
         <Field label={t('settings.theme')}>

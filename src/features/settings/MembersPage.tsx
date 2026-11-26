@@ -80,106 +80,129 @@ export function MembersPage() {
     }
   }
 
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="type-badge text-muted">{t('settings.financeNote')}</p>
-      <Button variant="soft" onClick={() => setInviteOpen(true)}>
-        <Plus size={16} />
-        {t('settings.addMember')}
-      </Button>
-      {list.map((m) => (
-        <Card key={m.id}>
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="type-body">
-                {m.display_name || m.invited_email || '—'}
-                <span className="type-badge text-muted">
-                  {' '}
-                  • {m.role === 'owner' ? t('settings.roleOwner') : t('settings.roleStaff')}
-                </span>
-              </div>
-              <div className="type-badge text-muted">
-                {m.status === 'invited'
-                  ? t('settings.memberInvited')
-                  : m.status === 'active'
-                    ? t('settings.memberActive')
-                    : t('settings.memberSuspended')}
-              </div>
-            </div>
-            {m.role !== 'owner' && (
-              <span className="flex gap-1">
-                {m.status === 'invited' && m.invited_email && nursery.status === 'ready' && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    aria-label={t('settings.resendInviteEmail')}
-                    onClick={async () => {
-                      const st = await sendInviteEmail(nursery.nurseryId, m.invited_email!)
-                      toast(
-                        st === 'sent'
-                          ? t('settings.inviteEmailResent')
-                          : t('settings.inviteEmailFailed'),
-                        st === 'sent' ? 'success' : 'error',
-                      )
-                    }}
-                  >
-                    <Send size={16} />
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="ghost"
+  // مجموعتا الهوية (الموجة 5): المالك ثم المشرفات — الدور من عنوان
+  // المجموعة، والحالة شارة ملوّنة، والصلاحيات داخل بطاقة العضو كما هي.
+  const memberGroups = [
+    { key: 'owner', label: t('settings.groupOwner'), items: list.filter((m) => m.role === 'owner') },
+    { key: 'staff', label: t('settings.groupStaff'), items: list.filter((m) => m.role !== 'owner') },
+  ].filter((g) => g.items.length > 0)
+
+  function memberCard(m: (typeof list)[number]) {
+    return (
+    <Card key={m.id}>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="type-body">
+            {m.display_name || m.invited_email || '—'}
+          </div>
+          <span
+            className={`type-badge rounded-full px-2 py-1 ${
+              m.status === 'invited'
+                ? 'text-warn-text bg-warn-soft'
+                : m.status === 'active'
+                  ? 'text-ok-text bg-ok-soft'
+                  : 'text-bad-text bg-bad-soft'
+            }`}
+          >
+            {m.status === 'invited'
+              ? t('settings.memberInvitedShort')
+              : m.status === 'active'
+                ? t('settings.memberActive')
+                : t('settings.memberSuspended')}
+          </span>
+        </div>
+        {m.role !== 'owner' && (
+          <span className="flex gap-1">
+            {m.status === 'invited' && m.invited_email && nursery.status === 'ready' && (
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-label={t('settings.resendInviteEmail')}
+                onClick={async () => {
+                  const st = await sendInviteEmail(nursery.nurseryId, m.invited_email!)
+                  toast(
+                    st === 'sent'
+                      ? t('settings.inviteEmailResent')
+                      : t('settings.inviteEmailFailed'),
+                    st === 'sent' ? 'success' : 'error',
+                  )
+                }}
+              >
+                <Send size={16} />
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                void mutations.updateMember.mutateAsync({
+                  memberId: m.id,
+                  patch: {
+                    status: m.status === 'suspended' ? 'active' : 'suspended',
+                  },
+                })
+              }
+            >
+              {m.status === 'suspended'
+                ? t('settings.activate')
+                : t('settings.suspend')}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => void mutations.removeMember.mutateAsync(m.id)}
+              aria-label={t('settings.removeMember')}
+            >
+              <Trash2 size={16} />
+            </Button>
+          </span>
+        )}
+      </div>
+      {m.role !== 'owner' && (
+        <div className="mt-2">
+          <ChipRow>
+            {PERMISSION_KEYS.filter((k) => k !== 'can_review_proofs').map((key) => {
+              const on = m.permissions?.[key] === true
+              return (
+                <Chip
+                  key={key}
+                  active={on}
                   onClick={() =>
                     void mutations.updateMember.mutateAsync({
                       memberId: m.id,
                       patch: {
-                        status: m.status === 'suspended' ? 'active' : 'suspended',
+                        permissions: { ...m.permissions, [key]: !on },
                       },
                     })
                   }
                 >
-                  {m.status === 'suspended'
-                    ? t('settings.activate')
-                    : t('settings.suspend')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => void mutations.removeMember.mutateAsync(m.id)}
-                  aria-label={t('settings.removeMember')}
-                >
-                  <Trash2 size={16} />
-                </Button>
-              </span>
-            )}
+                  {permLabel(key)}
+                </Chip>
+              )
+            })}
+          </ChipRow>
+        </div>
+      )}
+    </Card>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {memberGroups.map((g) => (
+        <section key={g.key}>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="type-section">{g.label}</h2>
+            <span className="type-badge text-muted">{g.items.length}</span>
           </div>
-          {m.role !== 'owner' && (
-            <div className="mt-2">
-              <ChipRow>
-                {PERMISSION_KEYS.filter((k) => k !== 'can_review_proofs').map((key) => {
-                  const on = m.permissions?.[key] === true
-                  return (
-                    <Chip
-                      key={key}
-                      active={on}
-                      onClick={() =>
-                        void mutations.updateMember.mutateAsync({
-                          memberId: m.id,
-                          patch: {
-                            permissions: { ...m.permissions, [key]: !on },
-                          },
-                        })
-                      }
-                    >
-                      {permLabel(key)}
-                    </Chip>
-                  )
-                })}
-              </ChipRow>
-            </div>
-          )}
-        </Card>
+          <div className="flex flex-col gap-2">{g.items.map(memberCard)}</div>
+        </section>
       ))}
+      <Button full onClick={() => setInviteOpen(true)}>
+        <Plus size={16} />
+        {t('settings.addMember')}
+      </Button>
+      <p className="type-badge text-muted text-center">{t('settings.financeNote')}</p>
 
       <Sheet
         open={inviteOpen}

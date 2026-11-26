@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Camera, Download, Send, Trash2 } from 'lucide-react'
+import { Camera, Download, Moon, Send, Shapes, Smile, Trash2, UtensilsCrossed } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -31,6 +31,8 @@ import { makeStopFlag, type StopFlag } from '../../lib/bulk'
 const MEALS: MealKind[] = ['breakfast', 'snack', 'lunch']
 const ATE: AteAmount[] = ['all', 'most', 'some', 'none']
 const MOODS: Mood[] = ['happy', 'calm', 'sad', 'tired', 'sick']
+
+type ReportTab = 'notWritten' | 'ready' | 'sent'
 
 interface DraftState {
   meals: Record<MealKind, AteAmount>
@@ -289,6 +291,7 @@ export function ReportsPage() {
   const [editChild, setEditChild] = useState<{ id: string; name: string } | null>(null)
   const [editDraft, setEditDraft] = useState<DraftState>(EMPTY_DRAFT)
   const [publishOpen, setPublishOpen] = useState(false)
+  const [tabSel, setTabSel] = useState<ReportTab | null>(null)
 
   const presentChildren = useMemo(
     () =>
@@ -308,6 +311,69 @@ export function ReportsPage() {
     new Set(reportByChild.keys()),
   )
   const activeClass = (classes.data ?? []).find((c) => c.id === activeClassId)
+
+  // هوية نونو — الموجة 3: تبويبات حالة التقرير + بطاقة بأقسام ثابتة.
+  // الحالات مشتقة من نفس بيانات اليوم (لا منطق جديد): غائب ببطاقته
+  // المعطلة كما هي داخل تبويب «لسه» ولا يُحسب في عدّاده.
+  const listedChildren = (dayChildren.data ?? []).filter(
+    (d) => reportAccessFor(d.attendance?.status) !== 'unmarked',
+  )
+  const childState = (d: (typeof listedChildren)[number]): ReportTab | 'absent' => {
+    if (reportAccessFor(d.attendance?.status) === 'absent') return 'absent'
+    const r = reportByChild.get(d.child.id)
+    return r?.published_at ? 'sent' : r ? 'ready' : 'notWritten'
+  }
+  const tabCounts: Record<ReportTab, number> = {
+    notWritten: listedChildren.filter((d) => childState(d) === 'notWritten').length,
+    ready: listedChildren.filter((d) => childState(d) === 'ready').length,
+    sent: listedChildren.filter((d) => childState(d) === 'sent').length,
+  }
+  const tab: ReportTab = tabSel ?? (tabCounts.ready > 0 ? 'ready' : 'notWritten')
+  const visibleChildren = listedChildren.filter((d) => {
+    const st = childState(d)
+    return tab === 'notWritten' ? st === 'notWritten' || st === 'absent' : st === tab
+  })
+  const photosByChild = useMemo(() => {
+    const map = new Map<string, NonNullable<typeof photos.data>>()
+    for (const p of photos.data ?? []) {
+      for (const cid of p.childIds) {
+        const arr = map.get(cid) ?? []
+        arr.push(p)
+        map.set(cid, arr)
+      }
+    }
+    return map
+  }, [photos.data])
+
+  const openEditor = (childId: string, childName: string) => {
+    const existing = reportByChild.get(childId)
+    setEditDraft(
+      existing
+        ? {
+            meals: {
+              breakfast:
+                (existing.meals.find((m) => m.meal === 'breakfast')
+                  ?.ate as AteAmount) ?? 'all',
+              snack:
+                (existing.meals.find((m) => m.meal === 'snack')
+                  ?.ate as AteAmount) ?? 'all',
+              lunch:
+                (existing.meals.find((m) => m.meal === 'lunch')
+                  ?.ate as AteAmount) ?? 'all',
+            },
+            source:
+              (existing.meals[0]?.source as 'home' | 'nursery') ?? 'home',
+            napFrom: existing.nap_from?.slice(0, 5) ?? '',
+            napTo: existing.nap_to?.slice(0, 5) ?? '',
+            napSlept: existing.nap_slept ?? true,
+            activities: existing.activities.join(t('format.listSep')),
+            mood: existing.mood ?? 'happy',
+            note: existing.note ?? '',
+          }
+        : bulk,
+    )
+    setEditChild({ id: childId, name: childName })
+  }
 
   const mealLabel = (m: MealKind): string =>
     m === 'breakfast'
@@ -498,6 +564,9 @@ export function ReportsPage() {
               >
                 {t('reports.applyToAll')}
               </Button>
+              {presentChildren.length === 0 && (
+                <p className="type-badge text-muted mt-2">{t('reports.noPresentHint')}</p>
+              )}
               {bulkSaving && (
                 <Button
                   variant="soft"
@@ -511,14 +580,38 @@ export function ReportsPage() {
             </Card>
           )}
 
+          <ChipRow>
+            {(
+              [
+                ['notWritten', t('reports.tabNotWritten'), tabCounts.notWritten],
+                ['ready', t('reports.tabReady'), tabCounts.ready],
+                ['sent', t('reports.tabSent'), tabCounts.sent],
+              ] as [ReportTab, string, number][]
+            ).map(([key, label, count]) => (
+              <Chip key={key} active={tab === key} onClick={() => setTabSel(key)}>
+                {label} • {count}
+              </Chip>
+            ))}
+          </ChipRow>
+
           <section className="flex flex-col gap-2">
-            {(dayChildren.data ?? [])
-              .filter((d) => reportAccessFor(d.attendance?.status) !== 'unmarked')
-              .map((d) => {
+            {visibleChildren.length === 0 ? (
+              <EmptyState
+                title={
+                  tab === 'notWritten'
+                    ? t('reports.emptyNotWritten')
+                    : tab === 'ready'
+                      ? t('reports.emptyReady')
+                      : t('reports.emptySent')
+                }
+              />
+            ) : (
+              visibleChildren.map((d) => {
                 const report = reportByChild.get(d.child.id)
+                const state = childState(d)
                 // X2 (3A-378): الغائب/في إجازة يظهر بشارة «غائب» وبطاقته
                 // معطلة — لا كتابة تقرير ولا نشر لمن لم يحضر.
-                if (reportAccessFor(d.attendance?.status) === 'absent') {
+                if (state === 'absent') {
                   return (
                     <Card
                       key={d.child.id}
@@ -534,63 +627,117 @@ export function ReportsPage() {
                     </Card>
                   )
                 }
+                if (state === 'notWritten' || !report) {
+                  return (
+                    <Card
+                      key={d.child.id}
+                      className="flex items-center justify-between py-3 cursor-pointer"
+                      onClick={() => openEditor(d.child.id, d.child.full_name)}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Avatar name={d.child.full_name} />
+                        <span className="type-body">{d.child.full_name}</span>
+                      </span>
+                      <span className="type-badge text-accent-text font-semibold">
+                        {t('reports.writeReport')}
+                      </span>
+                    </Card>
+                  )
+                }
+                const lunchAte =
+                  (report.meals.find((m) => m.meal === 'lunch')
+                    ?.ate as AteAmount) ?? 'all'
+                const napValue = report.nap_slept
+                  ? report.nap_from && report.nap_to
+                    ? `${report.nap_from.slice(0, 5)} – ${report.nap_to.slice(0, 5)}`
+                    : t('reports.napSlept')
+                  : t('reports.quickNoSleep')
+                const childPhotos = photosByChild.get(d.child.id) ?? []
+                const tiles: { icon: ReactNode; value: string; label: string }[] = [
+                  {
+                    icon: <UtensilsCrossed size={17} />,
+                    value: ateLabel(lunchAte),
+                    label: t('reports.tileMeals'),
+                  },
+                  {
+                    icon: <Moon size={17} />,
+                    value: napValue,
+                    label: t('reports.nap'),
+                  },
+                  {
+                    icon: <Shapes size={17} />,
+                    value: report.activities[0] ?? '—',
+                    label:
+                      report.activities.length > 1
+                        ? `${t('reports.activities')} ${t('reports.moreActivities', { count: report.activities.length - 1 })}`
+                        : t('reports.activities'),
+                  },
+                  {
+                    icon: <Smile size={17} />,
+                    value: report.mood ? moodLabel(report.mood) : '—',
+                    label: t('reports.mood'),
+                  },
+                ]
                 return (
-                <Card
-                  key={d.child.id}
-                  className="flex items-center justify-between py-3 cursor-pointer"
-                  onClick={() => {
-                    const existing = report
-                    setEditDraft(
-                      existing
-                        ? {
-                            meals: {
-                              breakfast:
-                                (existing.meals.find((m) => m.meal === 'breakfast')
-                                  ?.ate as AteAmount) ?? 'all',
-                              snack:
-                                (existing.meals.find((m) => m.meal === 'snack')
-                                  ?.ate as AteAmount) ?? 'all',
-                              lunch:
-                                (existing.meals.find((m) => m.meal === 'lunch')
-                                  ?.ate as AteAmount) ?? 'all',
-                            },
-                            source:
-                              (existing.meals[0]?.source as 'home' | 'nursery') ??
-                              'home',
-                            napFrom: existing.nap_from?.slice(0, 5) ?? '',
-                            napTo: existing.nap_to?.slice(0, 5) ?? '',
-                            napSlept: existing.nap_slept ?? true,
-                            activities: existing.activities.join(t('format.listSep')),
-                            mood: existing.mood ?? 'happy',
-                            note: existing.note ?? '',
-                          }
-                        : bulk,
-                    )
-                    setEditChild({ id: d.child.id, name: d.child.full_name })
-                  }}
-                >
-                  <span className="flex items-center gap-2">
-                    <Avatar name={d.child.full_name} />
-                    <span className="type-body">{d.child.full_name}</span>
-                  </span>
-                  <span
-                    className={`type-badge rounded-full px-2 py-1 ${
-                      report?.published_at
-                        ? 'text-good-text bg-good-soft'
-                        : report
-                          ? 'text-muted bg-soft'
-                          : 'text-bad-text bg-bad-soft'
-                    }`}
+                  <Card
+                    key={d.child.id}
+                    className="flex flex-col gap-3 cursor-pointer"
+                    onClick={() => openEditor(d.child.id, d.child.full_name)}
                   >
-                    {report?.published_at
-                      ? t('reports.publishedBadge')
-                      : report
-                        ? t('reports.draftBadge')
-                        : t('reports.missingCount', { count: 1 })}
-                  </span>
-                </Card>
-              )
-            })}
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <Avatar name={d.child.full_name} />
+                        <span className="type-body font-semibold">{d.child.full_name}</span>
+                      </span>
+                      <span
+                        className={`type-badge rounded-full px-2 py-1 ${
+                          state === 'sent'
+                            ? 'text-good-text bg-good-soft'
+                            : 'text-muted bg-soft'
+                        }`}
+                      >
+                        {state === 'sent'
+                          ? t('reports.publishedBadge')
+                          : t('reports.draftBadge')}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {tiles.map((tile, i) => (
+                        <div
+                          key={i}
+                          className="bg-soft rounded-xl px-1 py-2 text-center flex flex-col items-center gap-0.5 min-w-0"
+                        >
+                          <span className="text-primary">{tile.icon}</span>
+                          <span className="type-badge font-semibold truncate max-w-full">
+                            {tile.value}
+                          </span>
+                          <span className="type-badge text-muted truncate max-w-full">
+                            {tile.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {childPhotos.length > 0 && (
+                      <div className="flex gap-2 overflow-x-auto">
+                        {childPhotos.slice(0, 6).map((p) =>
+                          p.url ? (
+                            <img
+                              key={p.id}
+                              src={p.url}
+                              alt={p.caption ?? ''}
+                              className="w-14 h-14 rounded-2xl object-cover shrink-0"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div key={p.id} className="w-14 h-14 rounded-2xl bg-soft shrink-0" />
+                          ),
+                        )}
+                      </div>
+                    )}
+                  </Card>
+                )
+              })
+            )}
           </section>
 
           {queued > 0 && (
@@ -763,6 +910,7 @@ function PhotosSection({
   const [caption, setCaption] = useState('')
   const [uploading, setUploading] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<(typeof photos)[number] | null>(null)
+  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(new Set())
 
   async function handleUpload() {
     if (files.length === 0) return
@@ -940,15 +1088,22 @@ function PhotosSection({
         <div className="grid grid-cols-3 gap-2">
           {photos.map((p) => (
             <div key={p.id} className="relative">
-              {p.url ? (
+              {p.url && !failedPhotos.has(p.id) ? (
                 <img
                   src={p.url}
                   alt={p.caption ?? ''}
-                  className="w-full aspect-square object-cover rounded-xl"
+                  className="w-full aspect-square object-cover rounded-2xl"
                   loading="lazy"
+                  onError={() =>
+                    setFailedPhotos((prev) => new Set(prev).add(p.id))
+                  }
                 />
               ) : (
-                <div className="w-full aspect-square rounded-xl bg-soft" />
+                <div className="w-full aspect-square rounded-2xl bg-soft flex items-center justify-center px-2">
+                  <span className="type-badge text-muted text-center">
+                    {t('reports.photoLoadFailed')}
+                  </span>
+                </div>
               )}
               {canPhotos && (
                 <button

@@ -128,6 +128,18 @@ export async function listPhotosForDay(
     arr.push(l.child_id as string)
     byPhoto.set(l.photo_id as string, arr)
   }
+  // سجل مشاهدات الطاقم (4.14): العرض داخل التطبيق مشاهدة
+  // موثقة. التسجيل جهد أفضل — فشله لا يحجب الصور عن الطاقم
+  // (استثناء موثق كتحليلات 3.3).
+  if (photos.length > 0) {
+    try {
+      await db.rpc('log_staff_photo_views', {
+        p_photo_ids: photos.map((p) => p.id),
+      })
+    } catch {
+      // documented best-effort: viewing is the primary right
+    }
+  }
   const withUrls = await Promise.all(
     photos.map(async (p) => {
       const { data: signed } = await db.storage
@@ -307,6 +319,18 @@ export async function listChildPhotos(
   const photos = (data ?? [])
     .map((r) => (r as unknown as { photo: ChildPhotoRow }).photo)
     .filter(Boolean)
+  // سجل مشاهدات الطاقم (4.14): العرض داخل التطبيق مشاهدة
+  // موثقة. التسجيل جهد أفضل — فشله لا يحجب الصور عن الطاقم
+  // (استثناء موثق كتحليلات 3.3).
+  if (photos.length > 0) {
+    try {
+      await db.rpc('log_staff_photo_views', {
+        p_photo_ids: photos.map((p) => p.id),
+      })
+    } catch {
+      // documented best-effort: viewing is the primary right
+    }
+  }
   const withUrls = await Promise.all(
     photos.map(async (p) => {
       const { data: signed } = await db.storage

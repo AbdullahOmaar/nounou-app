@@ -104,3 +104,33 @@ export async function enqueuePickupCode(
   if (error) throw error
   return data as string
 }
+
+
+export async function getWhatsAppBudget(
+  nurseryId: string,
+): Promise<number | null> {
+  const db = requireSupabase()
+  const { data, error } = await db
+    .from('whatsapp_budgets')
+    .select('monthly_cap')
+    .eq('nursery_id', nurseryId)
+    .maybeSingle()
+  if (error) throw error
+  return data ? Number((data as { monthly_cap: number }).monthly_cap) : null
+}
+
+export async function saveWhatsAppBudget(
+  nurseryId: string,
+  cap: number,
+): Promise<void> {
+  const db = requireSupabase()
+  const { error } = await db.from('whatsapp_budgets').upsert(
+    {
+      nursery_id: nurseryId,
+      monthly_cap: cap,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'nursery_id' },
+  )
+  if (error) throw error
+}

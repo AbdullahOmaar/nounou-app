@@ -9,6 +9,8 @@ export const common = {
   back: 'رجوع',
   search: 'بحث',
   loading: 'جارٍ التحميل…',
+  version: "الإصدار",
+  publishedAt: "نُشر",
   retry: 'حاول تاني',
   confirm: 'تأكيد',
   yes: 'أيوه',

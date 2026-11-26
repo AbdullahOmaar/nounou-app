@@ -11,7 +11,7 @@ export interface HomeSummary {
   reportsUnpublished: number
   overdueTotal: number | null // null = ليس مالكاً (لا يرى المالية)
   pendingProofs: number | null
-  classes: { id: string; name: string; present: number; total: number }[]
+  classes: { id: string; name: string; present: number; total: number; opened: boolean }[]
 }
 
 /** ملخص الرئيسية: عدّادات اليوم الحية + حالة كل فصل */
@@ -146,6 +146,8 @@ export async function fetchHomeSummary(
       name: c.name as string,
       present: presentByClass.get(c.id as string) ?? 0,
       total: totalsByClass.get(c.id as string) ?? 0,
+      // «اتفتح»: صف يوم موجود للفصل النهارده (هوية نونو — الموجة 1)
+      opened: dayIdByClass.has(c.id as string),
     })),
   }
 }

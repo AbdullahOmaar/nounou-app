@@ -438,3 +438,56 @@ export async function circularRsvp(
   if (error) throw error
   return data as { status: string }
 }
+
+export interface PortalDataRequest {
+  kind: 'export' | 'deletion'
+  status: 'pending' | 'done' | 'rejected'
+  created_at: string
+}
+
+export async function fetchMyDataRequests(
+  token: string,
+): Promise<PortalDataRequest[]> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc(
+    'nursery_portal_my_data_requests_by_token',
+    { p_token: token },
+  )
+  if (error) throw error
+  const res = data as { requests?: PortalDataRequest[] }
+  return res.requests ?? []
+}
+
+export async function createDataRequest(
+  token: string,
+  kind: 'export' | 'deletion',
+): Promise<string> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('nursery_portal_data_request_by_token', {
+    p_token: token,
+    p_kind: kind,
+  })
+  if (error) throw error
+  return (data as { status?: string }).status ?? 'error'
+}
+
+export interface PortalPhotoView {
+  viewer_kind: 'guardian' | 'staff'
+  is_self: boolean
+  created_at: string
+  child_name: string
+}
+
+export async function fetchPhotoViews(
+  token: string,
+): Promise<PortalPhotoView[]> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc(
+    'nursery_portal_photo_views_by_token',
+    { p_token: token },
+  )
+  if (error) throw error
+  const res = data as { views?: PortalPhotoView[] }
+  return res.views ?? []
+}
+

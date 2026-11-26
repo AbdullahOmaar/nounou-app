@@ -14,8 +14,14 @@ import { reports } from './reports'
 import { bus } from './bus'
 import { announcements } from './announcements'
 import { notifications } from './notifications'
+import { iso } from './iso'
+import { ops } from './ops'
+import { assistant } from './assistant'
+import { branches } from './branches'
+import { dataRights } from './dataRights'
 import { licensing } from './licensing'
 import { staff } from './staff'
+import { licensingTrack } from './licensingTrack'
 import { settings } from './settings'
 import { activity } from './activity'
 import { finance } from './finance'
@@ -51,7 +57,13 @@ export const ar = {
   notifications,
   settings,
   licensing,
+  iso,
+  ops,
+  assistant,
+  branches,
+  dataRights,
   staff,
+  licensingTrack,
   activity,
   finance,
   suppliers,

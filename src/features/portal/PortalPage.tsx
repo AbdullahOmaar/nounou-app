@@ -30,6 +30,38 @@ import { capturePortalToken, getStoredPortalToken } from './session'
  * المحتوى: يوم الطفل (وصول/استلام + تقرير منشور + صور بموافقة) +
  * كشف حساب + دفع بتحويل مع إثبات + إعلانات + كود الاستلام عند تفعيله.
  */
+
+// ترجمات أقسام التقرير — على مستوى الوحدة لتشاركها بطاقة اليوم
+// (DaySection) وبطاقة نونا الصوتية وخط اليوم (PortalDayHero)
+type TranslateFn = ReturnType<typeof useT>
+function mealLabel(t: TranslateFn, m: string): string {
+  return m === 'breakfast'
+    ? t('reports.mealBreakfast')
+    : m === 'snack'
+      ? t('reports.mealSnack')
+      : t('reports.mealLunch')
+}
+function ateLabel(t: TranslateFn, a: string): string {
+  return a === 'all'
+    ? t('reports.ateAll')
+    : a === 'most'
+      ? t('reports.ateMost')
+      : a === 'some'
+        ? t('reports.ateSome')
+        : t('reports.ateNone')
+}
+function moodLabel(t: TranslateFn, m: string): string {
+  return m === 'happy'
+    ? t('reports.moodHappy')
+    : m === 'calm'
+      ? t('reports.moodCalm')
+      : m === 'sad'
+        ? t('reports.moodSad')
+        : m === 'tired'
+          ? t('reports.moodTired')
+          : t('reports.moodSick')
+}
+
 export function PortalPage() {
   const t = useT()
   const locale = useLocale()
@@ -117,10 +149,7 @@ export function PortalPage() {
               <Mascot size={48} />
             )}
             <div>
-              <div className="type-title">{nursery.name}</div>
-              <div className="type-secondary text-muted">
-                {t('portal.welcome', { name: guardian.full_name })}
-              </div>
+              <div className="type-section">{nursery.name}</div>
               {viewOnly && (
                 <span className="type-badge bg-soft rounded-full px-2 py-0.5">
                   {t('portal.viewOnlyBadge')}
@@ -146,6 +175,34 @@ export function PortalPage() {
             </Button>
           </span>
         </header>
+
+        {/* هوية نونو — الموجة 1: ترويسة دافئة بنونا (قصّة نصفية) + ترحيب
+            باسم الوصي + شريحة اسم الحضانة — عنصر نونا الوحيد في الصفحة */}
+        <div className="bg-surface rounded-2xl p-4 flex items-center gap-4 shadow-card">
+          <div className="flex-1 min-w-0">
+            <h1 className="type-title mb-1">
+              {t('portal.nounaGreeting', {
+                name: guardian.full_name.split(' ')[0],
+              })}
+            </h1>
+            <p className="type-secondary text-muted">
+              {t('portal.nounaIntro', {
+                name:
+                  activeChild?.full_name.split(' ')[0] ??
+                  children[0]?.full_name.split(' ')[0] ??
+                  '',
+              })}
+            </p>
+            <span className="inline-block mt-2 type-badge bg-soft text-primary rounded-full px-2.5 py-1">
+              {nursery.name}
+            </span>
+          </div>
+          <img
+            src="/nouna/nouna-half.png"
+            alt=""
+            className="w-[86px] shrink-0 rounded-[20px] shadow-card select-none"
+          />
+        </div>
 
         {children.length > 1 && (
           <ChipRow>
@@ -210,6 +267,10 @@ export function PortalPage() {
               />
             ) : (
               <>
+                <PortalDayHero
+                  day={day.data}
+                  childName={activeChild.full_name.split(' ')[0]}
+                />
                 <DaySection day={day.data} />
                 <PhotosSection token={token!} photos={day.data.photos} watermark={nursery.name} />
                 <StatementSection day={day.data} />
@@ -242,6 +303,9 @@ export function PortalPage() {
 
         <CircularsSection token={token!} viewOnly={viewOnly} />
 
+        <DataRightsSection token={token!} viewOnly={viewOnly} />
+        <TrustSection token={token!} />
+
         {nurseryWa && (
           <a
             href={nurseryWa}
@@ -258,65 +322,194 @@ export function PortalPage() {
   )
 }
 
-function DaySection({ day }: { day: api.PortalChildDay }) {
+/**
+ * هوية نونو — الموجة 1 (DESIGN §6): بطل الاستلام الآمن + ملخص اليوم
+ * بصوت نونا + خط اليوم. كل سطر من بيانات اليوم الحية فقط — بلا أي
+ * وقت أو نشاط مختلق: الخطوات بلا بيانات تظهر «لسه» بنقطة مجوّفة.
+ */
+function PortalDayHero({
+  day,
+  childName,
+}: {
+  day: api.PortalChildDay
+  childName: string
+}) {
   const t = useT()
   const att = day.attendance
   const report = day.report
-  const mealLabel = (m: string): string =>
-    m === 'breakfast'
-      ? t('reports.mealBreakfast')
-      : m === 'snack'
-        ? t('reports.mealSnack')
-        : t('reports.mealLunch')
-  const ateLabel = (a: string): string =>
-    a === 'all'
-      ? t('reports.ateAll')
-      : a === 'most'
-        ? t('reports.ateMost')
-        : a === 'some'
-          ? t('reports.ateSome')
-          : t('reports.ateNone')
-  const moodLabel = (m: string): string =>
-    m === 'happy'
-      ? t('reports.moodHappy')
-      : m === 'calm'
-        ? t('reports.moodCalm')
-        : m === 'sad'
-          ? t('reports.moodSad')
-          : m === 'tired'
-            ? t('reports.moodTired')
-            : t('reports.moodSick')
+
+  // بطل الاستلام: أخضر عند الوصول، وهادئ قبل الوصول/الغياب/الإجازة
+  const picked = Boolean(att?.picked_up_at)
+  const arrived = Boolean(att?.arrived_at)
+  const picker = att?.picked_up_by_name?.trim() ?? ''
+  const heroTitle = arrived
+    ? t('portal.heroArrived', { name: childName })
+    : att?.status === 'absent'
+      ? t('portal.heroAbsent', { name: childName })
+      : att?.status === 'leave'
+        ? t('portal.heroLeave', { name: childName })
+        : t('portal.heroNotArrived', { name: childName })
+  const heroSub = picked
+    ? picker
+      ? t('portal.heroPickedUp', {
+          time: formatClock12(att!.picked_up_at!),
+          person: picker,
+        })
+      : t('portal.heroPickedUpTime', {
+          time: formatClock12(att!.picked_up_at!),
+        })
+    : arrived
+      ? t('portal.heroStillHere', {
+          time: formatClock12(att!.arrived_at!),
+        })
+      : att?.status === 'absent' || att?.status === 'leave'
+        ? ''
+        : t('portal.heroNotArrivedSub')
+
+  // ملخص نونا الصوتي: ملاحظة المعلمة أولاً، وإلا سطور قصيرة من التقرير
+  const voiceLines: string[] = []
+  if (report?.note) {
+    voiceLines.push(report.note)
+  } else if (report) {
+    if (report.mood)
+      voiceLines.push(
+        `${t('portal.moodTitle')}: ${moodLabel(t, report.mood)}`,
+      )
+    if (report.meals.length > 0)
+      voiceLines.push(
+        report.meals
+          .map((m) => `${mealLabel(t, m.meal)}: ${ateLabel(t, m.ate)}`)
+          .join(' • '),
+      )
+    if (report.nap_from || report.nap_to)
+      voiceLines.push(
+        t('portal.napLine', {
+          from: report.nap_from?.slice(0, 5) ?? '',
+          to: report.nap_to?.slice(0, 5) ?? '',
+        }),
+      )
+    if (report.activities.length > 0)
+      voiceLines.push(report.activities.join(' • '))
+  }
+
+  const breakfast = report?.meals.find((m) => m.meal === 'breakfast')
+  const lunch = report?.meals.find((m) => m.meal === 'lunch')
+  const steps: { title: string; detail: string; done: boolean }[] = [
+    {
+      title: t('portal.tlArrival'),
+      detail: arrived
+        ? formatClock12(att!.arrived_at!)
+        : t('attendance.notYetArrived'),
+      done: arrived,
+    },
+    {
+      title: t('portal.tlBreakfast'),
+      detail: breakfast ? ateLabel(t, breakfast.ate) : t('portal.tlNotYet'),
+      done: Boolean(breakfast),
+    },
+    {
+      title: t('portal.tlActivity'),
+      detail:
+        report && report.activities.length > 0
+          ? report.activities.join(' • ')
+          : t('portal.tlNotYet'),
+      done: Boolean(report && report.activities.length > 0),
+    },
+    {
+      title: t('portal.tlNap'),
+      detail:
+        report?.nap_from || report?.nap_to
+          ? t('portal.napLine', {
+              from: report.nap_from?.slice(0, 5) ?? '',
+              to: report.nap_to?.slice(0, 5) ?? '',
+            })
+          : lunch
+            ? ateLabel(t, lunch.ate)
+            : t('portal.tlNotYet'),
+      done: Boolean(report?.nap_from || report?.nap_to || lunch),
+    },
+    {
+      title: t('portal.tlDeparture'),
+      detail: picked
+        ? formatClock12(att!.picked_up_at!)
+        : t('portal.tlPending'),
+      done: picked,
+    },
+  ]
+
+  return (
+    <>
+      <div
+        className={
+          arrived
+            ? 'bg-ok-text text-on-primary rounded-2xl p-4 shadow-card'
+            : 'bg-soft text-text rounded-2xl p-4 shadow-card'
+        }
+      >
+        <div className="type-title">{heroTitle}</div>
+        {heroSub && (
+          <p className="type-secondary opacity-85 mt-1">{heroSub}</p>
+        )}
+      </div>
+
+      <Card className="border-s-4 border-accent">
+        <div className="type-section text-accent-text mb-1">
+          {t('portal.nounaVoiceTitle')}
+        </div>
+        {voiceLines.length > 0 ? (
+          voiceLines.map((line, i) => (
+            <p key={i} className="type-body mt-1">
+              {line}
+            </p>
+          ))
+        ) : (
+          <p className="type-secondary text-muted">
+            {t('portal.reportNotYet')}
+          </p>
+        )}
+      </Card>
+
+      <Card className="flex flex-col gap-3">
+        <h2 className="type-section">
+          {t('portal.timelineTitle', { name: childName })}
+        </h2>
+        {steps.map((s) => (
+          <div key={s.title} className="flex items-start gap-3">
+            <span
+              aria-hidden
+              className={
+                s.done
+                  ? 'mt-1.5 w-3 h-3 shrink-0 rounded-full bg-accent'
+                  : 'mt-1.5 w-3 h-3 shrink-0 rounded-full border-2 border-border-interactive'
+              }
+            />
+            <div className="min-w-0">
+              <div className="type-body">{s.title}</div>
+              <div className="type-badge text-muted">{s.detail}</div>
+            </div>
+          </div>
+        ))}
+      </Card>
+    </>
+  )
+}
+
+function DaySection({ day }: { day: api.PortalChildDay }) {
+  const t = useT()
+  const report = day.report
 
   return (
     <Card className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="type-body">
-          {att?.arrived_at
-            ? `${t('portal.arrived')} — ${formatClock12(att.arrived_at)}`
-            : att?.status === 'absent'
-              ? t('attendance.absent')
-              : att?.status === 'leave'
-                ? t('attendance.leave')
-                : t('portal.notArrivedYet')}
-        </span>
-        <span className="type-badge text-muted">
-          {att?.picked_up_at
-            ? t('attendance.pickedUpBy', { name: att.picked_up_by_name ?? '' })
-            : att?.arrived_at
-              ? t('portal.notPickedUpYet')
-              : ''}
-        </span>
-      </div>
       {report ? (
-        <div className="border-t border-border pt-3 flex flex-col gap-2">
+        <div className="flex flex-col gap-2">
           <div className="type-section">{t('portal.reportTitle')}</div>
           {report.meals.length > 0 && (
             <div>
               <div className="type-badge text-muted">{t('portal.mealsTitle')}</div>
               {report.meals.map((m) => (
                 <div key={m.meal} className="type-body flex justify-between">
-                  <span>{mealLabel(m.meal)}</span>
-                  <span>{ateLabel(m.ate)}</span>
+                  <span>{mealLabel(t, m.meal)}</span>
+                  <span>{ateLabel(t, m.ate)}</span>
                 </div>
               ))}
             </div>
@@ -341,13 +534,13 @@ function DaySection({ day }: { day: api.PortalChildDay }) {
           {report.mood && (
             <div className="type-body flex justify-between">
               <span>{t('portal.moodTitle')}</span>
-              <span>{moodLabel(report.mood)}</span>
+              <span>{moodLabel(t, report.mood)}</span>
             </div>
           )}
           {report.note && <p className="type-secondary">{report.note}</p>}
         </div>
       ) : (
-        <p className="type-secondary text-muted border-t border-border pt-3">
+        <p className="type-secondary text-muted">
           {t('portal.reportNotYet')}
         </p>
       )}
@@ -411,7 +604,7 @@ function PhotosSection({
           const url = urls.get(p.id)
           if (url && !failed.has(p.id)) {
             return (
-              <div key={p.id} className="relative overflow-hidden rounded-xl">
+              <div key={p.id} className="relative overflow-hidden rounded-2xl">
                 <img
                   src={url}
                   alt={p.caption ?? ''}
@@ -452,13 +645,13 @@ function PhotosSection({
                   retriedRef.current.delete(p.id)
                   void refreshPhoto(p.id)
                 }}
-                className="w-full aspect-square rounded-xl bg-soft text-muted type-secondary"
+                className="w-full aspect-square rounded-2xl bg-soft text-muted type-secondary"
               >
                 {t('portal.photoRetry')}
               </button>
             )
           }
-          return <div key={p.id} className="w-full aspect-square rounded-xl bg-soft" />
+          return <div key={p.id} className="w-full aspect-square rounded-2xl bg-soft" />
         })}
       </div>
     </section>
@@ -992,5 +1185,107 @@ function CircularsSection({
         ))}
       </div>
     </section>
+  )
+}
+
+
+
+function TrustSection({ token }: { token: string }) {
+  const t = useT()
+  const views = useQuery({
+    queryKey: ['portal-photo-views', token],
+    queryFn: () => api.fetchPhotoViews(token),
+  })
+  const rows = views.data ?? []
+  return (
+    <section className="space-y-2">
+      <Card className="space-y-1">
+        <p className="font-bold">{t('portal.trustTitle')}</p>
+        <p className="text-sm text-muted">{t('portal.trustLine1')}</p>
+        <p className="text-sm text-muted">{t('portal.trustLine2')}</p>
+        <p className="text-sm text-muted">{t('portal.trustLine3')}</p>
+      </Card>
+      {rows.length > 0 && (
+        <Card className="space-y-1">
+          <p className="font-bold">{t('portal.viewsTitle')}</p>
+          {rows.slice(0, 10).map((v, i) => (
+            <p key={i} className="text-sm text-muted">
+              {v.child_name} — {v.is_self
+                ? t('portal.viewSelf')
+                : v.viewer_kind === 'staff'
+                  ? t('portal.viewStaff')
+                  : t('portal.viewGuardian')} — {formatDateTimeAr(v.created_at)}
+            </p>
+          ))}
+        </Card>
+      )}
+    </section>
+  )
+}
+
+function DataRightsSection({
+  token,
+  viewOnly,
+}: {
+  token: string
+  viewOnly: boolean
+}) {
+  const t = useT()
+  const qc = useQueryClient()
+  const showToast = useToast()
+  const mine = useQuery({
+    queryKey: ['portal-data-requests', token],
+    queryFn: () => api.fetchMyDataRequests(token),
+  })
+  const create = useMutation({
+    mutationFn: (kind: 'export' | 'deletion') => api.createDataRequest(token, kind),
+    onSuccess: (status) => {
+      if (status === 'ok') {
+        showToast(t('portal.dataRequestSent'))
+        void qc.invalidateQueries({ queryKey: ['portal-data-requests', token] })
+      } else {
+        showToast(t('common.errorGeneric'), 'error')
+      }
+    },
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
+  })
+  const statusLabel = (s: string): string =>
+    s === 'done'
+      ? t('portal.dataStatusDone')
+      : s === 'rejected'
+        ? t('portal.dataStatusRejected')
+        : t('portal.dataStatusPending')
+  return (
+    <Card className="flex flex-col gap-2">
+      <h2 className="type-section">{t('portal.dataRightsTitle')}</h2>
+      <p className="type-secondary text-muted">{t('portal.dataRightsBody')}</p>
+      {(mine.data ?? []).map((r, i) => (
+        <p key={i} className="type-secondary">
+          {r.kind === 'export' ? t('portal.dataExport') : t('portal.dataDeletion')}
+          {' — '}
+          {statusLabel(r.status)}
+        </p>
+      ))}
+      {!viewOnly && (
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="soft"
+            disabled={create.isPending}
+            onClick={() => create.mutate('export')}
+          >
+            {t('portal.dataExportBtn')}
+          </Button>
+          <Button
+            size="sm"
+            variant="soft"
+            disabled={create.isPending}
+            onClick={() => create.mutate('deletion')}
+          >
+            {t('portal.dataDeletionBtn')}
+          </Button>
+        </div>
+      )}
+    </Card>
   )
 }
