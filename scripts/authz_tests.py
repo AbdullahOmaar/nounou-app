@@ -1190,6 +1190,40 @@ def main():
         check("the public page carries the chosen sticker (3.13)",
               s == 200 and isinstance(b, dict)
               and b.get("sticker_key") == "lantern", f"got {s}")
+        # ---- public posts (3A-891 slice, migration 0059) ----
+        s, b = rest(url, anon, "POST", "/rest/v1/public_posts",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "title": "authz published",
+                          "body": "hello", "status": "published",
+                          "published_at": "2026-11-26T10:00:00Z"})
+        check("the owner creates a published public post (3A-891)",
+              s in (200, 201), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/public_posts",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "title": "authz draft",
+                          "body": "secret draft", "status": "draft"})
+        check("the owner creates a draft public post (3A-891)",
+              s in (200, 201), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/public_posts",
+                    owner_b_jwt,
+                    body={"nursery_id": nursery_a, "title": "intruder",
+                          "body": "x", "status": "published"})
+        check("another nursery's owner cannot post here (3A-891)",
+              s not in (200, 201), f"got {s}")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/public_posts?select=id&limit=5", None)
+        rows = b if isinstance(b, list) else []
+        check("anon reads zero posts directly — RPC only (3A-891)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        posts_titles = [p.get("title") for p in (b.get("posts") or [])] \
+            if isinstance(b, dict) else []
+        check("the public page shows published posts only (3A-891)",
+              s == 200 and "authz published" in posts_titles
+              and "authz draft" not in posts_titles,
+              f"got {s} titles={posts_titles}")
+
         sql(ref, f"update nurseries set public_enabled = false "
                  f"where id = '{nursery_a}'")
         s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
