@@ -10,6 +10,7 @@ import { useTheme } from '../../hooks/useTheme'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { WhatsAppSettingsCard } from './WhatsAppSettingsCard'
 import { PublicPageCard } from './PublicPageCard'
+import { PublicPostsCard } from './PublicPostsCard'
 import { LicensingCard } from './LicensingCard'
 import { IsoCard } from './IsoCard'
 import { DataRequestsCard } from './DataRequestsCard'
@@ -228,6 +229,7 @@ export function SettingsPage() {
         <>
           <WhatsAppSettingsCard nurseryId={nursery.nurseryId} />
           <PublicPageCard nurseryId={nursery.nurseryId} />
+          <PublicPostsCard nurseryId={nursery.nurseryId} />
         </>
       )}
 

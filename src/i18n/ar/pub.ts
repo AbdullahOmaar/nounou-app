@@ -54,5 +54,6 @@ export const pub = {
   navEvents: "المناسبات",
   eventsTitle: "مناسبات الحضانة",
   eventsEmpty: "لا مناسبات معلنة حالياً",
+  postsTitle: "أخبار الحضانة",
   eventsPast: "مناسبات سابقة",
 }

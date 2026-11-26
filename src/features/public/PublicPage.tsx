@@ -10,7 +10,7 @@ import { AiDisclosure } from '../../components/ui/AiDisclosure'
 import { useT } from '../../i18n'
 import { Card } from '../../components/ui/Card'
 import { ErrorState, LoadingState } from '../../components/ui/states'
-import { formatMoney, waLink } from '../../lib/format'
+import { fmtWeekdayDate, formatMoney, waLink } from '../../lib/format'
 
 /**
  * موقع الحضانة العام (3.1 + 3.2): هيكل موقع متعدد الصفحات مولّد
@@ -244,6 +244,34 @@ export function PublicHome() {
           {t('pub.allClasses')}
         </Link>
       </section>
+      {(d.posts ?? []).length > 0 && (
+        <section className="flex flex-col gap-2">
+          <h2 className="type-secondary">{t('pub.postsTitle')}</h2>
+          {(d.posts ?? []).map((p, i) => (
+            <Card key={`${p.title}-${i}`} className="flex flex-col gap-2">
+              {p.image_key && (
+                <div className="relative overflow-hidden rounded-2xl">
+                  <img
+                    src={bannerUrl(p.image_key)}
+                    alt=""
+                    className="w-full aspect-[16/9] object-cover"
+                  />
+                  <span className="absolute bottom-2 end-2">
+                    <AiDisclosure />
+                  </span>
+                </div>
+              )}
+              <p className="type-body font-bold">{p.title}</p>
+              {p.published_at && (
+                <p className="type-badge text-muted">
+                  {fmtWeekdayDate(p.published_at.slice(0, 10))}
+                </p>
+              )}
+              <p className="type-body whitespace-pre-wrap">{p.body}</p>
+            </Card>
+          ))}
+        </section>
+      )}
       <PaymentsBlock d={d} />
     </>
   )

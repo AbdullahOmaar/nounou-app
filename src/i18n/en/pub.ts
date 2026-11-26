@@ -54,5 +54,6 @@ export const pub = {
   navEvents: "Events",
   eventsTitle: "Nursery events",
   eventsEmpty: "No events announced right now",
+  postsTitle: "Nursery news",
   eventsPast: "Past events",
 }

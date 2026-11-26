@@ -7,6 +7,13 @@ export interface PublicClass {
   available: number | null
 }
 
+export interface PublicPost {
+  title: string
+  body: string
+  image_key?: string | null
+  published_at?: string | null
+}
+
 export interface PublicPageData {
   found: boolean
   name?: string
@@ -20,6 +27,7 @@ export interface PublicPageData {
   licensed?: boolean
   payments?: { instapay?: string | null; vodafone?: string | null; bank?: string | null }
   classes?: PublicClass[]
+  posts?: PublicPost[]
 }
 
 export async function fetchPublicPage(slug: string): Promise<PublicPageData> {
