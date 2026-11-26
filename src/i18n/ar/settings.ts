@@ -59,6 +59,11 @@ export const settings = {
   exportTitle: 'تصدير البيانات',
   exportBody: 'نزّل بيانات الحضانة (أطفال وفواتير ومدفوعات) ملفات CSV',
   exportNow: 'تصدير دلوقتي',
+  exportIncludes: 'التصدير بينزّل 3 ملفات',
+  exportFileChildren: 'الأطفال — الاسم وتاريخ الميلاد والكود والموافقة على الصور',
+  exportFileInvoices: 'الفواتير — الإجمالي والمدفوع والمتبقي لكل شهر',
+  exportFilePayments: 'المدفوعات — المبلغ والطريقة والتاريخ ورقم الإيصال',
+  exportOwnerOnly: 'للمالك فقط',
   lastExport: 'آخر تصدير {date}',
   installTitle: 'ثبّت نونو',
   wa: {

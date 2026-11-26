@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Eye, X } from 'lucide-react'
+import { Check, ReceiptText, X } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { EmptyState } from '../../components/ui/EmptyState'
@@ -75,7 +75,24 @@ export function ProofsPage() {
       ) : (
         (proofs.data ?? []).map((proof) => (
           <Card key={proof.id}>
-            <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3">
+              {proof.proof_path ? (
+                <button
+                  type="button"
+                  className="w-11 h-11 shrink-0 rounded-xl bg-soft text-primary flex items-center justify-center cursor-pointer border-0"
+                  aria-label={t('paymentProofs.viewProof')}
+                  onClick={async () => {
+                    const url = await api.proofSignedUrl(proof.proof_path!)
+                    setImageUrl(url)
+                  }}
+                >
+                  <ReceiptText size={20} />
+                </button>
+              ) : (
+                <span className="w-11 h-11 shrink-0 rounded-xl bg-soft text-primary flex items-center justify-center">
+                  <ReceiptText size={20} />
+                </span>
+              )}
               <div>
                 <div className="type-body">
                   {t('paymentProofs.fromGuardian', {
@@ -99,22 +116,10 @@ export function ProofsPage() {
                     : ''}
                 </div>
               </div>
-              {proof.proof_path && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={async () => {
-                    const url = await api.proofSignedUrl(proof.proof_path!)
-                    setImageUrl(url)
-                  }}
-                >
-                  <Eye size={16} />
-                  {t('paymentProofs.viewProof')}
-                </Button>
-              )}
             </div>
             <div className="flex gap-2 mt-3">
               <Button
+                variant="ok"
                 className="flex-1"
                 onClick={() => approve.mutate(proof)}
                 disabled={approve.isPending}
@@ -123,7 +128,7 @@ export function ProofsPage() {
                 {t('paymentProofs.approve')}
               </Button>
               <Button
-                variant="soft"
+                variant="dangerGhost"
                 className="flex-1"
                 onClick={() => {
                   setReason('')
@@ -140,7 +145,7 @@ export function ProofsPage() {
 
       <Sheet open={Boolean(imageUrl)} onClose={() => setImageUrl(null)} title={t('paymentProofs.viewProof')}>
         {imageUrl && (
-          <img src={imageUrl} alt="" className="w-full rounded-xl" />
+          <img src={imageUrl} alt="" className="w-full rounded-2xl" />
         )}
       </Sheet>
 

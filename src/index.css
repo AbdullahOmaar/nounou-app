@@ -43,6 +43,7 @@
   --color-accent-text: var(--accent-text);
   --color-on-accent: var(--on-accent);
   --color-ok: var(--ok);
+  --color-on-ok: var(--on-ok);
   --color-ok-text: var(--ok-text);
   --color-ok-soft: var(--ok-soft);
   --color-warn: var(--warn);
@@ -89,6 +90,7 @@
   /* حالات فاتح (DESIGN §2.1): اللون النصي هو لون الحشوة نفسه،
      بتباين ≥4.5:1 على خلفيته الناعمة */
   --ok: #166b4d;
+  --on-ok: #ffffff;
   --ok-text: #166b4d;
   --ok-soft: #e6f4ec;
   --warn: #8a5a00;
@@ -127,6 +129,7 @@
   --on-accent: #141a2e;
   /* حالات داكن مفتّحة: تصلح حشوةً ونصاً على الأسطح الداكنة (≥5.9:1) */
   --ok: #34d399;
+  --on-ok: #141a28;
   --ok-text: #34d399;
   --ok-soft: #0f2e23;
   --warn: #ffc65c;

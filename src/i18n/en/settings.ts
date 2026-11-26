@@ -59,6 +59,11 @@ export const settings = {
   exportTitle: 'Export data',
   exportBody: 'Download nursery data (children, invoices and payments) as CSV files',
   exportNow: 'Export now',
+  exportIncludes: 'The export downloads 3 files',
+  exportFileChildren: 'Children — name, birth date, code and photo consent',
+  exportFileInvoices: 'Invoices — total, paid and balance per month',
+  exportFilePayments: 'Payments — amount, method, date and receipt number',
+  exportOwnerOnly: 'Owner only',
   lastExport: 'Last export {date}',
   installTitle: 'Install Nounou',
   wa: {
