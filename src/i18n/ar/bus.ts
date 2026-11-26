@@ -32,4 +32,11 @@ export const bus = {
   emptyList: 'لا مشتركين في الخط ده — ضيفهم من تبويب المشتركين',
   pickRoute: 'اختر الخط',
   todayLists: 'قوائم النهارده',
+  heroDone: 'اكتملت القائمة',
+  heroInProgress: 'الرحلة جارية',
+  heroNotStarted: 'لسه ما بدأتش',
+  boardedAt: 'ركب {time}',
+  deliveredAt: 'نزل {time}',
+  waiting: 'منتظر',
+  routeChildren: 'أطفال الخط',
 } as const

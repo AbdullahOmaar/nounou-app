@@ -74,4 +74,13 @@ export const reports = {
   voiceListening: "Listening…",
   printTitle: "Day report — {name}",
   printReport: "Print",
+  tabNotWritten: 'Not written yet',
+  tabReady: 'Ready to send',
+  tabSent: 'Sent',
+  emptyNotWritten: 'Every present child has a report',
+  emptyReady: 'No reports are ready to send',
+  emptySent: 'No reports sent today yet',
+  writeReport: 'Write the report',
+  tileMeals: 'Meals',
+  moreActivities: '+{count} more',
 }

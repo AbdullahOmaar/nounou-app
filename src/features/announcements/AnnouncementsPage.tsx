@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Megaphone, Plus, Send, Trash2 } from 'lucide-react'
+import { ChevronDown, Megaphone, Plus, Send, Trash2 } from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { Chip, ChipRow, Field, Select, TextArea, TextInput } from '../../components/ui/form'
@@ -97,6 +97,7 @@ export function AnnouncementsPage() {
   const [wantsRsvp, setWantsRsvp] = useState(false)
   const [classId, setClassId] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<AnnouncementRow | null>(null)
+  const [archiveOpen, setArchiveOpen] = useState(false)
 
   const announcements = useQuery({
     queryKey: ['announcements', nurseryId],
@@ -175,6 +176,61 @@ export function AnnouncementsPage() {
     onSuccess: refresh,
   })
 
+  // هوية نونو — الموجة 3: مسودات أولًا، أحدث 3 منشورة بشارة «جديد»
+  // وحافة كهرمانية، والباقي أرشيف مطوي. البطاقة نفسها كما هي.
+  const announcementCard = (a: AnnouncementRow, isNew: boolean) => (
+    <Card key={a.id} className={isNew ? 'border-e-4 border-accent' : undefined}>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="type-body font-semibold flex items-center gap-2">
+            {a.title}
+            {isNew && (
+              <span className="type-badge text-accent-text font-semibold">
+                {t('announcements.newBadge')}
+              </span>
+            )}
+          </div>
+          <p className="type-secondary whitespace-pre-wrap">{a.body}</p>
+          <div className="type-badge text-muted mt-1">
+            {a.published_at
+              ? `${t('announcements.publishedBadge')} — ${formatDateTimeAr(a.published_at)}`
+              : t('announcements.draftBadge')}
+            {a.audience === 'class' &&
+              ` • ${t('announcements.classAudience', {
+                name:
+                  (classes.data ?? []).find((c) => c.id === a.class_id)?.name ?? '',
+              })}`}
+          </div>
+          {a.published_at && (
+            <CircularStats announcementId={a.id} wantsRsvp={a.wants_rsvp} />
+          )}
+        </div>
+        {canManage && (
+          <span className="flex gap-1">
+            {!a.published_at && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => publish.mutate(a)}
+                aria-label={t('announcements.publish')}
+              >
+                <Send size={16} />
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setDeleteTarget(a)}
+              aria-label={t('common.delete')}
+            >
+              <Trash2 size={16} />
+            </Button>
+          </span>
+        )}
+      </div>
+    </Card>
+  )
+
   if (announcements.isPending) return <LoadingState />
   if (announcements.isError)
     return (
@@ -184,6 +240,10 @@ export function AnnouncementsPage() {
       />
     )
   const list = announcements.data ?? []
+  const drafts = list.filter((a) => !a.published_at)
+  const publishedList = list.filter((a) => a.published_at)
+  const latest = publishedList.slice(0, 3)
+  const archive = publishedList.slice(3)
 
   return (
     <div className="flex flex-col gap-2">
@@ -200,47 +260,39 @@ export function AnnouncementsPage() {
           icon={Megaphone}
         />
       ) : (
-        list.map((a) => (
-          <Card key={a.id}>
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="type-body font-semibold">{a.title}</div>
-                <p className="type-secondary whitespace-pre-wrap">{a.body}</p>
-                <div className="type-badge text-muted mt-1">
-                  {a.published_at
-                    ? `${t('announcements.publishedBadge')} — ${formatDateTimeAr(a.published_at)}`
-                    : t('announcements.draftBadge')}
-                  {a.audience === 'class' && ' • 🎯'}
-                </div>
-                {a.published_at && (
-                  <CircularStats announcementId={a.id} wantsRsvp={a.wants_rsvp} />
-                )}
-              </div>
-              {canManage && (
-                <span className="flex gap-1">
-                  {!a.published_at && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => publish.mutate(a)}
-                      aria-label={t('announcements.publish')}
-                    >
-                      <Send size={16} />
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setDeleteTarget(a)}
-                    aria-label={t('common.delete')}
-                  >
-                    <Trash2 size={16} />
-                  </Button>
+        <>
+          {drafts.length > 0 && (
+            <>
+              <h2 className="type-section mt-1">{t('announcements.draftsTitle')}</h2>
+              {drafts.map((a) => announcementCard(a, false))}
+            </>
+          )}
+          {latest.length > 0 && (
+            <>
+              <h2 className="type-section mt-1">{t('announcements.latestTitle')}</h2>
+              {latest.map((a) => announcementCard(a, true))}
+            </>
+          )}
+          {archive.length > 0 && (
+            <>
+              <button
+                type="button"
+                className="flex items-center justify-between w-full bg-transparent border-0 cursor-pointer text-text py-1"
+                aria-expanded={archiveOpen}
+                onClick={() => setArchiveOpen((v) => !v)}
+              >
+                <span className="type-section">
+                  {t('announcements.archiveTitle')} ({archive.length})
                 </span>
-              )}
-            </div>
-          </Card>
-        ))
+                <ChevronDown
+                  size={20}
+                  className={`text-muted transition-transform ${archiveOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {archiveOpen && archive.map((a) => announcementCard(a, false))}
+            </>
+          )}
+        </>
       )}
 
       <Sheet
