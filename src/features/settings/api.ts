@@ -98,35 +98,59 @@ export async function updatePublicPageSettings(
   await logActivityAuto(nurseryId, 'settings_updated', 'public_page')
 }
 
-export interface PublicPageStats {
+/** قمع الاكتشاف (3A-891): مشاهدة ← نقرة واتساب ← حجز جولة ← التحاق. */
+export interface DiscoveryFunnel {
   views: number
   clicks: number
-  byPage: Record<string, number>
+  tours: number
+  converted: number
 }
 
-export async function getPublicPageStats(
+/** تجميع نقي لصفوف الأحداث والجولات — الالتحاق من حالة converted نفسها (0041). */
+export function summarizeFunnel(
+  events: Array<{ kind: string }>,
+  tours: Array<{ status: string }>,
+): DiscoveryFunnel {
+  const funnel: DiscoveryFunnel = { views: 0, clicks: 0, tours: 0, converted: 0 }
+  for (const r of events) {
+    if (r.kind === 'view') funnel.views++
+    else if (r.kind === 'whatsapp_click') funnel.clicks++
+  }
+  for (const r of tours) {
+    funnel.tours++
+    if (r.status === 'converted') funnel.converted++
+  }
+  return funnel
+}
+
+/** نسبة مئوية صحيحة — صفر عند غياب الأساس بدل قسمة على صفر. */
+export function pct(part: number, whole: number): number {
+  return whole <= 0 ? 0 : Math.round((part / whole) * 100)
+}
+
+export async function getDiscoveryFunnel(
   nurseryId: string,
-): Promise<PublicPageStats> {
+): Promise<DiscoveryFunnel> {
   const db = requireSupabase()
   const since = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
-  const { data, error } = await db
+  const events = await db
     .from('public_page_events')
-    .select('kind, page')
+    .select('kind')
     .eq('nursery_id', nurseryId)
     .gte('created_at', since)
     .limit(5000)
-  if (error) throw error
-  const rows = (data ?? []) as Array<{ kind: string; page: string }>
-  const stats: PublicPageStats = { views: 0, clicks: 0, byPage: {} }
-  for (const r of rows) {
-    if (r.kind === 'view') {
-      stats.views++
-      stats.byPage[r.page] = (stats.byPage[r.page] ?? 0) + 1
-    } else if (r.kind === 'whatsapp_click') {
-      stats.clicks++
-    }
-  }
-  return stats
+  if (events.error) throw events.error
+  const tours = await db
+    .from('tour_requests')
+    .select('status')
+    .eq('nursery_id', nurseryId)
+    .gte('created_at', since)
+    .limit(5000)
+  if (tours.error) throw tours.error
+  return summarizeFunnel(
+    (events.data ?? []) as Array<{ kind: string }>,
+    (tours.data ?? []) as Array<{ status: string }>,
+  )
 }
 
 export async function uploadNurseryLogo(

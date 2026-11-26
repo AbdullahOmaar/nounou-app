@@ -63,9 +63,9 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
 
   const slugOk = /^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug.trim())
   const url = slugOk ? `${window.location.origin}/n/${slug.trim()}` : null
-  const stats = useQuery({
-    queryKey: ['public-page-stats', nurseryId],
-    queryFn: () => api.getPublicPageStats(nurseryId),
+  const funnel = useQuery({
+    queryKey: ['public-funnel', nurseryId],
+    queryFn: () => api.getDiscoveryFunnel(nurseryId),
     enabled: enabled,
   })
 
@@ -157,12 +157,35 @@ export function PublicPageCard({ nurseryId }: { nurseryId: string }) {
           ))}
         </div>
       </div>
-      {enabled && stats.data && (
-        <div className="type-secondary text-muted mt-3">
-          {t('pub.statsLine', {
-            views: stats.data.views,
-            clicks: stats.data.clicks,
-          })}
+      {enabled && funnel.data && (
+        <div className="mt-3 flex flex-col gap-1.5">
+          <div className="type-secondary">{t('pub.funnelTitle')}</div>
+          {(
+            [
+              ['pub.funnelViews', funnel.data.views],
+              ['pub.funnelClicks', funnel.data.clicks],
+              ['pub.funnelTours', funnel.data.tours],
+              ['pub.funnelConverted', funnel.data.converted],
+            ] as const
+          ).map(([key, count]) => (
+            <div key={key} className="flex items-center justify-between">
+              <span className="type-secondary text-muted">{t(key)}</span>
+              <span className="type-secondary">{count}</span>
+            </div>
+          ))}
+          <div className="type-badge text-muted">
+            {t('pub.funnelClickRate', {
+              pct: api.pct(funnel.data.clicks, funnel.data.views),
+            })}
+            {' · '}
+            {t('pub.funnelTourRate', {
+              pct: api.pct(funnel.data.tours, funnel.data.views),
+            })}
+            {' · '}
+            {t('pub.funnelCloseRate', {
+              pct: api.pct(funnel.data.converted, funnel.data.tours),
+            })}
+          </div>
         </div>
       )}
       {enabled && url && (
