@@ -423,7 +423,11 @@ export function ClassDayPage() {
                       pickupChild.child.id,
                       code,
                     )
-                    showToast(t('attendance.codeSendResult', { status }))
+                    showToast(
+                      status === 'queued'
+                        ? t('attendance.codeQueued')
+                        : t('attendance.codeBlocked'),
+                    )
                   } catch {
                     showToast(t('common.errorGeneric'), 'error')
                   } finally {

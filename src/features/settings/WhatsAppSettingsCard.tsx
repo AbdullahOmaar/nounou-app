@@ -9,6 +9,7 @@ import { useT } from '../../i18n'
 import { useAuth } from '../../lib/AuthProvider'
 import { invalidatePrefixes } from '../../lib/invalidate'
 import * as wa from './whatsapp'
+import { waStatusLabel, waTemplateLabel } from './waLabels'
 
 /**
  * 2.2: بطاقة بوابات تفعيل واتساب (نمط 3A-300) — إعداد الحضانة +
@@ -75,7 +76,11 @@ export function WhatsAppSettingsCard({ nurseryId }: { nurseryId: string }) {
     mutationFn: () => wa.whatsAppEnqueueTest(nurseryId),
     onSuccess: (status) => {
       refresh()
-      showToast(t('settings.wa.testResult', { status }))
+      showToast(
+        status === 'queued'
+          ? t('settings.wa.testQueued')
+          : t('settings.wa.testBlocked'),
+      )
     },
     onError: () => showToast(t('common.errorGeneric'), 'error'),
   })
@@ -200,8 +205,8 @@ export function WhatsAppSettingsCard({ nurseryId }: { nurseryId: string }) {
           <span className="type-badge text-muted">{t('settings.wa.logTitle')}</span>
           {(log.data ?? []).map((row) => (
             <span key={row.id} className="type-badge text-muted">
-              {row.created_at.slice(0, 16).replace('T', ' ')} • {row.template} •{' '}
-              {row.status}
+              {row.created_at.slice(0, 16).replace('T', ' ')} •{' '}
+              {waTemplateLabel(t, row.template)} • {waStatusLabel(t, row.status)}
             </span>
           ))}
         </div>
