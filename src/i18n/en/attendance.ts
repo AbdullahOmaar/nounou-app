@@ -38,7 +38,8 @@ export const attendance = {
   historyTitle: 'Attendance history for {name}',
   noHistory: 'No attendance history yet',
   sendCodeWhatsapp: 'Send the code of today to the guardian (WhatsApp)',
-  codeSendResult: 'Send result: {status}',
+  codeQueued: 'The code is ready — actual WhatsApp sending is not launched yet; the attempt was logged',
+  codeBlocked: 'The code was not sent — WhatsApp sending is not ready yet (check the WhatsApp gates in Settings); the attempt was logged',
   pickupLogTitle: 'Pickup log of today',
   pickupLogCodeUsed: 'with code',
   // Nouna identity — Wave 1: progress card + amber QR button + day-close button
