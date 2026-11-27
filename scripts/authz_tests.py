@@ -51,7 +51,7 @@ TENANT_TABLES = [
     "nurseries", "nursery_members", "nursery_settings", "children",
     "classes", "guardians", "invoices", "invoice_lines", "payments",
     "receipt_counters", "daily_reports", "announcements", "bus_routes",
-    "guardian_access_tokens",
+    "guardian_access_tokens", "push_tokens", "push_outbox",
 ]
 
 FINANCE_TABLES = ["invoices", "invoice_lines", "payments", "receipt_counters"]
@@ -1337,6 +1337,119 @@ def main():
                     body={"p_session_id": a_session, "p_lat": 30.06, "p_lng": 31.26})
         check("updating an ended session is rejected (3A-414)",
               s >= 400, f"got {s}")
+
+        # ---- push tokens + outbox (3A-412 server link, migration 0061) ----
+        print("PUSH:")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/push_tokens?select=id", None)
+        check("anon reads zero push tokens directly (3A-412)",
+              s == 200 and b == [], f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/push_outbox?select=id", None)
+        check("anon reads zero push outbox rows directly (3A-412)",
+              s == 200 and b == [], f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/register_push_token",
+                    None, body={"p_nursery": nursery_a,
+                                "p_platform": "android",
+                                "p_token": "authz-token-anon-0123456789"})
+        check("anon cannot register a push token (3A-412)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/register_push_token",
+                    owner_b_jwt, body={"p_nursery": nursery_a,
+                                       "p_platform": "android",
+                                       "p_token": "authz-token-other-0123456789"})
+        check("another nursery's owner cannot register a token here (3A-412)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/register_push_token",
+                    owner_a_jwt, body={"p_nursery": nursery_a,
+                                       "p_platform": "android",
+                                       "p_token": "authz-token-a1-0123456789"})
+        check("the owner registers an android token (3A-412)",
+              s == 200 and b is True, f"got {s} {b}")
+        row = one(ref, "select count(*) as c from push_tokens "
+                       f"where nursery_id = '{nursery_a}' and user_id = '{owner_a_uid}'")
+        check("the token row is stored server-side (3A-412)",
+              int(row.get("c", 0)) == 1, f"got {row}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/register_push_token",
+                    owner_a_jwt, body={"p_nursery": nursery_a,
+                                       "p_platform": "android",
+                                       "p_token": "authz-token-a2-0123456789"})
+        row = one(ref, "select token from push_tokens "
+                       f"where nursery_id = '{nursery_a}' and user_id = '{owner_a_uid}' "
+                       "and platform = 'android'")
+        check("re-registering the same platform upserts (one row, new token) (3A-412)",
+              s == 200 and b is True
+              and row.get("token") == "authz-token-a2-0123456789",
+              f"got {s} {row}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/register_push_token",
+                    staff_jwt, body={"p_nursery": nursery_a,
+                                     "p_platform": "ios",
+                                     "p_token": "authz-token-staff-0123456789"})
+        check("a staff member registers an ios token (3A-412)",
+              s == 200 and b is True, f"got {s} {b}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/register_push_token",
+                    owner_a_jwt, body={"p_nursery": nursery_a,
+                                       "p_platform": "web",
+                                       "p_token": "authz-token-bad-0123456789"})
+        check("an invalid platform is rejected (3A-412)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/register_push_token",
+                    owner_a_jwt, body={"p_nursery": nursery_a,
+                                       "p_platform": "android",
+                                       "p_token": "short"})
+        check("a too-short token is rejected (3A-412)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/push_tokens",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "user_id": owner_a_uid,
+                          "platform": "android",
+                          "token": "authz-token-direct-0123456789"})
+        check("direct table writes to push_tokens are denied — RPC only (3A-412)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "GET",
+                    f"/rest/v1/push_tokens?select=id&nursery_id=eq.{nursery_a}",
+                    owner_a_jwt)
+        rows = b if isinstance(b, list) else []
+        check("members read their nursery's tokens (3A-412)",
+              s == 200 and len(rows) == 2, f"got {s} rows={len(rows)}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/enqueue_staff_push",
+                    owner_a_jwt, body={"p_nursery": nursery_a,
+                                       "p_kind": "proof_submitted",
+                                       "p_data": {}})
+        check("enqueue_staff_push is internal only — revoked for clients (3A-412)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/push_outbox",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "user_id": owner_a_uid,
+                          "kind": "proof_submitted", "data": {}})
+        check("direct table writes to push_outbox are denied (3A-412)",
+              s >= 400, f"got {s}")
+        # البوابة: push_enabled مقفول افتراضياً — الأحداث لا تُدرج شيئاً
+        sql(ref, "insert into payments (nursery_id, child_id, amount, "
+                 "method, proof_status) values "
+                 f"('{nursery_a}', '{a_child1}', 100, 'instapay', 'pending')")
+        row = one(ref, "select count(*) as c from push_outbox "
+                       f"where nursery_id = '{nursery_a}'")
+        check("with push disabled, a submitted proof enqueues nothing (3A-412)",
+              int(row.get("c", 0)) == 0, f"got {row}")
+        sql(ref, "update nursery_settings set push_enabled = true "
+                 f"where nursery_id = '{nursery_a}'")
+        sql(ref, "insert into payments (nursery_id, child_id, amount, "
+                 "method, proof_status) values "
+                 f"('{nursery_a}', '{a_child1}', 200, 'instapay', 'pending')")
+        row = one(ref, "select count(*) as c from push_outbox "
+                       f"where nursery_id = '{nursery_a}' and kind = 'proof_submitted'")
+        check("with push enabled, a submitted proof fans out to all active members (3A-412)",
+              int(row.get("c", 0)) == 2, f"got {row}")
+        sql(ref, "insert into tour_requests (nursery_id, parent_name, "
+                 "parent_phone, child_name) values "
+                 f"('{nursery_a}', 'authz parent', '01000000009', 'authz tour child')")
+        row = one(ref, "select count(*) as c from push_outbox "
+                       f"where nursery_id = '{nursery_a}' and kind = 'tour_requested'")
+        check("with push enabled, a new tour request fans out too (3A-412)",
+              int(row.get("c", 0)) == 2, f"got {row}")
+        sql(ref, "update nursery_settings set push_enabled = false "
+                 f"where nursery_id = '{nursery_a}'")
 
         # ---- event invitations (3.7, migration 0042) ----
         one(ref, "insert into nursery_events "

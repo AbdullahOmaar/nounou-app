@@ -30,6 +30,7 @@ export async function updateNurserySettings(
       | 'photo_daily_cap'
       | 'photo_retention_days'
       | 'pickup_code_enabled'
+      | 'push_enabled'
       | 'day_end_time'
       | 'theme'
     >

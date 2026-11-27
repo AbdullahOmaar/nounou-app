@@ -93,6 +93,7 @@ export interface NurserySettingsRow {
   photo_daily_cap: number | null
   photo_retention_days: number
   pickup_code_enabled: boolean
+  push_enabled: boolean
   day_end_time: string // 'HH:MM:SS'
   theme: string // 'auto' | 'light' | 'dark'
   last_export_at: string | null
