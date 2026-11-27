@@ -9,6 +9,10 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- Launcher activity (MAIN/LAUNCHER): Android 12+ mandates exported=true
+             on any activity with an intent-filter; this is the standard Capacitor template
+             entry point and holds no privileged access. -->
+        <!-- nosemgrep: java.android.security.exported_activity.exported_activity -->
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
