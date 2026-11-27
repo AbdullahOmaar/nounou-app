@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './lib/AuthProvider'
+import { initPushNotifications } from './lib/push'
 import { registerRouteLoaders } from './lib/routePrefetch'
 import { ToastProvider } from './components/ui/Toast'
 import { AppShell } from './components/layout/AppShell'
@@ -170,6 +171,14 @@ function LocaleEffect() {
   return null
 }
 
+function NativeEffect() {
+  useEffect(() => {
+    // التطبيق الأصلي فقط (3A-412): تسجيل إشعارات الدفع — على الويب لا شيء
+    void initPushNotifications()
+  }, [])
+  return null
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -177,6 +186,7 @@ export default function App() {
         <ToastProvider>
           <BrowserRouter>
             <LocaleEffect />
+            <NativeEffect />
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
