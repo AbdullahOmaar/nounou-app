@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react'
 import { BrowserQRCodeReader } from '@zxing/browser'
 import { Sheet } from '../../components/ui/Sheet'
 import { useT } from '../../i18n'
+import { isNativeApp } from '../../lib/native'
+import { scanQrNative } from '../../lib/barcode'
 
 interface Props {
   open: boolean
@@ -21,6 +23,20 @@ export function QrScannerSheet({ open, onClose, onCode }: Props) {
   useEffect(() => {
     if (!open) return
     handledRef.current = false
+    if (isNativeApp()) {
+      // التطبيق الأصلي (3A-412): ماسح MLKit الأصلي يغطي الشاشة بنفسه؛
+      // كود يُقرأ → للمستدعي، وإلغاء/فشل → إغلاق الورقة (لا ماسح ويب هنا)
+      let cancelled = false
+      scanQrNative().then((code) => {
+        if (cancelled || handledRef.current) return
+        handledRef.current = true
+        if (code) onCode(code)
+        else onClose()
+      })
+      return () => {
+        cancelled = true
+      }
+    }
     const reader = new BrowserQRCodeReader()
     let controls: { stop: () => void } | null = null
     let cancelled = false
@@ -42,7 +58,7 @@ export function QrScannerSheet({ open, onClose, onCode }: Props) {
       cancelled = true
       controls?.stop()
     }
-  }, [open, onCode])
+  }, [open, onCode, onClose])
 
   return (
     <Sheet open={open} onClose={onClose} title={t('attendance.scanQr')}>
