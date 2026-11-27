@@ -1107,11 +1107,11 @@ function PhotosSection({
               )}
               {canPhotos && (
                 <button
-                  className="absolute top-1 end-1 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center cursor-pointer border-0"
+                  className="absolute top-1 end-1 w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-black/50 text-white flex items-center justify-center cursor-pointer border-0 hover:bg-black/70 transition-colors"
                   aria-label={t('reports.deletePhoto')}
                   onClick={() => setDeleteTarget(p)}
                 >
-                  <Trash2 size={15} />
+                  <Trash2 size={18} />
                 </button>
               )}
             </div>

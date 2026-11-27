@@ -20,11 +20,11 @@ const variants: Record<Variant, string> = {
   dangerGhost: 'bg-transparent border border-bad text-bad-text hover:bg-bad-soft',
 }
 
-// سلم أحجام موحّد (3A-317 — تدقيق الأزرار): md هو الأساس (هدف لمس 48px)،
-// وsm للأزرار الثانوية داخل البطاقات (40px — لمس سليم وأخف بصرياً)
+// سلم أحجام موحّد (3A-317 / 3A-336 — تدقيق الأزرار): md هو الأساس (هدف لمس 48px)،
+// وsm للأزرار الثانوية داخل البطاقات (44px — يفي بمعيار WCAG 2.5.5 وHIG لأهداف اللمس وأخف بصرياً)
 const sizes: Record<Size, string> = {
   md: 'px-4 min-h-[48px] text-[15px] rounded-xl',
-  sm: 'px-3 min-h-[40px] text-[13.5px] rounded-[10px]',
+  sm: 'px-3 min-h-[44px] min-w-[44px] text-[13.5px] rounded-[10px]',
 }
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

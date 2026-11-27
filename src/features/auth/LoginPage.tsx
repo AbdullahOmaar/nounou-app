@@ -169,7 +169,7 @@ export function LoginPage() {
           <div className="flex items-center justify-between mt-4">
             <button
               type="button"
-              className="type-secondary text-primary underline-offset-2 hover:underline"
+              className="type-secondary text-primary underline-offset-2 hover:underline min-h-[44px] inline-flex items-center py-2"
               onClick={() => {
                 setMode(mode === 'signin' ? 'signup' : 'signin')
                 setError(null)
@@ -181,7 +181,7 @@ export function LoginPage() {
             {mode === 'signin' && (
               <button
                 type="button"
-                className="type-secondary text-muted underline-offset-2 hover:underline"
+                className="type-secondary text-muted underline-offset-2 hover:underline min-h-[44px] inline-flex items-center py-2"
                 onClick={handleForgot}
                 disabled={busy}
               >

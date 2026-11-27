@@ -810,7 +810,7 @@ function PaySection({
           type="file"
           accept="image/*"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="type-secondary"
+          className="type-secondary py-2 min-h-[44px] block"
         />
       </Field>
       {error && <p className="type-secondary text-bad-text">{error}</p>}
