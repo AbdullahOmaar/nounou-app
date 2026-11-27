@@ -22,6 +22,7 @@ import {
 import { useToast } from '../../components/ui/toast'
 import type { PaymentMethod } from '../../types/database'
 import * as api from './api'
+import { BusLiveSection } from './BusLiveSection'
 import { capturePortalToken, getStoredPortalToken } from './session'
 
 /**
@@ -232,6 +233,8 @@ export function PortalPage() {
                 </span>
               )}
             </Card>
+
+            <BusLiveSection token={token} />
 
             <div className="flex items-center justify-between">
               <Button

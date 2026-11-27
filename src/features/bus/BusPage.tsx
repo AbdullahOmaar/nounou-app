@@ -17,10 +17,11 @@ import { invalidatePrefixes } from '../../lib/invalidate'
 import { useMembers } from '../settings/hooks'
 import type { BusDirection } from '../../types/database'
 import * as api from './api'
+import { BusLiveCard } from './BusLiveCard'
 
 /**
  * الباص البسيط: خطوط + اشتراكات شهرية (تغذي سطر الباص في الفواتير) +
- * قوائم يومية ركوب/نزول بتعليم لمسي واحد. لا GPS — خارج النطاق صراحة.
+ * قوائم يومية ركوب/نزول بتعليم لمسي واحد + بث حي لموقع الباص (3A-414).
  */
 export function BusPage() {
   const t = useT()
@@ -236,6 +237,12 @@ export function BusPage() {
                       {t('bus.listProgress', { done: doneCount, total: entries.length })}
                     </p>
                   </div>
+                  {canBus && dayList.data && (
+                    <BusLiveCard
+                      listId={dayList.data.list.id}
+                      routeName={activeRoute?.name ?? ''}
+                    />
+                  )}
                   <Card className="p-0 overflow-hidden">
                     <div className="type-section px-4 pt-3 pb-1">
                       {t('bus.routeChildren')} ({entries.length})
