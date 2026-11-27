@@ -103,4 +103,13 @@ export const portal = {
   tlDeparture: 'الانصراف',
   tlPending: 'لسه — هنبلّغك أول ما يتحرك',
   tlNotYet: 'لسه',
+  // الباص الحي (3A-414)
+  busLiveTitle: 'الباص الحي',
+  busLiveRoute: 'خط {route} — {direction}',
+  busLiveNow: 'حي الآن',
+  busLiveStale: 'الإشارة قديمة',
+  busLiveWaiting: 'البث بدأ ولسه ما وصلش أول موقع — ثواني ويظهر هنا.',
+  busLiveUpdated: 'آخر تحديث الساعة {time}',
+  busLiveLastUpdate: 'آخر موقع معروف الساعة {time} — الإشارة واقفة، وده مش موقع لحظي',
+  busLiveUnavailable: 'تعذر تحديث موقع الباص دلوقتي — حاولي بعد شوية',
 }

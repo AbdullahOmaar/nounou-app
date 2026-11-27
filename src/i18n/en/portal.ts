@@ -103,4 +103,13 @@ export const portal = {
   tlDeparture: 'Pick-up',
   tlPending: 'Not yet — we’ll let you know as soon as it happens',
   tlNotYet: 'Not yet',
+  // Live bus (3A-414)
+  busLiveTitle: 'Live bus',
+  busLiveRoute: '{route} route — {direction}',
+  busLiveNow: 'Live now',
+  busLiveStale: 'Signal is stale',
+  busLiveWaiting: 'The broadcast started and the first location has not arrived yet — it will show here in a few seconds.',
+  busLiveUpdated: 'Last updated at {time}',
+  busLiveLastUpdate: 'Last known location at {time} — the signal has stopped, and this is not a live position',
+  busLiveUnavailable: 'Could not refresh the bus location right now — please try again in a bit',
 }

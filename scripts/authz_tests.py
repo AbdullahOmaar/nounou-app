@@ -1232,6 +1232,112 @@ def main():
               s == 200 and isinstance(b, dict) and b.get("found") is False,
               f"got {s} {str(b)[:100]}")
 
+        # ---- live bus tracking (3A-414, migration 0060) ----
+        a_route = one(ref,
+                      "insert into bus_routes (nursery_id, name) values "
+                      f"('{nursery_a}', 'authz route') returning id")["id"]
+        sql(ref, "insert into bus_subscriptions "
+                 "(nursery_id, child_id, route_id, monthly_fee) values "
+                 f"('{nursery_a}', '{a_child1}', '{a_route}', 100)")
+        a_bus_list = one(ref,
+                         "insert into bus_day_lists "
+                         "(nursery_id, route_id, day_date, direction) values "
+                         f"('{nursery_a}', '{a_route}', "
+                         "(now() at time zone 'Africa/Cairo')::date, 'to_nursery') "
+                         "returning id")["id"]
+        sql(ref, "insert into bus_day_entries "
+                 "(nursery_id, list_id, child_id, sort_order) values "
+                 f"('{nursery_a}', '{a_bus_list}', '{a_child1}', 0)")
+        # وصي طفل آخر (a_child2) غير موجود في قائمة اليوم — للفحص السلبي
+        a_guardian2 = one(ref,
+                          "insert into guardians (nursery_id, full_name, phone) values "
+                          f"('{nursery_a}', 'authz guardian A2', '01000000003') "
+                          "returning id")["id"]
+        sql(ref, "insert into guardian_children (guardian_id, child_id, is_payer) "
+                 f"values ('{a_guardian2}', '{a_child2}', true)")
+        raw_other = "authz-other-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian2}', '{token_hash(raw_other)}', "
+                 "'authz other')")
+        # توكن طازج لوصي a_child1: raw_valid أُلغي في تدفق استبدال التوكن (0014)
+        raw_live = "authz-live-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', '{token_hash(raw_live)}', 'authz live')")
+        # المشرفة هنا بكل الصلاحيات من قسم STAFF السابق — ألغِها مؤقتاً للفحص
+        # السلبي ثم أعدها فوراً حتى لا تتأثر الفحوص اللاحقة
+        sql(ref, "update nursery_members set permissions = '{}'::jsonb "
+                 f"where nursery_id = '{nursery_a}' and user_id = '{staff_uid}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_start",
+                    staff_jwt, body={"p_list_id": a_bus_list})
+        check("a staff member without can_manage_bus cannot start a live session (3A-414)",
+              s >= 400, f"got {s}")
+        sql(ref, "update nursery_members set permissions = "
+                 f"'{json.dumps(ALL_PERMISSIONS)}'::jsonb "
+                 f"where nursery_id = '{nursery_a}' and user_id = '{staff_uid}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_start",
+                    owner_b_jwt, body={"p_list_id": a_bus_list})
+        check("another nursery's owner cannot start a live session here (3A-414)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_start",
+                    owner_a_jwt, body={"p_list_id": a_bus_list})
+        a_session = b.get("id") if isinstance(b, dict) else None
+        check("the owner starts a live session on today's list (3A-414)",
+              s == 200 and bool(a_session), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_start",
+                    owner_a_jwt, body={"p_list_id": a_bus_list})
+        check("starting again returns the same active session (3A-414)",
+              s == 200 and isinstance(b, dict) and b.get("id") == a_session,
+              f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_update",
+                    owner_a_jwt,
+                    body={"p_session_id": a_session, "p_lat": 30.05, "p_lng": 31.25})
+        check("the owner posts the bus position (3A-414)",
+              s == 200 and isinstance(b, dict)
+              and abs((b.get("last_lat") or 0) - 30.05) < 0.001,
+              f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_update",
+                    owner_a_jwt,
+                    body={"p_session_id": a_session, "p_lat": 200, "p_lng": 31.25})
+        check("an out-of-range latitude is rejected (3A-414)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/portal_bus_live",
+                    None, body={"p_token": raw_live})
+        check("a guardian of a child on the active run sees the live position (3A-414)",
+              s == 200 and isinstance(b, dict) and b.get("found") is True
+              and abs((b.get("lat") or 0) - 30.05) < 0.001,
+              f"got {s} {str(b)[:120]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/portal_bus_live",
+                    None, body={"p_token": raw_other})
+        check("a guardian with no child on the active run sees nothing (3A-414)",
+              s == 200 and isinstance(b, dict) and b.get("found") is False,
+              f"got {s} {str(b)[:120]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/portal_bus_live",
+                    None, body={"p_token": "bogus-token-value"})
+        check("portal bus live rejects an invalid token (3A-414)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/bus_live_sessions?select=id&limit=5", None)
+        rows = b if isinstance(b, list) else []
+        check("anon reads zero live sessions directly — RPC only (3A-414)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_end",
+                    owner_a_jwt, body={"p_session_id": a_session})
+        check("the owner ends the live session (3A-414)",
+              s == 200 and isinstance(b, dict) and b.get("ended_at"),
+              f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/portal_bus_live",
+                    None, body={"p_token": raw_live})
+        check("after the broadcast ends the portal sees nothing (3A-414)",
+              s == 200 and isinstance(b, dict) and b.get("found") is False,
+              f"got {s} {str(b)[:120]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_update",
+                    owner_a_jwt,
+                    body={"p_session_id": a_session, "p_lat": 30.06, "p_lng": 31.26})
+        check("updating an ended session is rejected (3A-414)",
+              s >= 400, f"got {s}")
+
         # ---- event invitations (3.7, migration 0042) ----
         one(ref, "insert into nursery_events "
                  "(nursery_id, title, starts_at, public_code) values "

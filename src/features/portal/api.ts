@@ -1,5 +1,6 @@
 import { requireSupabase } from '../../lib/supabase'
 import type { GuardianAccessTokenRow, PaymentMethod } from '../../types/database'
+import type { PortalBusLive } from './busLive'
 
 /* ------------------------------------------------------------------ */
 /* إدارة الروابط (طاقم الحضانة)                                        */
@@ -174,6 +175,16 @@ export async function fetchPortalOverview(token: string): Promise<PortalOverview
   })
   if (error) throw error
   return data as PortalOverview
+}
+
+/** موقع الباص الحي لولي الأمر (3A-414): استطلاع RPC محروس بالتوكن */
+export async function fetchPortalBusLive(token: string): Promise<PortalBusLive> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('portal_bus_live', {
+    p_token: token,
+  })
+  if (error) throw error
+  return data as PortalBusLive
 }
 
 export async function fetchPortalChildDay(
