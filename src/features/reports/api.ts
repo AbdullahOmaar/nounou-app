@@ -128,6 +128,18 @@ export async function listPhotosForDay(
     arr.push(l.child_id as string)
     byPhoto.set(l.photo_id as string, arr)
   }
+  // سجل مشاهدات الطاقم (4.14): العرض داخل التطبيق مشاهدة
+  // موثقة. التسجيل جهد أفضل — فشله لا يحجب الصور عن الطاقم
+  // (استثناء موثق كتحليلات 3.3).
+  if (photos.length > 0) {
+    try {
+      await db.rpc('log_staff_photo_views', {
+        p_photo_ids: photos.map((p) => p.id),
+      })
+    } catch {
+      // documented best-effort: viewing is the primary right
+    }
+  }
   const withUrls = await Promise.all(
     photos.map(async (p) => {
       const { data: signed } = await db.storage
@@ -137,6 +149,38 @@ export async function listPhotosForDay(
     }),
   )
   return withUrls
+}
+
+/**
+ * 420: تصدير صور اليوم جماعياً كملف ZIP — تنزيل كل صورة من التخزين
+ * بصلاحية العضو ثم ضغط تخزيني (JPEG مضغوط أصلاً) عبر fflate.
+ */
+export async function downloadDayPhotosZip(
+  classDayId: string,
+): Promise<{ blob: Blob; count: number }> {
+  const db = requireSupabase()
+  const { data, error } = await db
+    .from('child_photos')
+    .select('id, storage_path')
+    .eq('class_day_id', classDayId)
+    .order('created_at')
+  if (error) throw error
+  const photos = (data ?? []) as { id: string; storage_path: string }[]
+  const { zipSync } = await import('fflate')
+  const files: Record<string, Uint8Array> = {}
+  let done = 0
+  for (const p of photos) {
+    const { data: blob, error: dErr } = await db.storage
+      .from('child-media')
+      .download(p.storage_path)
+    if (dErr || !blob) continue
+    done++
+    const name = `${String(done).padStart(2, '0')}-${p.id.slice(0, 8)}.jpg`
+    files[name] = new Uint8Array(await blob.arrayBuffer())
+  }
+  if (done === 0) throw new Error('no_photos')
+  const zipped = zipSync(files, { level: 0 })
+  return { blob: new Blob([zipped.buffer as ArrayBuffer], { type: 'application/zip' }), count: done }
 }
 
 /** عدد صور طفل النهارده (لفرض السقف المرن من الإعدادات) */
@@ -165,6 +209,7 @@ export async function uploadPhotos(
   files: File[],
   childIds: string[],
   caption: string | null,
+  shouldStop?: () => boolean,
 ): Promise<number> {
   const db = requireSupabase()
   // X3 (3A-378): الرفض عند المصدر — التحقق من موافقة كل طفل موسوم
@@ -183,6 +228,7 @@ export async function uploadPhotos(
   }
   let uploaded = 0
   for (const file of files) {
+    if (shouldStop?.()) break
     const photoId = crypto.randomUUID()
     const path = `${nurseryId}/${photoId}.jpg`
     const blob = await compressImage(file)
@@ -218,6 +264,46 @@ export async function deletePhoto(photo: ChildPhotoRow): Promise<void> {
 }
 
 /** صور طفل (تبويب ملف الطفل) بروابط موقعة للطاقم */
+export interface ChildReportEntry {
+  date: string
+  mood: string | null
+  nap_slept: boolean | null
+  activities: string[] | null
+  note: string | null
+}
+
+/** تقارير منشورة لطفل واحد (لملف النمو 4.5) — الأحدث أولاً. */
+export async function listChildReports(
+  childId: string,
+  limit = 12,
+): Promise<ChildReportEntry[]> {
+  const db = requireSupabase()
+  const { data, error } = await db
+    .from('daily_reports')
+    .select('mood, nap_slept, activities, note, class_day:class_days(date)')
+    .eq('child_id', childId)
+    .not('published_at', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw error
+  return (data ?? []).map((r) => {
+    const row = r as unknown as {
+      mood: string | null
+      nap_slept: boolean | null
+      activities: string[] | null
+      note: string | null
+      class_day: { date: string } | null
+    }
+    return {
+      date: row.class_day?.date ?? '',
+      mood: row.mood,
+      nap_slept: row.nap_slept,
+      activities: row.activities,
+      note: row.note,
+    }
+  })
+}
+
 export async function listChildPhotos(
   childId: string,
   limit = 60,
@@ -233,6 +319,18 @@ export async function listChildPhotos(
   const photos = (data ?? [])
     .map((r) => (r as unknown as { photo: ChildPhotoRow }).photo)
     .filter(Boolean)
+  // سجل مشاهدات الطاقم (4.14): العرض داخل التطبيق مشاهدة
+  // موثقة. التسجيل جهد أفضل — فشله لا يحجب الصور عن الطاقم
+  // (استثناء موثق كتحليلات 3.3).
+  if (photos.length > 0) {
+    try {
+      await db.rpc('log_staff_photo_views', {
+        p_photo_ids: photos.map((p) => p.id),
+      })
+    } catch {
+      // documented best-effort: viewing is the primary right
+    }
+  }
   const withUrls = await Promise.all(
     photos.map(async (p) => {
       const { data: signed } = await db.storage

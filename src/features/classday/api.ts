@@ -34,6 +34,25 @@ export async function setClassDayStatus(
   if (error) throw error
 }
 
+/**
+ * الفصول المفتوحة النهارده (قراءة فقط — هوية نونو، الموجة 1: حالة
+ * «اتفتح/لسه» في شاشة اختيار الفصل). لا تُنشئ صفوف أيام؛ الوجود
+ * وحده هو الإشارة (زيارة /today/:id هي التي تفتح اليوم).
+ */
+export async function listTodayClassDays(
+  nurseryId: string,
+  date: string,
+): Promise<string[]> {
+  const db = requireSupabase()
+  const { data, error } = await db
+    .from('class_days')
+    .select('class_id')
+    .eq('nursery_id', nurseryId)
+    .eq('day_date', date)
+  if (error) throw error
+  return (data ?? []).map((d) => d.class_id as string)
+}
+
 export interface DayChild {
   child: ChildRow
   attendance: AttendanceRow | null
@@ -184,6 +203,29 @@ export async function listChildAttendance(
   })
 }
 
+/**
+ * 420-U2: تحقق خادمي من كود الاستلام (RPC ‏verify_pickup_code — هجرة 0021).
+ * الكود يُعلَّم مستخدماً ذرّياً والمحاولات الخاطئة تُسجَّل في سجل النشاط.
+ * لا يرمي: أي فشل شبكة/خادم = رفض مغلق (reason 'error').
+ */
+export async function verifyPickupCode(
+  nurseryId: string,
+  childId: string,
+  date: string,
+  code: string,
+): Promise<{ ok: boolean; reason?: string }> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('verify_pickup_code', {
+    p_nursery_id: nurseryId,
+    p_child_id: childId,
+    p_day_date: date,
+    p_code: code,
+  })
+  if (error) return { ok: false, reason: 'error' }
+  const verdict = data as { ok?: boolean; reason?: string } | null
+  return { ok: verdict?.ok === true, reason: verdict?.reason }
+}
+
 /** أكواد الاستلام اليومية لأطفال (عند تفعيل الإعداد) */
 export async function ensurePickupCodes(
   nurseryId: string,
@@ -201,7 +243,10 @@ export async function ensurePickupCodes(
   const map = new Map((data ?? []).map((r) => [r.child_id as string, r.code as string]))
   const missing = childIds.filter((id) => !map.has(id))
   for (const childId of missing) {
-    const code = String(Math.floor(100000 + Math.random() * 900000))
+    // توليد تشفيري (420-U2) — Math.random غير مقبول لأكواد استلام
+    const buf = new Uint32Array(1)
+    crypto.getRandomValues(buf)
+    const code = String(100000 + (buf[0] % 900000))
     const { error: insErr } = await db.from('pickup_codes').insert({
       nursery_id: nurseryId,
       child_id: childId,

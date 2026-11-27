@@ -8,12 +8,15 @@
 // تعيد فحص الانتهاء لحظة الحذف). الترتيب آمن عند الفشل: ملف يُحذف
 // وسجله يبقى = جولة قادمة تنظّفه؛ وسجل لا يُحذف أبداً قبل نجاح حذف ملفه.
 //
-// التفويض: البوابة (verify_jwt) تتحقق من توقيع الـ JWT أصلاً، والدالة
-// تفكّ حمولته وتقبل role === 'service_role' فقط. لا مقارنة سلسلة
-// بمفتاح بيئة — فحص 2026-11-23 أثبت أن SUPABASE_SERVICE_ROLE_KEY
-// المحقون في بيئة Edge لا يطابق أي مفتاح يرده API (JWT قديم ولا
-// sb_secret_*)، فكانت كل الاستدعاءات 401. المتصل المجدول (pg_cron)
-// يرسل JWT الـ service_role القديم لأنه الوحيد الذي تقبله البوابة.
+// التفويض (ترحيل مفاتيح Supabase — 2026-11-23): المفاتيح السرية
+// الجديدة (sb_secret_*) ليست JWT، فالبوابة تعمل بـ verify_jwt=false
+// والتفويض داخل الدالة نفسها: يُقبل الطلب فقط إن طابق المفتاح
+// المقدَّم (رأس apikey أو Authorization: Bearer) أحد مفاتيح المشروع
+// السرية من SUPABASE_SECRET_KEYS المحقونة — مقارنة ثابتة الزمن.
+// المتصل المجدول (pg_cron) يرسل مفتاح Vault 'service_role_key'
+// (المفتاح السري الجديد) على رأسي apikey وAuthorization (هجرة 0020).
+// تاريخياً كانت البوابة verify_jwt + فكّ دور JWT — أُلغي: فكّ الدور
+// بلا تحقق توقيع قابل للتزوير متى غاب verify_jwt.
 //
 // التشغيل: يدوياً من المشغّل (curl بقناع الخدمة) أو مجدولاً لاحقاً
 // (pg_cron + pg_net أو مجدول خارجي) — انظر docs/OPERATIONS.md.
@@ -23,7 +26,26 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+// مفاتيح المشروع السرية الجديدة (sb_secret_*) — تحقنها المنصة JSON
+// بأسمائها في SUPABASE_SECRET_KEYS. مفتاح الإدارة هو 'default'،
+// وبغيابه نرجع للمفتاح القديم المحقون (صالح حتى تعطيل القديم).
+function secretKeys(): Record<string, string> {
+  try {
+    const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const out: Record<string, string> = {};
+    for (const [name, value] of Object.entries(parsed)) {
+      if (typeof value === "string" && value) out[name] = value;
+    }
+    return out;
+  } catch {
+    return {}; // بيئة بلا مفاتيح جديدة — يبقى الرجوع للقديم وحده
+  }
+}
+const SECRET_KEYS = secretKeys();
+const SERVICE_ROLE_KEY = SECRET_KEYS["default"] ??
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const BUCKET = "child-media";
 const MAX_ROUNDS = 10;
 
@@ -40,20 +62,36 @@ function json(body: unknown, status: number): Response {
   });
 }
 
-// يفكّ دور الـ JWT من حمولته (base64url) بلا تحقق توقيع — التوقيع
-// تحققت منه البوابة أصلاً (verify_jwt). أي قيمة غير JWT صالح ترجع ''.
-function jwtRole(authorization: string | null): string {
-  if (!authorization || !authorization.startsWith("Bearer ")) return "";
-  const parts = authorization.slice(7).split(".");
-  if (parts.length !== 3) return "";
-  try {
-    const payload = JSON.parse(
-      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")),
-    ) as { role?: unknown };
-    return typeof payload.role === "string" ? payload.role : "";
-  } catch {
-    return "";
+// مقارنة ثابتة الزمن (على بصمات SHA-256 حتى لا يتسرب الطول ولا
+// المحتوى بزمن المقارنة).
+async function keyMatches(presented: string, expected: string): Promise<boolean> {
+  if (!presented || !expected) return false;
+  const enc = new TextEncoder();
+  const [a, b] = await Promise.all([
+    crypto.subtle.digest("SHA-256", enc.encode(presented)),
+    crypto.subtle.digest("SHA-256", enc.encode(expected)),
+  ]);
+  const av = new Uint8Array(a);
+  const bv = new Uint8Array(b);
+  let diff = 0;
+  for (let i = 0; i < av.length; i++) diff |= av[i] ^ bv[i];
+  return diff === 0;
+}
+
+// بوابة الخدمة: المفتاح المقدَّم (رأس apikey أو Authorization:
+// Bearer) لازم يطابق أحد مفاتيح المشروع السرية. أي شيء آخر —
+// بما فيه JWT مزوّر بأي دور — مرفوض قبل أي عمل.
+async function callerAuthorized(req: Request): Promise<boolean> {
+  const auth = req.headers.get("Authorization") ?? "";
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  const presented = [req.headers.get("apikey") ?? "", bearer];
+  for (const candidate of presented) {
+    if (!candidate) continue;
+    for (const expected of Object.values(SECRET_KEYS)) {
+      if (await keyMatches(candidate, expected)) return true;
+    }
   }
+  return false;
 }
 
 interface ExpiredPhoto {
@@ -68,10 +106,10 @@ Deno.serve(async (req: Request) => {
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
     return json({ error: "not_configured" }, 500);
   }
-  // بوابة الخدمة: لا يقبل إلا JWT بدور service_role — البوابة تحققت
-  // من التوقيع أصلاً (verify_jwt)، وهنا نتحقق من الدور فقط. أي JWT
-  // مستخدم (مالك/مشرفة/مجهول) مرفوض قبل أي عمل.
-  if (jwtRole(req.headers.get("Authorization")) !== "service_role") {
+  // بوابة الخدمة: المفتاح المقدَّم لازم يطابق أحد مفاتيح المشروع
+  // السرية (SUPABASE_SECRET_KEYS) — التفويض داخل الدالة لأن البوابة
+  // تعمل بـ verify_jwt=false (المفاتيح الجديدة ليست JWT).
+  if (!(await callerAuthorized(req))) {
     return json({ error: "unauthorized" }, 401);
   }
 

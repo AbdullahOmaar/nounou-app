@@ -24,4 +24,5 @@ export const paymentProofs = {
   viewProof: 'View proof photo',
   methodLabel: 'Method',
   sentAt: 'Sent {date}',
+  approvalPending: 'Amount is above the approval limit — saved for a second approval on the Finance page',
 }

@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { useCurrentNursery } from '../../hooks/useCurrentNursery'
+import { openPrintDocument } from '../../lib/printDoc'
+import { Plus, RotateCcw, Trash2,
+  Printer,
+} from 'lucide-react'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
 import { ConfirmSheet } from '../../components/ui/ConfirmSheet'
@@ -8,6 +12,7 @@ import { ErrorState, LoadingState } from '../../components/ui/states'
 import { Field, Select, TextInput } from '../../components/ui/form'
 import { Sheet } from '../../components/ui/Sheet'
 import { useT } from '../../i18n'
+import { useToast } from '../../components/ui/toast'
 import { fmtPeriod } from '../../i18n/format'
 import { formatDateTimeAr, formatMoney } from '../../lib/format'
 import type { InvoiceLineType, PaymentRow } from '../../types/database'
@@ -18,7 +23,9 @@ const LINE_TYPES: InvoiceLineType[] = ['base', 'discount', 'adjustment', 'bus', 
 
 export function InvoiceDetailPage() {
   const t = useT()
+  const showToast = useToast()
   const { invoiceId } = useParams()
+  const nurseryRes = useCurrentNursery()
   const bundle = useInvoice(invoiceId)
   const mutations = useInvoiceMutations()
   const [payOpen, setPayOpen] = useState(false)
@@ -95,27 +102,31 @@ export function InvoiceDetailPage() {
             </div>
           </div>
           {settled && (
-            <span className="type-badge text-good-text bg-good-soft rounded-full px-2 py-1">
+            <span className="type-badge text-ok-text bg-ok-soft rounded-full px-2 py-1">
               {t('invoices.settled')}
             </span>
           )}
         </div>
-        <div className="flex justify-around text-center mt-3">
-          <div>
-            <div className="type-badge text-muted">{t('invoices.total')}</div>
-            <div className="type-section">{formatMoney(balance?.total ?? 0)}</div>
+        <div className="flex flex-col divide-y divide-border mt-2">
+          <div className="flex items-center justify-between py-2">
+            <span className="type-secondary text-muted">{t('invoices.total')}</span>
+            <span className="type-body font-semibold">{formatMoney(balance?.total ?? 0)}</span>
           </div>
-          <div>
-            <div className="type-badge text-muted">{t('invoices.paid')}</div>
-            <div className="type-section text-good-text">
+          <div className="flex items-center justify-between py-2">
+            <span className="type-secondary text-muted">{t('invoices.paid')}</span>
+            <span className="type-body font-semibold text-ok-text">
               {formatMoney(balance?.paid ?? 0)}
-            </div>
+            </span>
           </div>
-          <div>
-            <div className="type-badge text-muted">{t('invoices.balance')}</div>
-            <div className="type-section text-bad-text">
+          <div className="flex items-center justify-between py-2">
+            <span className="type-secondary text-muted">{t('invoices.balance')}</span>
+            <span
+              className={`type-body font-semibold ${
+                (balance?.balance ?? 0) > 0 ? 'text-bad-text' : 'text-ok-text'
+              }`}
+            >
               {formatMoney(balance?.balance ?? 0)}
-            </div>
+            </span>
           </div>
         </div>
       </Card>
@@ -188,6 +199,40 @@ export function InvoiceDetailPage() {
                     {p.reverses_id && ` • ${t('invoices.reversesBadge', { no: '' })}`}
                   </div>
                 </div>
+                <span className="flex">
+                {p.receipt_no != null && p.proof_status !== 'pending' && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (nurseryRes.status !== 'ready') return
+                      const opened = openPrintDocument({
+                        nurseryName: nurseryRes.nursery.name,
+                        logoUrl: nurseryRes.nursery.logo_url,
+                        brandColor: nurseryRes.nursery.brand_color,
+                        title: t('invoices.receiptTitle'),
+                        sections: [
+                          {
+                            type: 'kv',
+                            rows: [
+                              { label: t('invoices.receiptNoLabel'), value: String(p.receipt_no ?? 0) },
+                              { label: t('invoices.receiptChild'), value: childName },
+                              { label: t('finance.amountPlain'), value: formatMoney(p.amount) },
+                              { label: t('invoices.receiptMethod'), value: methodLabel(p) },
+                              { label: t('invoices.receiptDate'), value: formatDateTimeAr(p.paid_at) },
+                              { label: t('invoices.receiptPeriod'), value: invoice.period },
+                            ],
+                          },
+                        ],
+                        footerNote: t('pub.poweredBy'),
+                      })
+                      if (!opened) showToast(t('common.errorGeneric'), 'error')
+                    }}
+                    aria-label={t('invoices.printReceipt')}
+                  >
+                    <Printer size={16} />
+                  </Button>
+                )}
                 {!p.reversed_by_id && !p.reverses_id && p.proof_status !== 'pending' && (
                   <Button
                     variant="ghost"
@@ -198,6 +243,7 @@ export function InvoiceDetailPage() {
                     <RotateCcw size={16} />
                   </Button>
                 )}
+                </span>
               </Card>
             ))}
           </div>
@@ -280,8 +326,19 @@ export function InvoiceDetailPage() {
         confirmLabel={t('invoices.cancelInvoice')}
         danger
         onConfirm={async () => {
-          await mutations.cancel.mutateAsync(invoice.id)
-          setCancelOpen(false)
+          try {
+            await mutations.cancel.mutateAsync(invoice.id)
+            setCancelOpen(false)
+          } catch (e) {
+            // حارس 0013-V1: فاتورة فيها دفعة فعّالة لا تُلغى — الرسالة
+            // الصريحة بدل خطأ عام (سلامة مال V1، مهمة 1.7)
+            showToast(
+              String(e).includes('invoice_has_payments')
+                ? t('invoices.cancelHasPayments')
+                : t('common.errorGeneric'),
+              'error',
+            )
+          }
         }}
       />
     </div>

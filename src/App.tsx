@@ -25,6 +25,9 @@ const ChildDetailPage = lazy(() =>
     default: m.ChildDetailPage,
   })),
 )
+const QrCardsPage = lazy(() =>
+  import('./features/children/QrCardsPage').then((m) => ({ default: m.QrCardsPage })),
+)
 const ClassesPage = lazy(() =>
   import('./features/classes/ClassesPage').then((m) => ({ default: m.ClassesPage })),
 )
@@ -66,8 +69,21 @@ const PortalLinksPage = lazy(() =>
     default: m.PortalLinksPage,
   })),
 )
+const EventInvitePage = lazy(() => import('./features/events/EventInvitePage'))
 const PortalPage = lazy(() =>
   import('./features/portal/PortalPage').then((m) => ({ default: m.PortalPage })),
+)
+const PublicPage = lazy(() => import('./features/public/PublicPage'))
+const PublicHome = lazy(() =>
+  import('./features/public/PublicPage').then((m) => ({ default: m.PublicHome })),
+)
+const PublicClasses = lazy(() =>
+  import('./features/public/PublicPage').then((m) => ({ default: m.PublicClasses })),
+)
+const VisitPage = lazy(() => import('./features/public/VisitPage'))
+const PublicEvents = lazy(() => import('./features/public/PublicEvents'))
+const PublicAbout = lazy(() =>
+  import('./features/public/PublicPage').then((m) => ({ default: m.PublicAbout })),
 )
 const NotificationsPage = lazy(() =>
   import('./features/notifications/NotificationsPage').then((m) => ({
@@ -77,6 +93,21 @@ const NotificationsPage = lazy(() =>
 const ActivityLogPage = lazy(() =>
   import('./features/activity/ActivityLogPage').then((m) => ({
     default: m.ActivityLogPage,
+  })),
+)
+const FinancePage = lazy(() =>
+  import('./features/finance/FinancePage').then((m) => ({
+    default: m.FinancePage,
+  })),
+)
+const MessagesPage = lazy(() =>
+  import('./features/messages/MessagesPage').then((m) => ({
+    default: m.MessagesPage,
+  })),
+)
+const SuppliersPage = lazy(() =>
+  import('./features/suppliers/SuppliersPage').then((m) => ({
+    default: m.SuppliersPage,
   })),
 )
 const SettingsPage = lazy(() =>
@@ -107,6 +138,17 @@ registerRouteLoaders({
   '/portal-links': () => import('./features/portal/PortalLinksPage'),
   '/proofs': () => import('./features/proofs/ProofsPage'),
   '/activity': () => import('./features/activity/ActivityLogPage'),
+  '/finance': () => import('./features/finance/FinancePage'),
+  '/suppliers': () => import('./features/suppliers/SuppliersPage'),
+  '/messages': () => import('./features/messages/MessagesPage'),
+  '/qa': () => import('./features/qa/QaPage'),
+  '/tours': () => import('./features/tours/ToursPage'),
+  '/staff': () => import('./features/staff/StaffPage'),
+  '/licensing': () => import('./features/licensing/LicensingPage'),
+  '/ops': () => import('./features/ops/OpsPage'),
+  '/assistant': () => import('./features/assistant/AssistantPage'),
+  '/branches': () => import('./features/branches/BranchesPage'),
+  '/events': () => import('./features/events/EventsPage'),
   '/settings': () => import('./features/settings/SettingsPage'),
   '/members': () => import('./features/settings/MembersPage'),
   '/export': () => import('./features/settings/ExportPage'),
@@ -139,7 +181,73 @@ export default function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route
+                path="/n/:slug"
+                element={
+                  <Suspense fallback={<LoadingState />}>
+                    <PublicPage />
+                  </Suspense>
+                }
+              >
+                <Route
+                  index
+                  element={
+                    <Suspense fallback={<LoadingState />}>
+                      <PublicHome />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="classes"
+                  element={
+                    <Suspense fallback={<LoadingState />}>
+                      <PublicClasses />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="about"
+                  element={
+                    <Suspense fallback={<LoadingState />}>
+                      <PublicAbout />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="events"
+                  element={
+                    <Suspense fallback={<LoadingState />}>
+                      <PublicEvents />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="visit"
+                  element={
+                    <Suspense fallback={<LoadingState />}>
+                      <VisitPage />
+                    </Suspense>
+                  }
+                />
+              </Route>
+              <Route
+                path="/e/:code"
+                element={
+                  <Suspense fallback={<LoadingState />}>
+                    <EventInvitePage />
+                  </Suspense>
+                }
+              />
+              <Route
                 path="/p/:token"
+                element={
+                  <Suspense fallback={<LoadingState />}>
+                    <PortalPage />
+                  </Suspense>
+                }
+              />
+              {/* جذر البوابة بلا توكن (3A-375): يقرأ جلسة الجهاز المخزنة */}
+              <Route
+                path="/p"
                 element={
                   <Suspense fallback={<LoadingState />}>
                     <PortalPage />
@@ -162,6 +270,14 @@ export default function App() {
                     element={
                       <Suspense fallback={<LoadingState />}>
                         <ChildDetailPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/qr-cards"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <QrCardsPage />
                       </Suspense>
                     }
                   />
@@ -258,6 +374,30 @@ export default function App() {
                     element={
                       <Suspense fallback={<LoadingState />}>
                         <NotificationsPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/finance"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <FinancePage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/suppliers"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <SuppliersPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="/messages"
+                    element={
+                      <Suspense fallback={<LoadingState />}>
+                        <MessagesPage />
                       </Suspense>
                     }
                   />

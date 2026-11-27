@@ -1,0 +1,318 @@
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Images, Link2, PartyPopper, Plus, Trash2 } from 'lucide-react'
+import * as api from './api'
+import type { EventKind } from './api'
+import { useT } from '../../i18n'
+import { useCurrentNursery } from '../../hooks/useCurrentNursery'
+import { Button } from '../../components/ui/Button'
+import { Card } from '../../components/ui/Card'
+import { EmptyState } from '../../components/ui/EmptyState'
+import { Field, Select, TextInput } from '../../components/ui/form'
+import { Sheet } from '../../components/ui/Sheet'
+import { ErrorState, LoadingState } from '../../components/ui/states'
+import { useToast } from '../../components/ui/toast'
+import { formatDateTimeAr } from '../../lib/format'
+
+const KINDS: EventKind[] = ['graduation', 'open_day', 'aqeeqa', 'other']
+
+export default function EventsPage() {
+  const t = useT()
+  const showToast = useToast()
+  const qc = useQueryClient()
+  const nursery = useCurrentNursery()
+  const nurseryId = nursery.status === 'ready' ? nursery.nurseryId : ''
+  const [open, setOpen] = useState(false)
+  const [galleryFor, setGalleryFor] = useState<string | null>(null)
+  const [title, setTitle] = useState('')
+  const [kind, setKind] = useState<EventKind>('open_day')
+  const [starts, setStarts] = useState('')
+  const [location, setLocation] = useState('')
+  const [mapsUrl, setMapsUrl] = useState('')
+  const [halls, setHalls] = useState<
+    { name: string; location: string; maps: string }[]
+  >([])
+
+  const events = useQuery({
+    queryKey: ['events', nurseryId],
+    queryFn: () => api.listEvents(nurseryId),
+    enabled: !!nurseryId,
+  })
+  const refresh = () => void qc.invalidateQueries({ queryKey: ['events', nurseryId] })
+  const create = useMutation({
+    mutationFn: () =>
+      api.createEvent(nurseryId, {
+        title,
+        kind,
+        startsAt: new Date(starts).toISOString(),
+        endsAt: null,
+        locationText: location.trim() || null,
+        mapsUrl: mapsUrl.trim() || null,
+        halls: halls
+          .filter((h) => h.name.trim())
+          .map((h) => ({
+            name: h.name.trim(),
+            location_text: h.location.trim() || null,
+            maps_url: h.maps.trim() || null,
+          })),
+      }),
+    onSuccess: () => {
+      showToast(t('common.savedOk'))
+      setOpen(false)
+      setTitle('')
+      refresh()
+    },
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
+  })
+  const remove = useMutation({
+    mutationFn: (id: string) => api.deleteEvent(id),
+    onSuccess: refresh,
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
+  })
+
+  if (nursery.status === 'loading' || events.isPending) return <LoadingState />
+  if (events.isError) {
+    return (
+      <ErrorState
+        message={t('common.errorGeneric')}
+        onRetry={() => void events.refetch()}
+      />
+    )
+  }
+  const rows = events.data ?? []
+  const kindLabel = (k: EventKind): string => {
+    switch (k) {
+      case 'graduation':
+        return t('events.kinds.graduation')
+      case 'open_day':
+        return t('events.kinds.open_day')
+      case 'aqeeqa':
+        return t('events.kinds.aqeeqa')
+      case 'other':
+        return t('events.kinds.misc')
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between">
+        <h1 className="type-title">{t('events.title')}</h1>
+        <Button onClick={() => setOpen(true)}>
+          <Plus size={16} />
+          {t('events.new')}
+        </Button>
+      </div>
+      {rows.length === 0 ? (
+        <EmptyState
+          icon={PartyPopper}
+          title={t('events.empty')}
+          hint={t('events.emptyHint')}
+        />
+      ) : (
+        rows.map((ev) => {
+          const link = `${window.location.origin}/e/${ev.public_code}`
+          return (
+            <Card key={ev.id}>
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="type-body">{ev.title}</div>
+                  <div className="type-secondary text-muted">
+                    {kindLabel(ev.kind)} — {formatDateTimeAr(ev.starts_at)}
+                  </div>
+                  {ev.location_text && (
+                    <div className="type-badge text-muted">{ev.location_text}</div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  aria-label={t('common.delete')}
+                  onClick={() => remove.mutate(ev.id)}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(link)
+                    showToast(t('events.linkCopied'))
+                  }}
+                >
+                  <Link2 size={16} />
+                  {t('events.copyLink')}
+                </Button>
+                <Button
+                  onClick={() =>
+                    setGalleryFor(galleryFor === ev.id ? null : ev.id)
+                  }
+                >
+                  <Images size={16} />
+                  {t('events.gallery')}
+                </Button>
+              </div>
+              {galleryFor === ev.id && (
+                <EventGallery nurseryId={nurseryId} eventId={ev.id} />
+              )}
+            </Card>
+          )
+        })
+      )}
+
+      <Sheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title={t('events.new')}
+        footer={
+          <Button
+            full
+            disabled={!title.trim() || !starts || create.isPending}
+            onClick={() => create.mutate()}
+          >
+            {t('common.save')}
+          </Button>
+        }
+      >
+        <Field label={t('events.eventTitle')}>
+          <TextInput value={title} onChange={(e) => setTitle(e.target.value)} />
+        </Field>
+        <Field label={t('events.eventKind')}>
+          <Select
+            value={kind}
+            onChange={(e) => setKind(e.target.value as EventKind)}
+          >
+            {KINDS.map((k) => (
+              <option key={k} value={k}>
+                {kindLabel(k)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label={t('events.startsAt')}>
+          <TextInput
+            type="datetime-local"
+            value={starts}
+            onChange={(e) => setStarts(e.target.value)}
+          />
+        </Field>
+        <Field label={t('events.location')}>
+          <TextInput value={location} onChange={(e) => setLocation(e.target.value)} />
+        </Field>
+        <Field label={t('events.mapsUrl')}>
+          <TextInput
+            dir="ltr"
+            value={mapsUrl}
+            onChange={(e) => setMapsUrl(e.target.value)}
+          />
+        </Field>
+        <div className="type-secondary text-muted">{t('events.hallsHint')}</div>
+        {halls.map((h, i) => (
+          <div key={i} className="flex flex-col gap-2 rounded-2xl bg-soft p-3">
+            <Field label={t('events.hallName')}>
+              <TextInput
+                value={h.name}
+                onChange={(e) =>
+                  setHalls(halls.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))
+                }
+              />
+            </Field>
+            <Field label={t('events.location')}>
+              <TextInput
+                value={h.location}
+                onChange={(e) =>
+                  setHalls(halls.map((x, j) => (j === i ? { ...x, location: e.target.value } : x)))
+                }
+              />
+            </Field>
+            <Field label={t('events.mapsUrl')}>
+              <TextInput
+                dir="ltr"
+                value={h.maps}
+                onChange={(e) =>
+                  setHalls(halls.map((x, j) => (j === i ? { ...x, maps: e.target.value } : x)))
+                }
+              />
+            </Field>
+            <Button onClick={() => setHalls(halls.filter((_, j) => j !== i))}>
+              {t('common.delete')}
+            </Button>
+          </div>
+        ))}
+        {halls.length < 4 && (
+          <Button
+            onClick={() => setHalls([...halls, { name: '', location: '', maps: '' }])}
+          >
+            {t('events.addHall')}
+          </Button>
+        )}
+      </Sheet>
+    </div>
+  )
+}
+
+
+function EventGallery({
+  nurseryId,
+  eventId,
+}: {
+  nurseryId: string
+  eventId: string
+}) {
+  const t = useT()
+  const showToast = useToast()
+  const qc = useQueryClient()
+  const photos = useQuery({
+    queryKey: ['event-photos', eventId],
+    queryFn: () => api.listEventPhotos(eventId),
+  })
+  const refresh = () =>
+    void qc.invalidateQueries({ queryKey: ['event-photos', eventId] })
+  const upload = useMutation({
+    mutationFn: (file: File) => api.addEventPhoto(nurseryId, eventId, file),
+    onSuccess: refresh,
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
+  })
+  const remove = useMutation({
+    mutationFn: (photo: api.EventPhoto) => api.deleteEventPhoto(photo),
+    onSuccess: refresh,
+    onError: () => showToast(t('common.errorGeneric'), 'error'),
+  })
+  return (
+    <div className="mt-3">
+      <p className="type-badge text-muted mb-2">{t('events.galleryHint')}</p>
+      <div className="grid grid-cols-3 gap-2">
+        {(photos.data ?? []).map((ph) => (
+          <div key={ph.id} className="relative">
+            {ph.url && (
+              <img
+                src={ph.url}
+                alt=""
+                className="w-full aspect-square object-cover rounded-xl"
+              />
+            )}
+            <button
+              type="button"
+              aria-label={t('common.delete')}
+              className="absolute top-1 end-1 bg-card rounded-full p-1"
+              onClick={() => remove.mutate(ph)}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+        ))}
+      </div>
+      <label className="mt-2 inline-block">
+        <span className="type-secondary underline">{t('events.addPhoto')}</span>
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) upload.mutate(f)
+            e.target.value = ''
+          }}
+        />
+      </label>
+    </div>
+  )
+}

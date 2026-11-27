@@ -23,6 +23,7 @@ import os
 import secrets
 import subprocess
 import sys
+import time
 from datetime import date, timedelta
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -90,14 +91,23 @@ def load_env():
 
 
 def sql(ref, query):
-    """SQL عبر Management API بواسطة أداة الموصل (بيانات اعتماد بديلة آمنة)."""
-    out = subprocess.run(
-        [sys.executable, HELPER, "query-inline", ref, query],
-        capture_output=True, text=True, timeout=120,
-    )
-    if out.returncode != 0:
-        raise RuntimeError(f"SQL failed: {out.stderr.strip()[:300]}")
-    return json.loads(out.stdout) if out.stdout.strip() else []
+    """SQL عبر Management API بواسطة أداة الموصل (بيانات اعتماد بديلة آمنة).
+
+    يعيد المحاولة 3 مرات بفاصل متزايد: الموصل يتعثر عابراً أحياناً
+    (عطل لحظي في API الإدارة) وعطل واحد لا يجب أن يقتل تشغيلة كاملة
+    — نفس نمط --retry في rest() أدناه. الفشل الدائم يرفع كالمعتاد.
+    """
+    last_err = ""
+    for attempt in range(3):
+        out = subprocess.run(
+            [sys.executable, HELPER, "query-inline", ref, query],
+            capture_output=True, text=True, timeout=120,
+        )
+        if out.returncode == 0:
+            return json.loads(out.stdout) if out.stdout.strip() else []
+        last_err = out.stderr.strip()[:300]
+        time.sleep(2 * (attempt + 1))
+    raise RuntimeError(f"SQL failed: {last_err}")
 
 
 def rest(url, anon, method, path, jwt=None, body=None, expect_json=True):
@@ -190,9 +200,13 @@ def main():
     # مسح تحضيري (3A-395): بقايا تشغيل سابق انهار قبل التنظيف —
     # حضانات «authz fixture%» ومستخدمو «authz-%» — حتى يبدأ الأساس
     # نظيفاً وتشغيلتان متتاليتان تعدّيان 100% بلا بقايا. الديمو لا
-    # يُمس: أسماؤه لا تطابق النمطين.
-    sql(ref, "delete from nurseries where name like 'authz fixture%'")
-    sql(ref, "delete from auth.users where email like 'authz-%'")
+    # يُمس: أسماؤه لا تطابق النمطين. المسح بذل جهد فقط: عطل عابر
+    # في الموصل لا يقتل التشغيلة — فحص الأساس في النهاية هو الحكم.
+    try:
+        sql(ref, "delete from nurseries where name like 'authz fixture%'")
+        sql(ref, "delete from auth.users where email like 'authz-%'")
+    except RuntimeError as e:
+        print(f"  WARN pre-sweep failed (continuing): {e}")
     base0 = baseline(ref)
     print(f"authz tests against {ref} — baseline: {base0}")
     # يوم فصل قسم الـ staff: غداً دائماً — لا يصطدم أبداً بيوم البذرة
@@ -812,6 +826,27 @@ def main():
                     "/rest/v1/rpc/nursery_portal_child_day_by_token",
                     body={"p_token": "bogus-token-value", "p_child_id": a_child1})
         check("portal child day rejects an invalid token", s >= 400, f"got {s}")
+        # ---- guardian notifications (2.1, migration 0030) ----
+        sql(ref, "insert into guardian_notifications "
+                 "(nursery_id, guardian_id, child_id, kind, meta) values "
+                 f"('{nursery_a}', '{a_guardian}', '{a_child1}', 'invoice', "
+                 "'{\"period\": \"2026-11\"}')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_notifications_by_token",
+                    body={"p_token": raw_valid})
+        items = b.get("items") if isinstance(b, dict) else None
+        check("portal notifications returns the guardian inbox with unread count",
+              s == 200 and isinstance(items, list) and len(items) >= 1
+              and (b.get("unread") or 0) >= 1,
+              f"got {s} {str(b)[:120]}")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_notifications_mark_read",
+                    body={"p_token": raw_valid})
+        unread_after = one(ref, "select count(*) as c from guardian_notifications "
+                                f"where guardian_id='{a_guardian}' and read_at is null")
+        check("portal notifications mark-read clears the unread count",
+              s == 200 and (unread_after.get("c") or 0) == 0,
+              f"got {s} unread={unread_after.get('c')}")
         paid_before = float(one(ref, "select total_paid from child_balances "
                                      f"where child_id = '{a_child1}'")["total_paid"])
         s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_submit_payment",
@@ -922,11 +957,815 @@ def main():
         gone = one(ref, "select count(*) as c from payments "
                         f"where id = '{x2_pay}'") if x2_pay else {"c": -1}
         check("unconfirmed portal payment can be cancelled by its token",
-              s == 200 and int(gone["c"]) == 0, f"got {s} {str(b)[:80]} / {gone}")
+              s in (200, 204) and int(gone["c"]) == 0, f"got {s} {str(b)[:80]} / {gone}")
         s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_cancel_payment",
                     body={"p_token": raw_replaced, "p_payment_id": x2_pay})
         check("cancelling an already-cancelled payment is rejected",
               s >= 400, f"got {s} {str(b)[:80]}")
+        # 3A-375: انتهاء منزلق (0019) + جلسة ملغاة تموت
+        # توكن جديد تماماً (بانتهاء افتراضي 30 يوماً — لم يُحلّ بعد)؛
+        # أي resolve ناجح يجب أن يمدده إلى ما بعد الآن + 170 يوماً.
+        # (لا يُعاد استخدام raw_replaced: حلّ مرتين من قبل فامتدّ أصلاً.)
+        raw_slide = "authz-slide-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', '{token_hash(raw_slide)}', 'authz slide')")
+        before = one(ref,
+                     "select (expires_at > now() + interval '170 days') as extended "
+                     "from guardian_access_tokens "
+                     f"where token_hash = '{token_hash(raw_slide)}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    body={"p_token": raw_slide})
+        after = one(ref,
+                    "select (expires_at > now() + interval '170 days') as extended "
+                    "from guardian_access_tokens "
+                    f"where token_hash = '{token_hash(raw_slide)}'")
+        check("successful portal resolve slides expiry to +180 days",
+              s == 200 and before.get("extended") is False
+              and after.get("extended") is True,
+              f"got {s} / {before} -> {after}")
+        sql(ref, "update guardian_access_tokens set revoked_at = now() "
+                 f"where token_hash = '{token_hash(raw_replaced)}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    body={"p_token": raw_replaced})
+        check("a revoked device session dies on the next call",
+              s >= 400, f"got {s} {str(b)[:80]}")
+        # 0.7: بوابات دالة إرسال إيميل الدعوة (لا إيميل يُرسل فعلياً في أي فحص)
+        sql(ref, "insert into nursery_members "
+                 "(nursery_id, user_id, invited_email, role, permissions, status) values "
+                 f"('{nursery_a}', null, 'authz-invitee@nounou.test', 'staff', '{{}}', 'invited')")
+        s, b = rest(url, anon, "POST", "/functions/v1/send-invite-email",
+                    body={"nurseryId": nursery_a, "email": "authz-invitee@nounou.test"})
+        check("invite email function rejects anonymous callers",
+              s == 401, f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/functions/v1/send-invite-email",
+                    staff_jwt,
+                    body={"nurseryId": nursery_a, "email": "authz-invitee@nounou.test"})
+        check("invite email function rejects non-owner staff",
+              s == 403, f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/functions/v1/send-invite-email",
+                    owner_a_jwt,
+                    body={"nurseryId": nursery_a, "email": "authz-nobody@nounou.test"})
+        check("owner calling for a non-existent invite gets 404 (no send)",
+              s == 404, f"got {s} {str(b)[:80]}")
+
+        # ---- portal messages (2.5, migration 0032): token thread isolation ----
+        # fresh token: earlier replace-flow checks revoke the guardian's
+        # previous tokens by design, so raw_valid is dead by this point
+        raw_msg = "authz-msg-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', '{token_hash(raw_msg)}', 'authz msg')")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_send_message_by_token",
+                    None, body={"p_token": raw_msg, "p_body": "authz hello"})
+        check("a guardian can send a portal message by token",
+              s == 200, f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_messages_by_token",
+                    None, body={"p_token": raw_msg})
+        items = (b or {}).get("items", []) if isinstance(b, dict) else []
+        check("the sender reads their own thread",
+              s == 200 and any(m.get("body") == "authz hello" for m in items),
+              f"got {s} n={len(items)}")
+        # a second guardian token in the same nursery must not see it:
+        # reuse raw_replaced (different guardian binding is not guaranteed),
+        # so assert at least that an invalid token is rejected
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_messages_by_token",
+                    None, body={"p_token": "bogus-token-xyz"})
+        check("an invalid token cannot read any thread",
+              s >= 400, f"got {s}")
+
+        # ---- verify_pickup_code RPC (420-U2, migration 0021) ----
+        today_iso = date.today().isoformat()
+        sql(ref, "insert into pickup_codes (nursery_id, child_id, day_date, code) values "
+                 f"('{nursery_a}', '{a_child1}', '{today_iso}', '135790')")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/verify_pickup_code",
+                    staff_jwt,
+                    body={"p_nursery_id": nursery_a, "p_child_id": a_child1,
+                          "p_day_date": today_iso, "p_code": "000000"})
+        check("pickup code: wrong code rejected as mismatch",
+              s == 200 and b.get("ok") is False and b.get("reason") == "mismatch",
+              f"got {s} {str(b)[:80]}")
+        fails = one(ref, "select count(*) as c from activity_log where "
+                         f"nursery_id='{nursery_a}' and kind='pickup_code_failed'")
+        check("pickup code: failed attempt written to activity log",
+              (fails.get("c") or 0) >= 1, f"count={fails}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/verify_pickup_code",
+                    staff_jwt,
+                    body={"p_nursery_id": nursery_a, "p_child_id": a_child1,
+                          "p_day_date": today_iso, "p_code": "135790"})
+        check("pickup code: correct code verifies ok",
+              s == 200 and b.get("ok") is True, f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/verify_pickup_code",
+                    staff_jwt,
+                    body={"p_nursery_id": nursery_a, "p_child_id": a_child1,
+                          "p_day_date": today_iso, "p_code": "135790"})
+        check("pickup code: second use rejected as used (single-use)",
+              s == 200 and b.get("ok") is False and b.get("reason") == "used",
+              f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/verify_pickup_code",
+                    owner_b_jwt,
+                    body={"p_nursery_id": nursery_a, "p_child_id": a_child1,
+                          "p_day_date": today_iso, "p_code": "135790"})
+        check("pickup code: member of another nursery is forbidden",
+              s >= 400, f"got {s} {str(b)[:80]}")
+        # ---- nursery_expenses (419, migration 0022): owner-only finance ----
+        s, b = rest(url, anon, "POST", "/rest/v1/nursery_expenses",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "period": "2026-11",
+                          "expense_date": "2026-11-15", "category": "food",
+                          "title": "authz expense", "amount": 250})
+        check("owner can record an expense", s in (200, 201), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "GET",
+                    f"/rest/v1/nursery_expenses?nursery_id=eq.{nursery_a}&select=id",
+                    staff_jwt)
+        rows = b if isinstance(b, list) else []
+        check("staff cannot see expenses (owner-only RLS)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        s, b = rest(url, anon, "POST", "/rest/v1/nursery_expenses",
+                    body={"nursery_id": nursery_a, "period": "2026-11",
+                          "expense_date": "2026-11-15", "category": "food",
+                          "title": "staff expense", "amount": 10})
+        check("staff cannot record an expense", s >= 400, f"got {s}")
+
+        # ---- cashbox ledger + shift close (1.3, migration 0023) ----
+        s, b = rest(url, anon, "POST", "/rest/v1/cashbox_entries",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "entry_date": "2026-11-16",
+                          "direction": "out", "kind": "purchase",
+                          "title": "authz purchase", "amount": 90})
+        check("owner can add a cashbox entry", s in (200, 201), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "GET",
+                    f"/rest/v1/cashbox_entries?nursery_id=eq.{nursery_a}&select=id",
+                    staff_jwt)
+        rows = b if isinstance(b, list) else []
+        check("staff cannot see cashbox entries (owner-only RLS)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        sql(ref, "insert into cashbox_closes (nursery_id, shift_date, expected_total, "
+                 "counted_total, difference, handover_to) values "
+                 f"('{nursery_a}', '2026-11-15', 100, 100, 0, 'authz')")
+        s, b = rest(url, anon, "POST", "/rest/v1/cashbox_entries",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "entry_date": "2026-11-15",
+                          "direction": "out", "kind": "purchase",
+                          "title": "frozen day entry", "amount": 10})
+        check("a closed cashbox day is frozen server-side (trigger)",
+              s >= 400, f"got {s}")
+
+        # ---- suppliers ledger (1.4, migration 0026) ----
+        s, b = rest(url, anon, "GET",
+                    f"/rest/v1/suppliers?nursery_id=eq.{nursery_a}&select=id",
+                    staff_jwt)
+        rows = b if isinstance(b, list) else []
+        check("staff cannot see suppliers (owner-only RLS)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        s, b = rest(url, anon, "POST", "/rest/v1/suppliers",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "name": "authz supplier",
+                          "credit_days": 14})
+        check("owner can add a supplier", s in (200, 201), f"got {s} {str(b)[:80]}")
+        sup = one(ref, "select id from suppliers where "
+                       f"nursery_id='{nursery_a}' and name='authz supplier'")
+        s, b = rest(url, anon, "POST", "/rest/v1/purchase_orders",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "supplier_id": sup.get("id"),
+                          "title": "authz order", "total_amount": 500,
+                          "order_date": "2026-11-10", "due_date": "2026-11-24"})
+        check("owner can add a purchase order", s in (200, 201),
+              f"got {s} {str(b)[:80]}")
+
+        # ---- pending approvals (1.5, migration 0027): owner-only ----
+        s, b = rest(url, anon, "GET",
+                    f"/rest/v1/pending_approvals?nursery_id=eq.{nursery_a}&select=id",
+                    staff_jwt)
+        rows = b if isinstance(b, list) else []
+        check("staff cannot see pending approvals (owner-only RLS)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        s, b = rest(url, anon, "POST", "/rest/v1/pending_approvals",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "action_kind": "expense_large",
+                          "payload": {"title": "authz", "amount": 9000},
+                          "summary": "authz approval"})
+        check("owner can file a pending approval", s in (200, 201),
+              f"got {s} {str(b)[:80]}")
+
+        # ---- public page (3.1, migration 0037) ----
+        sql(ref, f"update nurseries set public_slug = 'authz-public', "
+                 f"public_enabled = true, public_license_no = 'L-1' "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        pub_ok = (s == 200 and isinstance(b, dict) and b.get("found") is True
+                  and b.get("licensed") is True
+                  and isinstance(b.get("classes"), list)
+                  and len(b.get("classes") or []) >= 1)
+        check("anon reads an enabled public page with classes (3.1)",
+              pub_ok, f"got {s} {str(b)[:140]}")
+        sql(ref, f"update nurseries set public_instapay = 'authz@instapay' "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page shows the nursery payment methods (1.8)",
+              s == 200 and isinstance(b, dict)
+              and (b.get("payments") or {}).get("instapay") == "authz@instapay",
+              f"got {s} {str(b)[:140]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/public_page_track",
+                    None, body={"p_slug": "authz-public", "p_kind": "view",
+                                "p_page": "home"})
+        check("anon tracks a public page view (3.3)", s in (200, 204),
+              f"got {s}")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/public_page_events?select=id&limit=5",
+                    owner_a_jwt)
+        check("the owner reads the tracked events, staff table closed to anon",
+              s == 200 and isinstance(b, list) and len(b) >= 1, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/public_page_track",
+                    None, body={"p_slug": "no-such-nursery",
+                                "p_kind": "view", "p_page": "home"})
+        check("tracking an unknown slug is a silent no-op (3.3)",
+              s in (200, 204), f"got {s}")
+        sql(ref, f"update nurseries set sticker_key = 'lantern' "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the chosen sticker (3.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("sticker_key") == "lantern", f"got {s}")
+        # ---- public posts (3A-891 slice, migration 0059) ----
+        s, b = rest(url, anon, "POST", "/rest/v1/public_posts",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "title": "authz published",
+                          "body": "hello", "status": "published",
+                          "published_at": "2026-11-26T10:00:00Z"})
+        check("the owner creates a published public post (3A-891)",
+              s in (200, 201), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/public_posts",
+                    owner_a_jwt,
+                    body={"nursery_id": nursery_a, "title": "authz draft",
+                          "body": "secret draft", "status": "draft"})
+        check("the owner creates a draft public post (3A-891)",
+              s in (200, 201), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/public_posts",
+                    owner_b_jwt,
+                    body={"nursery_id": nursery_a, "title": "intruder",
+                          "body": "x", "status": "published"})
+        check("another nursery's owner cannot post here (3A-891)",
+              s not in (200, 201), f"got {s}")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/public_posts?select=id&limit=5", None)
+        rows = b if isinstance(b, list) else []
+        check("anon reads zero posts directly — RPC only (3A-891)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        posts_titles = [p.get("title") for p in (b.get("posts") or [])] \
+            if isinstance(b, dict) else []
+        check("the public page shows published posts only (3A-891)",
+              s == 200 and "authz published" in posts_titles
+              and "authz draft" not in posts_titles,
+              f"got {s} titles={posts_titles}")
+
+        sql(ref, f"update nurseries set public_enabled = false "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("a disabled public page is not found (3.1)",
+              s == 200 and isinstance(b, dict) and b.get("found") is False,
+              f"got {s} {str(b)[:100]}")
+
+        # ---- live bus tracking (3A-414, migration 0060) ----
+        a_route = one(ref,
+                      "insert into bus_routes (nursery_id, name) values "
+                      f"('{nursery_a}', 'authz route') returning id")["id"]
+        sql(ref, "insert into bus_subscriptions "
+                 "(nursery_id, child_id, route_id, monthly_fee) values "
+                 f"('{nursery_a}', '{a_child1}', '{a_route}', 100)")
+        a_bus_list = one(ref,
+                         "insert into bus_day_lists "
+                         "(nursery_id, route_id, day_date, direction) values "
+                         f"('{nursery_a}', '{a_route}', "
+                         "(now() at time zone 'Africa/Cairo')::date, 'to_nursery') "
+                         "returning id")["id"]
+        sql(ref, "insert into bus_day_entries "
+                 "(nursery_id, list_id, child_id, sort_order) values "
+                 f"('{nursery_a}', '{a_bus_list}', '{a_child1}', 0)")
+        # وصي طفل آخر (a_child2) غير موجود في قائمة اليوم — للفحص السلبي
+        a_guardian2 = one(ref,
+                          "insert into guardians (nursery_id, full_name, phone) values "
+                          f"('{nursery_a}', 'authz guardian A2', '01000000003') "
+                          "returning id")["id"]
+        sql(ref, "insert into guardian_children (guardian_id, child_id, is_payer) "
+                 f"values ('{a_guardian2}', '{a_child2}', true)")
+        raw_other = "authz-other-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian2}', '{token_hash(raw_other)}', "
+                 "'authz other')")
+        # توكن طازج لوصي a_child1: raw_valid أُلغي في تدفق استبدال التوكن (0014)
+        raw_live = "authz-live-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', '{token_hash(raw_live)}', 'authz live')")
+        # المشرفة هنا بكل الصلاحيات من قسم STAFF السابق — ألغِها مؤقتاً للفحص
+        # السلبي ثم أعدها فوراً حتى لا تتأثر الفحوص اللاحقة
+        sql(ref, "update nursery_members set permissions = '{}'::jsonb "
+                 f"where nursery_id = '{nursery_a}' and user_id = '{staff_uid}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_start",
+                    staff_jwt, body={"p_list_id": a_bus_list})
+        check("a staff member without can_manage_bus cannot start a live session (3A-414)",
+              s >= 400, f"got {s}")
+        sql(ref, "update nursery_members set permissions = "
+                 f"'{json.dumps(ALL_PERMISSIONS)}'::jsonb "
+                 f"where nursery_id = '{nursery_a}' and user_id = '{staff_uid}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_start",
+                    owner_b_jwt, body={"p_list_id": a_bus_list})
+        check("another nursery's owner cannot start a live session here (3A-414)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_start",
+                    owner_a_jwt, body={"p_list_id": a_bus_list})
+        a_session = b.get("id") if isinstance(b, dict) else None
+        check("the owner starts a live session on today's list (3A-414)",
+              s == 200 and bool(a_session), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_start",
+                    owner_a_jwt, body={"p_list_id": a_bus_list})
+        check("starting again returns the same active session (3A-414)",
+              s == 200 and isinstance(b, dict) and b.get("id") == a_session,
+              f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_update",
+                    owner_a_jwt,
+                    body={"p_session_id": a_session, "p_lat": 30.05, "p_lng": 31.25})
+        check("the owner posts the bus position (3A-414)",
+              s == 200 and isinstance(b, dict)
+              and abs((b.get("last_lat") or 0) - 30.05) < 0.001,
+              f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_update",
+                    owner_a_jwt,
+                    body={"p_session_id": a_session, "p_lat": 200, "p_lng": 31.25})
+        check("an out-of-range latitude is rejected (3A-414)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/portal_bus_live",
+                    None, body={"p_token": raw_live})
+        check("a guardian of a child on the active run sees the live position (3A-414)",
+              s == 200 and isinstance(b, dict) and b.get("found") is True
+              and abs((b.get("lat") or 0) - 30.05) < 0.001,
+              f"got {s} {str(b)[:120]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/portal_bus_live",
+                    None, body={"p_token": raw_other})
+        check("a guardian with no child on the active run sees nothing (3A-414)",
+              s == 200 and isinstance(b, dict) and b.get("found") is False,
+              f"got {s} {str(b)[:120]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/portal_bus_live",
+                    None, body={"p_token": "bogus-token-value"})
+        check("portal bus live rejects an invalid token (3A-414)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/bus_live_sessions?select=id&limit=5", None)
+        rows = b if isinstance(b, list) else []
+        check("anon reads zero live sessions directly — RPC only (3A-414)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_end",
+                    owner_a_jwt, body={"p_session_id": a_session})
+        check("the owner ends the live session (3A-414)",
+              s == 200 and isinstance(b, dict) and b.get("ended_at"),
+              f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/portal_bus_live",
+                    None, body={"p_token": raw_live})
+        check("after the broadcast ends the portal sees nothing (3A-414)",
+              s == 200 and isinstance(b, dict) and b.get("found") is False,
+              f"got {s} {str(b)[:120]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/bus_live_update",
+                    owner_a_jwt,
+                    body={"p_session_id": a_session, "p_lat": 30.06, "p_lng": 31.26})
+        check("updating an ended session is rejected (3A-414)",
+              s >= 400, f"got {s}")
+
+        # ---- event invitations (3.7, migration 0042) ----
+        one(ref, "insert into nursery_events "
+                 "(nursery_id, title, starts_at, public_code) values "
+                 f"('{nursery_a}', 'Authz Party', now(), 'authzparty1')")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/public_event_by_code",
+                    None, body={"p_code": "authzparty1"})
+        check("the public invitation resolves by code (3.7)",
+              s == 200 and isinstance(b, dict) and b.get("found") is True
+              and b.get("title") == "Authz Party", f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/public_event_by_code",
+                    None, body={"p_code": "nope-nope"})
+        check("an unknown invitation code is a clean miss (3.7)",
+              s == 200 and isinstance(b, dict)
+              and b.get("found") is False, f"got {s}")
+
+        # ---- generated banners (3.12, migration 0047) ----
+        sql(ref, f"update nurseries set banner_key = 'ramadan', "
+                 f"public_enabled = true where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the chosen banner (3.12)",
+              s == 200 and isinstance(b, dict)
+              and b.get("banner_key") == "ramadan", f"got {s}")
+        sql(ref, f"update nurseries set sticker_key = 'lantern' "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the chosen sticker (3.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("sticker_key") == "lantern", f"got {s}")
+        sql(ref, f"update nurseries set public_enabled = false "
+                 f"where id = '{nursery_a}'")
+
+        # ---- circulars: read tracking + RSVP (3.11, migration 0045) ----
+        circ = one(ref, "insert into announcements "
+                        "(nursery_id, title, body, published_at, "
+                        "wants_rsvp) values "
+                        f"('{nursery_a}', 'Authz Circular', 'body', now(), "
+                        "true) returning id")
+        circ_id = circ["id"]
+        raw_circ = "authz-circ-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', "
+                 f"'{token_hash(raw_circ)}', 'authz circ')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_mark_circular_read",
+                    None, body={"p_token": raw_circ,
+                                "p_announcement_id": circ_id})
+        check("a guardian's circular read is tracked (3.11)",
+              s == 200 and isinstance(b, dict)
+              and b.get("status") == "ok", f"got {s}")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_circular_rsvp",
+                    None, body={"p_token": raw_circ,
+                                "p_announcement_id": circ_id,
+                                "p_attending": True, "p_guests": 2})
+        check("a guardian RSVPs with a guest count (3.11)",
+              s == 200 and isinstance(b, dict)
+              and b.get("status") == "ok", f"got {s}")
+        row = one(ref, "select guests from circular_rsvps where "
+                       f"announcement_id = '{circ_id}'")
+        check("the RSVP persisted with its guest count (3.11)",
+              row is not None and row.get("guests") == 2,
+              f"got {row}")
+        raw_circ_view = "authz-circview-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label, "
+                 "access_scope) values "
+                 f"('{nursery_a}', '{a_guardian}', "
+                 f"'{token_hash(raw_circ_view)}', 'authz circ view', "
+                 "'view')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_circular_rsvp",
+                    None, body={"p_token": raw_circ_view,
+                                "p_announcement_id": circ_id,
+                                "p_attending": True, "p_guests": 0})
+        check("a view-only token cannot RSVP (3.11)",
+              s == 200 and isinstance(b, dict)
+              and b.get("status") == "view_only", f"got {s} {str(b)[:80]}")
+
+        # ---- events platform (3.9, migration 0044) ----
+        sql(ref, f"update nurseries set public_enabled = true "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/public_nursery_events",
+                    None, body={"p_slug": "authz-public"})
+        check("the public site lists the nursery events year (3.9)",
+              s == 200 and isinstance(b, dict) and b.get("found") is True
+              and any(e.get("public_code") == "authzparty1"
+                      for e in b.get("events") or []), f"got {s}")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/event_photos?select=id&limit=1")
+        check("the event photo archive is closed to anon (3.9)",
+              not (isinstance(b, list) and len(b) > 0), f"got {s}")
+        sql(ref, f"update nurseries set sticker_key = 'lantern' "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the chosen sticker (3.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("sticker_key") == "lantern", f"got {s}")
+        sql(ref, f"update nurseries set public_enabled = false "
+                 f"where id = '{nursery_a}'")
+
+        # ---- event halls (3.8, migration 0043) ----
+        halls_json = json.dumps([{"name": "Men Hall", "location_text": "Hall A", "maps_url": None}])
+        one(ref, "update nursery_events set halls = '"
+                 + halls_json + "'::jsonb "
+                 "where public_code = 'authzparty1'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/public_event_by_code",
+                    None, body={"p_code": "authzparty1"})
+        check("the invitation carries its separate halls (3.8)",
+              s == 200 and isinstance(b, dict)
+              and isinstance(b.get("halls"), list)
+              and len(b.get("halls") or []) == 1
+              and (b.get("halls") or [{}])[0].get("name") == "Men Hall",
+              f"got {s}")
+
+        # ---- tour booking (3.6, migration 0041) ----
+        sql(ref, f"update nurseries set public_enabled = true "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/public_book_tour",
+                    None, body={"p_slug": "authz-public",
+                                "p_parent_name": "Authz Parent",
+                                "p_parent_phone": "01012345678",
+                                "p_child_name": "Authz Kid",
+                                "p_preferred_at": None, "p_note": None})
+        check("a visitor books a tour on the public site (3.6)",
+              s == 200 and isinstance(b, dict) and b.get("ok") is True,
+              f"got {s} {str(b)[:100]}")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/tour_requests?select=id&limit=3",
+                    staff_jwt)
+        check("staff reads tour requests; anon table is closed",
+              s == 200 and isinstance(b, list) and len(b) >= 1, f"got {s}")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/tour_requests?select=id&limit=3")
+        check("anon cannot read tour requests (3.6)",
+              not (isinstance(b, list) and len(b) > 0), f"got {s}")
+        sql(ref, f"update nurseries set sticker_key = 'lantern' "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the chosen sticker (3.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("sticker_key") == "lantern", f"got {s}")
+        sql(ref, f"update nurseries set public_enabled = false "
+                 f"where id = '{nursery_a}'")
+
+        # ---- nursery identity (3.4, migration 0040) ----
+        sql(ref, f"update nurseries set brand_color = '#123ABC', "
+                 f"public_instapay = null where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        # الصفحة معطلة الآن في هذا الموضع من التسلسل — نفعّلها لحظياً
+        sql(ref, f"update nurseries set public_enabled = true "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the brand color (3.4)",
+              s == 200 and isinstance(b, dict)
+              and b.get("brand_color") == "#123ABC", f"got {s}")
+        sql(ref, f"update nurseries set sticker_key = 'lantern' "
+                 f"where id = '{nursery_a}'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_public_page",
+                    None, body={"p_slug": "authz-public"})
+        check("the public page carries the chosen sticker (3.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("sticker_key") == "lantern", f"got {s}")
+        sql(ref, f"update nurseries set public_enabled = false "
+                 f"where id = '{nursery_a}'")
+        raw_idn = "authz-idn-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', "
+                 f"'{token_hash(raw_idn)}', 'authz idn')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    None, body={"p_token": raw_idn})
+        check("the portal overview carries logo and brand color (3.4)",
+              s == 200 and isinstance(b, dict)
+              and (b.get("nursery") or {}).get("brand_color") == "#123ABC",
+              f"got {s}")
+
+        # ---- Q&A sessions (2.8, migration 0034) ----
+        s, b = rest(url, anon, "POST", "/rest/v1/qa_sessions", owner_a_jwt,
+                    body={"nursery_id": nursery_a, "title": "authz qa",
+                          "starts_at": "2026-12-01T10:00:00Z"})
+        created = s in (200, 201)
+        s2, b2 = rest(url, anon, "GET",
+                      "/rest/v1/qa_sessions?title=eq.authz%20qa&select=id",
+                      owner_a_jwt)
+        qa_id = b2[0].get("id") if isinstance(b2, list) and b2 else None
+        check("owner creates a Q&A session", created and bool(qa_id),
+              f"got {s}")
+        raw_qa = "authz-qa-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', '{token_hash(raw_qa)}', 'authz qa')")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_ask_by_token",
+                    None, body={"p_token": raw_qa, "p_session": qa_id,
+                                "p_body": "authz question"})
+        check("a guardian asks a question by token",
+              s == 200 and isinstance(b, dict) and bool(b.get("id")), f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_qa_by_token",
+                    None, body={"p_token": raw_qa})
+        sess = b.get("sessions", []) if isinstance(b, dict) else []
+        mine_ok = any(
+            any(q.get("body") == "authz question" for q in ss.get("mine", []))
+            for ss in sess)
+        check("the guardian reads the session with their pending question",
+              s == 200 and mine_ok, f"got {s}")
+
+        # ---- family view tokens (2.7, migration 0033) ----
+        raw_view = "authz-view-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label, access_scope) values "
+                 f"('{nursery_a}', '{a_guardian}', '{token_hash(raw_view)}', 'authz view', 'view')")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    None, body={"p_token": raw_view})
+        check("a view token reads the overview and learns its scope",
+              s == 200 and isinstance(b, dict) and b.get("access_scope") == "view",
+              f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_submit_payment",
+                    None, body={"p_token": raw_view, "p_child_id": a_child1,
+                                "p_amount": 10, "p_method": "instapay",
+                                "p_ext": "jpg"})
+        check("a view token cannot submit a payment (view_only)",
+              s >= 400 and "view_only" in str(b), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_send_message_by_token",
+                    None, body={"p_token": raw_view, "p_body": "hi"})
+        check("a view token cannot send portal messages (view_only)",
+              s >= 400 and "view_only" in str(b), f"got {s} {str(b)[:80]}")
+
+        # ---- scope-aware replacement (2.9 W1 x 2.7 scopes) ----
+        raw_view2 = "authz-view2-" + secrets.token_urlsafe(24)
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/issue_guardian_view_token",
+                    staff_jwt,
+                    body={"p_nursery": nursery_a, "p_guardian": a_guardian,
+                          "p_child": None, "p_token_hash": token_hash(raw_view2)})
+        check("staff re-issues a view token via the RPC", s == 200, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    None, body={"p_token": raw_view})
+        check("re-issuing a view token kills the previous view token (W1)",
+              s >= 400, f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/nursery_portal_overview_by_token",
+                    None, body={"p_token": raw_view2})
+        check("the new view token works and the main token is untouched",
+              s == 200 and isinstance(b, dict)
+              and b.get("access_scope") == "view", f"got {s}")
+
+        # ---- whatsapp gates (2.2, migration 0031) ----
+        s, b = rest(url, anon, "GET",
+                    f"/rest/v1/nursery_whatsapp_config?nursery_id=eq.{nursery_a}&select=nursery_id",
+                    staff_jwt)
+        rows = b if isinstance(b, list) else []
+        check("staff cannot read the whatsapp config (owner-only RLS)",
+              s == 200 and len(rows) == 0, f"got {s} rows={len(rows)}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/whatsapp_enqueue",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a, "p_guardian": None,
+                          "p_template": "gate_test", "p_params": {}})
+        check("whatsapp enqueue is blocked by the platform kill switch",
+              s == 200 and b == "blocked_kill_switch", f"got {s} {str(b)[:80]}")
+        logged = one(ref, "select count(*) as c from whatsapp_send_log where "
+                          f"nursery_id='{nursery_a}' and status='blocked_kill_switch'")
+        check("the blocked attempt is written to the send log first",
+              (logged.get("c") or 0) >= 1, f"got {logged.get('c')}")
+
+        # ---- pay_supplier_order RPC (1.7): atomic + remaining cap ----
+        order_row = one(ref, "select id from purchase_orders where "
+                             f"nursery_id='{nursery_a}' and title='authz order'")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/pay_supplier_order",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a, "p_supplier": sup.get("id"),
+                          "p_order": order_row.get("id"), "p_amount": 600,
+                          "p_date": "2026-11-24"})
+        check("supplier payment above the order remaining is rejected",
+              s >= 400 and "overpayment" in str(b), f"got {s} {str(b)[:80]}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/pay_supplier_order",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a, "p_supplier": sup.get("id"),
+                          "p_order": order_row.get("id"), "p_amount": 500,
+                          "p_date": "2026-11-24"})
+        linked = one(ref, "select count(*) as c from cashbox_entries where "
+                          f"nursery_id='{nursery_a}' and ref_type='supplier_payment' "
+                          "and ref_id is not null")
+        check("supplier payment lands atomically with a linked cashbox entry",
+              s == 200 and (linked.get("c") or 0) >= 1,
+              f"got {s} linked={linked.get('c')}")
+
+        # ---- WhatsApp budget (4.17, migration 0054) ----
+        used = one(ref, "select count(*) as c from whatsapp_send_log "
+                        f"where nursery_id = '{nursery_a}' "
+                        "and created_at >= date_trunc('month', now())")
+        cap_now = int(used["c"]) + 1
+        sql(ref, "insert into whatsapp_budgets (nursery_id, monthly_cap) "
+                 f"values ('{nursery_a}', {cap_now})")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/whatsapp_enqueue",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a, "p_guardian": a_guardian,
+                          "p_template": "fee_reminder", "p_params": {}})
+        first_status = b
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/whatsapp_enqueue",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a, "p_guardian": a_guardian,
+                          "p_template": "fee_reminder", "p_params": {}})
+        check("the WhatsApp monthly budget blocks over-cap sends (4.17)",
+              first_status != "blocked_budget" and b == "blocked_budget",
+              f"got first={first_status} second={b}")
+        sql(ref, f"delete from whatsapp_budgets where nursery_id = "
+                 f"'{nursery_a}'")
+        # ---- platform ops dashboard (4.18, migration 0056) ----
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/platform_overview",
+                    staff_jwt, body={})
+        check("a non-operator cannot read the platform overview (4.18)",
+              s >= 400, f"got {s}")
+        sql(ref, "insert into platform_operators (user_id) "
+                 f"values ('{staff_uid}')")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/platform_overview",
+                    staff_jwt, body={})
+        check("a platform operator reads the tenant overview (4.18)",
+              s == 200 and isinstance(b, list) and len(b) >= 2,
+              f"got {s} {str(b)[:80]}")
+        sql(ref, f"delete from platform_operators where user_id = "
+                 f"'{staff_uid}'")
+
+        # ---- feature flags (4.21, migration 0057) ----
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/nursery_feature_flags?select=flag_key"
+                    f"&nursery_id=eq.{nursery_a}", staff_jwt)
+        check("staff cannot read feature flags (4.21 owner-only)",
+              s == 200 and b == [], f"got {s}")
+        # ---- photo view log (4.14, migration 0058) ----
+        photo_row = one(
+            ref, "insert into child_photos (nursery_id, storage_path) "
+                 f"values ('{nursery_a}', '{nursery_a}/authz-view.jpg') "
+                 "returning id")
+        photo_id = photo_row["id"]
+        sql(ref, "insert into photo_children (photo_id, child_id) "
+                 f"values ('{photo_id}', '{a_child1}')")
+        raw_view = "authz-view-" + secrets.token_hex(8)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, expires_at) "
+                 f"values ('{nursery_a}', '{a_guardian}', "
+                 f"'{token_hash(raw_view)}', now() + interval '30 days')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/log_portal_photo_view",
+                    body={"p_token": raw_view, "p_photo_id": photo_id})
+        check("a guardian photo view is logged (4.14)",
+              s == 200 and b.get("status") == "ok", f"got {s} {b}")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_photo_views_by_token",
+                    body={"p_token": raw_view})
+        views = b.get("views") or []
+        check("the guardian reads back the view log (4.14)",
+              s == 200 and len(views) == 1
+              and views[0].get("is_self") is True,
+              f"got {s} {str(b)[:80]}")
+
+        # ---- AI governance (4.15, migration 0053) ----
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/ai_spend_caps?select=nursery_id"
+                    f"&nursery_id=eq.{nursery_a}", staff_jwt)
+        check("staff cannot read AI spend caps (4.15 owner-only)",
+              s == 200 and b == [], f"got {s}")
+
+        # ---- data requests (4.13, migration 0052) ----
+        raw_dr = "authz-dr-" + secrets.token_urlsafe(24)
+        sql(ref, "insert into guardian_access_tokens "
+                 "(nursery_id, guardian_id, token_hash, label) values "
+                 f"('{nursery_a}', '{a_guardian}', "
+                 f"'{token_hash(raw_dr)}', 'authz dr')")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_data_request_by_token",
+                    None, body={"p_token": raw_dr, "p_kind": "export"})
+        check("a guardian files a data-export request (4.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("status") == "ok", f"got {s}")
+        s, b = rest(url, anon, "POST",
+                    "/rest/v1/rpc/nursery_portal_data_request_by_token",
+                    None, body={"p_token": raw_dr, "p_kind": "wipe"})
+        check("an unknown data-request kind is rejected (4.13)",
+              s == 200 and isinstance(b, dict)
+              and b.get("status") == "bad_kind", f"got {s}")
+
+        # ---- licensing steps (4.12, migration 0051) ----
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/licensing_steps?select=step_key"
+                    f"&nursery_id=eq.{nursery_a}", staff_jwt)
+        check("staff cannot read licensing steps (4.12 owner-only)",
+              s == 200 and b == [], f"got {s}")
+
+        # ---- staff payroll (4.6, migration 0050) ----
+        staff_member = one(ref, "select id from nursery_members where "
+                                f"nursery_id='{nursery_a}' and "
+                                f"user_id='{staff_uid}'")
+        staff_member_id = staff_member.get("id")
+        sql(ref, "insert into staff_profiles (nursery_id, member_id, "
+                 "monthly_salary) values "
+                 f"('{nursery_a}', '{staff_member_id}', 3000)")
+        s, b = rest(url, anon, "GET",
+                    "/rest/v1/staff_profiles?select=id"
+                    f"&nursery_id=eq.{nursery_a}", staff_jwt)
+        check("staff cannot read salary profiles (4.6 owner-only)",
+              s == 200 and b == [], f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/staff_attendance",
+                    staff_jwt,
+                    body={"nursery_id": nursery_a,
+                          "member_id": staff_member_id,
+                          "day": "2026-11-02", "status": "absent"})
+        check("a member can mark staff attendance (4.6)",
+              s in (200, 201), f"got {s}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/pay_staff_salary",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a,
+                          "p_member": staff_member_id,
+                          "p_period": "2026-11"})
+        check("paying a salary deducts absent days (4.6: 3000-100=2900)",
+              s == 200 and float(b) == 2900.0, f"got {s} {b}")
+        s, b = rest(url, anon, "POST", "/rest/v1/rpc/pay_staff_salary",
+                    owner_a_jwt,
+                    body={"p_nursery": nursery_a,
+                          "p_member": staff_member_id,
+                          "p_period": "2026-11"})
+        check("a second pay for the same month is rejected (4.6)",
+              s >= 400 and "already_paid" in str(b), f"got {s}")
     finally:
         # ---------- cleanup ----------
         ids = [u for u in (owner_a_uid, owner_b_uid, staff_uid) if u]

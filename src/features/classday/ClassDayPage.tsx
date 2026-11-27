@@ -1,5 +1,5 @@
 import { Suspense, lazy, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Camera, Check, Clock, Home, QrCode, Undo2, X } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
@@ -10,8 +10,10 @@ import { Field, TextInput } from '../../components/ui/form'
 import { Sheet } from '../../components/ui/Sheet'
 import { useToast } from '../../components/ui/toast'
 import { useT } from '../../i18n'
-import { formatClock12, todayISO } from '../../lib/format'
+import { formatClock12, fmtWeekdayDate, todayISO } from '../../lib/format'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
+import { useClasses } from '../classes/hooks'
+import { enqueuePickupCode } from '../settings/whatsapp'
 import { useNurserySettings } from '../settings/hooks'
 import * as api from './api'
 import { useAttendanceWriter, useClassDay, useDayChildren } from './hooks'
@@ -30,7 +32,11 @@ const QrScannerSheet = lazy(() =>
 export function ClassDayPage() {
   const t = useT()
   const { classId } = useParams()
+  const navigate = useNavigate()
   const nursery = useCurrentNursery()
+  const classes = useClasses()
+  const className =
+    classes.data?.find((c) => c.id === classId)?.name ?? ''
   const canAttend =
     nursery.status === 'ready' && nursery.can('can_take_attendance')
   const settings = useNurserySettings()
@@ -42,9 +48,9 @@ export function ClassDayPage() {
   const [search, setSearch] = useState('')
   const [pickupChild, setPickupChild] = useState<api.DayChild | null>(null)
   const [pickupCode, setPickupCode] = useState('')
+  const [sendingCode, setSendingCode] = useState(false)
   const [codeError, setCodeError] = useState(false)
   const [scannerOpen, setScannerOpen] = useState(false)
-  const [codes, setCodes] = useState<Map<string, string>>(new Map())
 
   const list = useMemo(() => {
     const q = search.trim()
@@ -60,8 +66,8 @@ export function ClassDayPage() {
   async function ensureCodes() {
     if (!nurseryId || !codeEnabled) return
     const ids = (children.data ?? []).map((d) => d.child.id)
-    const map = await api.ensurePickupCodes(nurseryId, ids, date)
-    setCodes(map)
+    // توليد أكواد اليوم فقط — التحقق صار خادمياً (420-U2)، لا أكواد تُقارن هنا
+    await api.ensurePickupCodes(nurseryId, ids, date)
   }
 
   function basePayload(d: api.DayChild): api.AttendanceUpsert {
@@ -135,16 +141,26 @@ export function ClassDayPage() {
     }
   }
 
-  function confirmPickup(
+  async function confirmPickup(
     personId: string | null,
     isGuardian: boolean,
     guardianId: string | null = null,
   ) {
     if (!pickupChild) return
     if (codeEnabled) {
-      const expected = codes.get(pickupChild.child.id)
-      if (expected && pickupCode.trim() !== expected) {
-        setCodeError(true)
+      // 420-U2: تحقق خادمي ذرّي — الكود يُعلَّم مستخدماً وتُسجَّل المحاولات
+      const verdict = await api.verifyPickupCode(
+        nurseryId!,
+        pickupChild.child.id,
+        date,
+        pickupCode,
+      )
+      if (!verdict.ok) {
+        if (verdict.reason === 'error') {
+          showToast(t('common.errorGeneric'), 'error')
+        } else {
+          setCodeError(true)
+        }
         return
       }
     }
@@ -173,46 +189,72 @@ export function ClassDayPage() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <TextInput
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('attendance.searchPlaceholder')}
-          />
-        </div>
-        <Button variant="soft" onClick={() => setScannerOpen(true)} aria-label={t('attendance.scanQr')}>
-          <QrCode size={20} />
-        </Button>
+      {/* هوية نونو — الموجة 1: ترويسة الفصل + شريحة التاريخ الكامل
+          (يوم الأسبوع + التاريخ من إصلاح الإنتاج D1/D8 — مثبّت على القاهرة) */}
+      <div className="flex items-center justify-between">
+        <h1 className="type-title">{className}</h1>
+        <span className="type-badge bg-soft text-primary rounded-full px-2.5 py-1">
+          {fmtWeekdayDate(date)}
+        </span>
       </div>
 
-      <div className="flex items-center justify-between">
-        <span className="type-secondary text-muted">
-          {t('attendance.progress', { done: doneCount, total })}
-        </span>
-        {queued > 0 && (
-          <span className="type-badge text-bad-text bg-bad-soft rounded-full px-2 py-1">
-            {t('attendance.syncPending', { count: queued })}
-          </span>
-        )}
-      </div>
-      <div className="h-2 rounded-full bg-soft overflow-hidden">
-        <div
-          className="h-full bg-primary transition-all"
-          style={{ width: total ? `${(doneCount / total) * 100}%` : '0%' }}
+      <div className="relative flex-1">
+        <TextInput
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t('attendance.searchPlaceholder')}
         />
       </div>
+
+      {/* بطاقة تقدّم التسجيل: عنوان + عدّاد + شريط كهرماني + تلميح */}
+      <Card className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <span className="type-section">{t('attendance.progressTitle')}</span>
+          <span className="flex items-center gap-2">
+            {queued > 0 && (
+              <span className="type-badge text-bad-text bg-bad-soft rounded-full px-2 py-1">
+                {t('attendance.syncPending', { count: queued })}
+              </span>
+            )}
+            <span className="type-section text-accent-text">
+              {t('attendance.progress', { done: doneCount, total })}
+            </span>
+          </span>
+        </div>
+        <div className="h-2.5 rounded-full bg-soft overflow-hidden">
+          <div
+            className="h-full bg-accent transition-all"
+            style={{ width: total ? `${(doneCount / total) * 100}%` : '0%' }}
+          />
+        </div>
+        {total - doneCount > 0 && (
+          <p className="type-secondary text-muted">
+            {t('attendance.progressRemaining', { count: total - doneCount })}
+          </p>
+        )}
+      </Card>
+
+      {/* زر QR الكهرماني — الإجراء البارز في الشاشة */}
+      <Button
+        variant="accent"
+        full
+        onClick={() => setScannerOpen(true)}
+        aria-label={t('attendance.scanQr')}
+      >
+        <QrCode size={20} />
+        {t('attendance.scanQrCta')}
+      </Button>
 
       {list.length === 0 ? (
         <EmptyState title={t('children.emptyTitle')} hint={t('children.emptyBody')} />
       ) : (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col gap-2">
           {list.map((d) => {
             const att = d.attendance
             const picked = Boolean(att?.picked_up_at)
             return (
               <Card key={d.child.id} className="flex flex-col gap-2 py-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 min-h-[56px]">
                   <Avatar name={d.child.full_name} />
                   <div className="min-w-0">
                     <div className="type-body truncate">{d.child.full_name}</div>
@@ -238,7 +280,6 @@ export function ClassDayPage() {
                     {!att || att.status !== 'present' ? (
                       <>
                         <Button
-                          size="sm"
                           className="flex-1"
                           onClick={() => markArrived(d)}
                         >
@@ -246,17 +287,16 @@ export function ClassDayPage() {
                           {t('attendance.markArrived')}
                         </Button>
                         <Button
-                          size="sm"
                           variant="soft"
                           onClick={() => markStatus(d, 'absent')}
                           aria-label={t('attendance.markAbsent')}
                         >
                           <X size={16} />
+                          {t('attendance.markAbsent')}
                         </Button>
                       </>
                     ) : (
                       <Button
-                        size="sm"
                         variant="soft"
                         className="flex-1"
                         onClick={() => {
@@ -270,7 +310,6 @@ export function ClassDayPage() {
                     )}
                     {att && (
                       <Button
-                        size="sm"
                         variant="ghost"
                         onClick={() => undoDay(d)}
                         aria-label={t('attendance.undo')}
@@ -292,8 +331,46 @@ export function ClassDayPage() {
         </div>
       )}
 
+      {(() => {
+        const picked = list.filter((d) => d.attendance?.picked_up_at)
+        if (picked.length === 0) return null
+        return (
+          <Card className="flex flex-col gap-2">
+            <h2 className="type-section">{t('attendance.pickupLogTitle')}</h2>
+            {picked.map((d) => {
+              const g = d.guardians.find(
+                (x) => x.id === d.attendance?.picked_up_guardian_id,
+              )
+              const person = d.pickupPersons.find(
+                (x) => x.id === d.attendance?.picked_up_by,
+              )
+              return (
+                <div
+                  key={d.child.id}
+                  className="flex items-center justify-between gap-2"
+                >
+                  <span className="type-body">{d.child.full_name}</span>
+                  <span className="type-badge text-muted">
+                    {(d.attendance?.picked_up_at ?? '').slice(11, 16)}
+                    {' • '}
+                    {g?.full_name ?? person?.full_name ?? ''}
+                    {d.attendance?.pickup_code_used
+                      ? ` • ${t('attendance.pickupLogCodeUsed')}`
+                      : ''}
+                  </span>
+                </div>
+              )
+            })}
+          </Card>
+        )
+      })()}
+
+      {/* إقفال اليوم: زر واحد أسفل — إرسال تقارير اليوم (الخطوة التي
+          تُقفِل اليوم فعلياً في المنتج؛ لا زر إغلاق وهمي بلا تنفيذ) */}
       {total > 0 && doneCount === total && (
-        <p className="type-body text-center text-good-text">{t('attendance.allMarked')}</p>
+        <Button full onClick={() => navigate('/reports')}>
+          {t('attendance.sendReportsCta')}
+        </Button>
       )}
 
       <Sheet
@@ -326,6 +403,40 @@ export function ClassDayPage() {
                   </span>
                 )}
               </Field>
+            )}
+            {codeEnabled && nursery.status === 'ready' && nursery.isOwner && (
+              <Button
+                variant="ghost"
+                disabled={sendingCode}
+                onClick={async () => {
+                  setSendingCode(true)
+                  try {
+                    const map = await api.ensurePickupCodes(
+                      nurseryId!,
+                      [pickupChild.child.id],
+                      date,
+                    )
+                    const code = map.get(pickupChild.child.id)
+                    if (!code) throw new Error('no_code')
+                    const status = await enqueuePickupCode(
+                      nurseryId!,
+                      pickupChild.child.id,
+                      code,
+                    )
+                    showToast(
+                      status === 'queued'
+                        ? t('attendance.codeQueued')
+                        : t('attendance.codeBlocked'),
+                    )
+                  } catch {
+                    showToast(t('common.errorGeneric'), 'error')
+                  } finally {
+                    setSendingCode(false)
+                  }
+                }}
+              >
+                {t('attendance.sendCodeWhatsapp')}
+              </Button>
             )}
             {pickupChild.guardians.map((g) => (
               <Button

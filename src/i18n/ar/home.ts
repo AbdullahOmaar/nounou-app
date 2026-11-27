@@ -6,6 +6,7 @@ export const home = {
   notPickedUpYet: 'لسه لم يُستلموا',
   absentToday: 'غائب النهارده',
   reportsMissing: 'تقارير ناقصة',
+  reportsUnpublished: 'تقارير بلا نشر',
   overdueTotal: 'متأخرات مستحقة',
   pendingProofs: 'إثباتات بانتظار المراجعة',
   quickActions: 'إجراءات سريعة',
@@ -22,4 +23,12 @@ export const home = {
   dayClosed: 'اليوم مغلق',
   childrenRegistered: 'أطفال مسجلين',
   staffCount: 'أفراد الطاقم',
+  // هوية نونو — الموجة 1: بطل اليوم + إجراء أساسي واحد + 3 إجراءات سريعة
+  heroTitle: 'يوم {weekday} في حضانتنا',
+  heroSubtitle: '{classes} فصول · {count} طفلًا مسجّلًا النهارده',
+  startDay: 'ابدأ حضور اليوم',
+  quickActionsNote: '3 بس — الباقي في «المزيد»',
+  actionChildren: 'الأطفال',
+  classesOpened: '✓ اتفتح',
+  classesNotOpened: 'لسه',
 } as const

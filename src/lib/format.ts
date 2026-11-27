@@ -1,6 +1,14 @@
 import { t } from '../i18n'
 import { currentLocale } from '../i18n/locale'
 
+/**
+ * المنطقة الزمنية التجارية للمنتج (عيبا الفحص الحي 1+2، 2026-11-25):
+ * كل عرض تاريخ/وقت يُحسب بتوقيت القاهرة صراحةً — لا بتوقيت جهاز
+ * المشاهِد — فوصول سُجِّل منتصف الليل UTC لا يظهر «2:00 ص»، وتاريخ
+ * «2026-11-25» لا ينقلب يوماً في متصفح غرب UTC.
+ */
+export const CAIRO_TZ = 'Africa/Cairo'
+
 /** تنسيق مبلغ: فواصل آلاف + عملة القاموس */
 export function formatMoney(value: number | string | null | undefined): string {
   const n = typeof value === 'string' ? parseFloat(value) : (value ?? 0)
@@ -28,13 +36,37 @@ export function formatTime12(v: string): string {
   return `${h12}:${String(m).padStart(2, '0')} ${suffix}`
 }
 
-/** وقت لحظة ISO → 12h */
+/** وقت لحظة ISO → 12h (بتوقيت القاهرة دائماً) */
 export function formatClock12(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return formatTime12(
-    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: CAIRO_TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(d)
+  const get = (type: string) =>
+    parts.find((p) => p.type === type)?.value ?? '00'
+  return formatTime12(`${get('hour')}:${get('minute')}`)
+}
+
+/** تاريخ «YYYY-MM-DD» أو لحظة ISO → «الأربعاء، 25 نوفمبر 2026» (بتوقيت القاهرة) */
+export function fmtWeekdayDate(value: string): string {
+  const d = new Date(
+    value.length === 10 ? `${value}T12:00:00` : value,
   )
+  if (Number.isNaN(d.getTime())) return value
+  return new Intl.DateTimeFormat(
+    currentLocale() === 'ar' ? 'ar-EG-u-nu-latn' : 'en-US',
+    {
+      timeZone: CAIRO_TZ,
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    },
+  ).format(d)
 }
 
 /** "HH:MM" → دقائق من منتصف الليل */
@@ -112,13 +144,27 @@ export function waLinkWithText(
   return base ? `${base}?text=${encodeURIComponent(text)}` : null
 }
 
+/**
+ * اسم يوم الأسبوع فقط («الأربعاء») لتاريخ ISO — مثبّت على توقيت القاهرة
+ * عبر CAIRO_TZ أعلاه (هوية نونو — الموجة 1: عنوان بطل الرئيسية
+ * «يوم {weekday} في حضانتنا»).
+ */
+export function fmtWeekday(iso: string): string {
+  const d = new Date(`${iso}T12:00:00`)
+  if (Number.isNaN(d.getTime())) return ''
+  return new Intl.DateTimeFormat(currentLocale() === 'ar' ? 'ar-EG-u-nu-latn' : 'en-US', {
+    weekday: 'long',
+    timeZone: CAIRO_TZ,
+  }).format(d)
+}
+
 /** تاريخ/وقت ISO → عرض محلي قصير */
 export function formatDateTimeAr(iso: string, fallback = ''): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return fallback
   const date = new Intl.DateTimeFormat(
     currentLocale() === 'ar' ? 'ar-EG-u-nu-latn' : 'en-US',
-    { day: 'numeric', month: 'numeric', year: 'numeric' },
+    { timeZone: CAIRO_TZ, day: 'numeric', month: 'numeric', year: 'numeric' },
   ).format(d)
   return `${date} — ${formatClock12(iso)}`
 }

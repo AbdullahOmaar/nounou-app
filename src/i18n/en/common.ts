@@ -1,5 +1,7 @@
 /** Shared strings across all screens */
 export const common = {
+  version: "Version",
+  publishedAt: "Published",
   save: 'Save',
   cancel: 'Cancel',
   delete: 'Delete',
@@ -76,4 +78,7 @@ export const common = {
   notFoundHint: 'The link may have changed or moved.',
   notFoundHome: 'Back to home',
   offline: 'No connection — your work is saved on the device and uploads automatically when you are back online',
+  aiGenerated: "AI-generated",
+  stop: "Stop",
+  bulkStopped: "Done {done} of {total} — the rest was stopped",
 }

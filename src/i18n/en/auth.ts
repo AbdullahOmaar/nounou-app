@@ -42,4 +42,8 @@ export const auth = {
   creatingNursery: 'Creating…',
   waitingInvite: 'No nursery is linked to your account yet — create a new nursery, or ask your nursery owner to add you with this email.',
   notConfigured: 'The service is not configured in this environment',
+  // Nouna identity — Wave 1: Nouna's note on the auth screens
+  nounaSays: 'Nouna says:',
+  nounaNote:
+    'One sign-in, and your whole day is laid out in front of you — attendance, reports, and bus.',
 }

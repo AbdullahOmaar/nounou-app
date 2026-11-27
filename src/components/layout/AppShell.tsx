@@ -20,6 +20,7 @@ import { Onboarding } from '../../features/auth/Onboarding'
 import { OfflineStrip } from './OfflineStrip'
 import { InstallButton } from '../InstallButton'
 import { LoadingState } from '../ui/states'
+import { VersionLine } from '../ui/VersionLine'
 import { Mascot } from '../mascot/Mascot'
 import { useT, type I18nKey } from '../../i18n'
 import { useLocale } from '../../i18n/locale'
@@ -38,6 +39,8 @@ function resolveRoute(pathname: string): {
     return { screen: 'child', tab: 'children', title: 'shell.title.child' }
   if (pathname.startsWith('/children'))
     return { screen: 'children', tab: 'children', title: 'shell.title.children' }
+  if (pathname.startsWith('/today/'))
+    return { screen: 'classday', tab: 'today', title: 'shell.title.today' }
   if (pathname.startsWith('/today'))
     return { screen: 'today', tab: 'today', title: 'shell.title.today' }
   if (pathname.startsWith('/invoices/'))
@@ -56,6 +59,18 @@ function resolveRoute(pathname: string): {
     return { screen: 'announcements', tab: 'more', title: 'shell.title.announcements' }
   if (pathname.startsWith('/portal-links'))
     return { screen: 'portalLinks', tab: 'more', title: 'shell.title.portalLinks' }
+  if (pathname.startsWith('/finance'))
+    return { screen: 'finance', tab: 'more', title: 'shell.title.finance' }
+  if (pathname.startsWith('/suppliers'))
+    return { screen: 'suppliers', tab: 'more', title: 'shell.title.suppliers' }
+  if (pathname.startsWith('/messages'))
+    return { screen: 'messages', tab: 'more', title: 'shell.title.messages' }
+  if (pathname.startsWith('/qa'))
+    return { screen: 'qa', tab: 'more', title: 'shell.title.qa' }
+  if (pathname.startsWith('/tours'))
+    return { screen: 'tours', tab: 'more', title: 'shell.title.tours' }
+  if (pathname.startsWith('/events'))
+    return { screen: 'events', tab: 'more', title: 'shell.title.events' }
   if (pathname.startsWith('/activity'))
     return { screen: 'activity', tab: 'more', title: 'shell.title.activity' }
   if (pathname.startsWith('/members'))
@@ -70,6 +85,11 @@ function resolveRoute(pathname: string): {
 }
 
 const ROOT_SCREENS = new Set(['home', 'children', 'today', 'invoices', 'more'])
+
+// قواعد نونا (DESIGN §3): المالية والإدارية بلا حضور نونا — علامة
+// الترويسة تُحجب على الشاشتين الجذريتين الماليتين/الإداريتين
+// (الفواتير والمزيد)، ويبقى مكانها فارغاً حتى لا يهتز التخطيط.
+const NO_NOUNA_SCREENS = new Set(['invoices', 'more'])
 
 /**
  * قشرة نونو: ترويسة (رجوع/شعار + اسم الحضانة + جرس بشارة أنواع التنبيهات
@@ -127,13 +147,15 @@ export function AppShell() {
                 className={locale === 'ar' ? undefined : 'rotate-180'}
               />
             </button>
+          ) : NO_NOUNA_SCREENS.has(screen) ? (
+            <span className="w-12 h-12 shrink-0" />
           ) : (
             <span className="w-12 h-12 shrink-0 flex items-center justify-center">
               <Mascot size={34} />
             </span>
           )}
           <div className="flex-1 min-w-0">
-            <div className="type-section truncate">{t(title)}</div>
+            <div className="type-section font-display truncate">{t(title)}</div>
             {nurseryRes.status === 'ready' && (
               <div className="type-badge text-muted truncate">
                 {nurseryRes.nursery.name}
@@ -187,6 +209,7 @@ export function AppShell() {
             <Outlet />
           )}
         </div>
+        <VersionLine className="mt-6" />
       </main>
 
       <InstallButton />

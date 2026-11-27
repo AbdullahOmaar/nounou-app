@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Camera, Send, Trash2 } from 'lucide-react'
+import { Camera, Download, Moon, Send, Shapes, Smile, Trash2, UtensilsCrossed } from 'lucide-react'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -21,11 +21,18 @@ import { useNurserySettings } from '../settings/hooks'
 import type { AteAmount, MealEntry, MealKind, Mood } from '../../types/database'
 import * as api from './api'
 import { childrenWithoutReports, reportAccessFor } from './publishLogic'
+import { enqueuePhoto, enqueueReport } from './offlineQueue'
+import { useReportsOfflineSync } from './hooks'
+import { Mic, Printer } from 'lucide-react'
+import { openPrintDocument } from '../../lib/printDoc'
 import { MAX_PHOTO_BYTES } from './photoUtils'
+import { makeStopFlag, type StopFlag } from '../../lib/bulk'
 
 const MEALS: MealKind[] = ['breakfast', 'snack', 'lunch']
 const ATE: AteAmount[] = ['all', 'most', 'some', 'none']
 const MOODS: Mood[] = ['happy', 'calm', 'sad', 'tired', 'sick']
+
+type ReportTab = 'notWritten' | 'ready' | 'sent'
 
 interface DraftState {
   meals: Record<MealKind, AteAmount>
@@ -66,6 +73,133 @@ function draftToReport(d: DraftState): api.ReportDraft {
     mood: d.mood,
     note: d.note.trim() || null,
   }
+}
+
+
+/**
+ * قالب الـ3 نقرات (4.1): نقرة واحدة لكل بُعد (أكل/نوم/مزاج)
+ * تُطبَّق على الفصل كله — بدل ١٠+ نقرات في النموذج الكامل تحتها.
+ */
+function QuickBar({
+  draft,
+  setDraft,
+}: {
+  draft: DraftState
+  setDraft: (d: DraftState) => void
+}) {
+  const t = useT()
+  const allMeals = (ate: AteAmount) => ({
+    breakfast: ate,
+    snack: ate,
+    lunch: ate,
+  })
+  return (
+    <div className="flex flex-col gap-2 mb-3 rounded-2xl bg-soft p-3">
+      <div className="type-secondary">{t('reports.quickTitle')}</div>
+      <ChipRow>
+        <Chip
+          active={draft.meals.lunch === 'all'}
+          onClick={() => setDraft({ ...draft, meals: allMeals('all') })}
+        >
+          {t('reports.quickAteAll')}
+        </Chip>
+        <Chip
+          active={draft.meals.lunch === 'some'}
+          onClick={() => setDraft({ ...draft, meals: allMeals('some') })}
+        >
+          {t('reports.quickAteSome')}
+        </Chip>
+        <Chip
+          active={draft.meals.lunch === 'none'}
+          onClick={() => setDraft({ ...draft, meals: allMeals('none') })}
+        >
+          {t('reports.quickAteNone')}
+        </Chip>
+      </ChipRow>
+      <ChipRow>
+        <Chip
+          active={draft.napSlept}
+          onClick={() => setDraft({ ...draft, napSlept: true })}
+        >
+          {t('reports.quickSlept')}
+        </Chip>
+        <Chip
+          active={!draft.napSlept}
+          onClick={() => setDraft({ ...draft, napSlept: false })}
+        >
+          {t('reports.quickNoSleep')}
+        </Chip>
+      </ChipRow>
+      <ChipRow>
+        <Chip
+          active={draft.mood === 'happy'}
+          onClick={() => setDraft({ ...draft, mood: 'happy' })}
+        >
+          {t('reports.moodHappy')}
+        </Chip>
+        <Chip
+          active={draft.mood === 'calm'}
+          onClick={() => setDraft({ ...draft, mood: 'calm' })}
+        >
+          {t('reports.moodCalm')}
+        </Chip>
+        <Chip
+          active={draft.mood === 'tired'}
+          onClick={() => setDraft({ ...draft, mood: 'tired' })}
+        >
+          {t('reports.moodTired')}
+        </Chip>
+      </ChipRow>
+    </div>
+  )
+}
+
+interface SpeechRecognitionLike {
+  lang: string
+  interimResults: boolean
+  start: () => void
+  stop: () => void
+  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null
+  onend: (() => void) | null
+  onerror: (() => void) | null
+}
+
+/** إدخال صوتي للملحوظة (4.1): Web Speech حيثما توفر — يختفي بصمت عند غيابه */
+function VoiceNoteButton({ onText }: { onText: (txt: string) => void }) {
+  const t = useT()
+  const [listening, setListening] = useState(false)
+  const Ctor = (
+    window as unknown as {
+      SpeechRecognition?: new () => SpeechRecognitionLike
+      webkitSpeechRecognition?: new () => SpeechRecognitionLike
+    }
+  )
+  const Impl = Ctor.SpeechRecognition ?? Ctor.webkitSpeechRecognition
+  if (!Impl) return null
+  const toggle = () => {
+    if (listening) return
+    const rec = new Impl()
+    rec.lang = 'ar-EG'
+    rec.interimResults = false
+    rec.onresult = (e) => {
+      const txt = e.results[0]?.[0]?.transcript ?? ''
+      if (txt) onText(txt)
+    }
+    rec.onend = () => setListening(false)
+    rec.onerror = () => setListening(false)
+    setListening(true)
+    rec.start()
+  }
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className="type-badge text-primary mt-1 inline-flex items-center gap-1"
+    >
+      <Mic size={14} />
+      {listening ? t('reports.voiceListening') : t('reports.voiceNote')}
+    </button>
+  )
 }
 
 /**
@@ -112,14 +246,34 @@ export function ReportsPage() {
   const refresh = () =>
     invalidatePrefixes(qc, ['day-reports', 'day-photos', 'home', 'child-photos'])
   const saveReport = useMutation({
-    mutationFn: (args: { childId: string; draft: DraftState }) =>
-      api.upsertReport(
-        nurseryId!,
-        day.data!.id,
-        args.childId,
-        draftToReport(args.draft),
-        user?.id ?? null,
-      ),
+    // networkMode always (درس 0.1): بلا اتصال يجب أن يفشل الاستدعاء
+    // فوراً فيُطابَق التقرير محلياً بدل أن يعلّق في ذاكرة React Query
+    networkMode: 'always',
+    mutationFn: async (args: { childId: string; draft: DraftState }) => {
+      const fields = draftToReport(args.draft)
+      try {
+        await api.upsertReport(
+          nurseryId!,
+          day.data!.id,
+          args.childId,
+          fields,
+          user?.id ?? null,
+        )
+      } catch (err) {
+        if (err instanceof Error && err.message === 'report_for_absent_child') {
+          throw err
+        }
+        enqueueReport({
+          nurseryId: nurseryId!,
+          classDayId: day.data!.id,
+          childId: args.childId,
+          draft: fields,
+          actorId: user?.id ?? null,
+        })
+        recountQueued()
+        throw new Error('queued_offline')
+      }
+    },
     onSuccess: refresh,
   })
   const publish = useMutation({
@@ -129,11 +283,15 @@ export function ReportsPage() {
       showToast(t('reports.publishedOk'))
     },
   })
+  const { queued, recountQueued } = useReportsOfflineSync(nurseryId ?? null)
 
   const [bulk, setBulk] = useState<DraftState>(EMPTY_DRAFT)
+  const bulkStopRef = useRef<StopFlag>(makeStopFlag())
+  const [bulkSaving, setBulkSaving] = useState(false)
   const [editChild, setEditChild] = useState<{ id: string; name: string } | null>(null)
   const [editDraft, setEditDraft] = useState<DraftState>(EMPTY_DRAFT)
   const [publishOpen, setPublishOpen] = useState(false)
+  const [tabSel, setTabSel] = useState<ReportTab | null>(null)
 
   const presentChildren = useMemo(
     () =>
@@ -153,6 +311,69 @@ export function ReportsPage() {
     new Set(reportByChild.keys()),
   )
   const activeClass = (classes.data ?? []).find((c) => c.id === activeClassId)
+
+  // هوية نونو — الموجة 3: تبويبات حالة التقرير + بطاقة بأقسام ثابتة.
+  // الحالات مشتقة من نفس بيانات اليوم (لا منطق جديد): غائب ببطاقته
+  // المعطلة كما هي داخل تبويب «لسه» ولا يُحسب في عدّاده.
+  const listedChildren = (dayChildren.data ?? []).filter(
+    (d) => reportAccessFor(d.attendance?.status) !== 'unmarked',
+  )
+  const childState = (d: (typeof listedChildren)[number]): ReportTab | 'absent' => {
+    if (reportAccessFor(d.attendance?.status) === 'absent') return 'absent'
+    const r = reportByChild.get(d.child.id)
+    return r?.published_at ? 'sent' : r ? 'ready' : 'notWritten'
+  }
+  const tabCounts: Record<ReportTab, number> = {
+    notWritten: listedChildren.filter((d) => childState(d) === 'notWritten').length,
+    ready: listedChildren.filter((d) => childState(d) === 'ready').length,
+    sent: listedChildren.filter((d) => childState(d) === 'sent').length,
+  }
+  const tab: ReportTab = tabSel ?? (tabCounts.ready > 0 ? 'ready' : 'notWritten')
+  const visibleChildren = listedChildren.filter((d) => {
+    const st = childState(d)
+    return tab === 'notWritten' ? st === 'notWritten' || st === 'absent' : st === tab
+  })
+  const photosByChild = useMemo(() => {
+    const map = new Map<string, NonNullable<typeof photos.data>>()
+    for (const p of photos.data ?? []) {
+      for (const cid of p.childIds) {
+        const arr = map.get(cid) ?? []
+        arr.push(p)
+        map.set(cid, arr)
+      }
+    }
+    return map
+  }, [photos.data])
+
+  const openEditor = (childId: string, childName: string) => {
+    const existing = reportByChild.get(childId)
+    setEditDraft(
+      existing
+        ? {
+            meals: {
+              breakfast:
+                (existing.meals.find((m) => m.meal === 'breakfast')
+                  ?.ate as AteAmount) ?? 'all',
+              snack:
+                (existing.meals.find((m) => m.meal === 'snack')
+                  ?.ate as AteAmount) ?? 'all',
+              lunch:
+                (existing.meals.find((m) => m.meal === 'lunch')
+                  ?.ate as AteAmount) ?? 'all',
+            },
+            source:
+              (existing.meals[0]?.source as 'home' | 'nursery') ?? 'home',
+            napFrom: existing.nap_from?.slice(0, 5) ?? '',
+            napTo: existing.nap_to?.slice(0, 5) ?? '',
+            napSlept: existing.nap_slept ?? true,
+            activities: existing.activities.join(t('format.listSep')),
+            mood: existing.mood ?? 'happy',
+            note: existing.note ?? '',
+          }
+        : bulk,
+    )
+    setEditChild({ id: childId, name: childName })
+  }
 
   const mealLabel = (m: MealKind): string =>
     m === 'breakfast'
@@ -260,6 +481,14 @@ export function ReportsPage() {
             placeholder={t('reports.notePlaceholder')}
             rows={2}
           />
+          <VoiceNoteButton
+            onText={(txt) =>
+              setDraft({
+                ...draft,
+                note: (draft.note ? draft.note + ' ' : '') + txt,
+              })
+            }
+          />
         </Field>
       </div>
     )
@@ -298,34 +527,91 @@ export function ReportsPage() {
                 {t('reports.bulkTitle', { class: activeClass?.name ?? '' })}
               </h2>
               <p className="type-badge text-muted mb-3">{t('reports.bulkHint')}</p>
+              <QuickBar draft={bulk} setDraft={setBulk} />
               {draftForm(bulk, setBulk)}
               <Button
                 className="mt-3"
                 full
                 disabled={saveReport.isPending || presentChildren.length === 0}
                 onClick={async () => {
+                  bulkStopRef.current = makeStopFlag()
+                  setBulkSaving(true)
+                  let savedCount = 0
                   try {
                     for (const d of presentChildren) {
+                      if (bulkStopRef.current.shouldStop()) {
+                        showToast(
+                          t('common.bulkStopped', {
+                            done: savedCount,
+                            total: presentChildren.length,
+                          }),
+                        )
+                        return
+                      }
                       await saveReport.mutateAsync({ childId: d.child.id, draft: bulk })
+                      savedCount += 1
                     }
-                  } catch {
-                    showToast(t('common.errorGeneric'), 'error')
+                  } catch (err) {
+                    if (err instanceof Error && err.message === 'queued_offline') {
+                      showToast(t('reports.savedOffline'))
+                    } else {
+                      showToast(t('common.errorGeneric'), 'error')
+                    }
+                  } finally {
+                    setBulkSaving(false)
                   }
                 }}
               >
                 {t('reports.applyToAll')}
               </Button>
+              {presentChildren.length === 0 && (
+                <p className="type-badge text-muted mt-2">{t('reports.noPresentHint')}</p>
+              )}
+              {bulkSaving && (
+                <Button
+                  variant="soft"
+                  className="mt-2"
+                  full
+                  onClick={() => bulkStopRef.current.stop()}
+                >
+                  {t('common.stop')}
+                </Button>
+              )}
             </Card>
           )}
 
+          <ChipRow>
+            {(
+              [
+                ['notWritten', t('reports.tabNotWritten'), tabCounts.notWritten],
+                ['ready', t('reports.tabReady'), tabCounts.ready],
+                ['sent', t('reports.tabSent'), tabCounts.sent],
+              ] as [ReportTab, string, number][]
+            ).map(([key, label, count]) => (
+              <Chip key={key} active={tab === key} onClick={() => setTabSel(key)}>
+                {label} • {count}
+              </Chip>
+            ))}
+          </ChipRow>
+
           <section className="flex flex-col gap-2">
-            {(dayChildren.data ?? [])
-              .filter((d) => reportAccessFor(d.attendance?.status) !== 'unmarked')
-              .map((d) => {
+            {visibleChildren.length === 0 ? (
+              <EmptyState
+                title={
+                  tab === 'notWritten'
+                    ? t('reports.emptyNotWritten')
+                    : tab === 'ready'
+                      ? t('reports.emptyReady')
+                      : t('reports.emptySent')
+                }
+              />
+            ) : (
+              visibleChildren.map((d) => {
                 const report = reportByChild.get(d.child.id)
+                const state = childState(d)
                 // X2 (3A-378): الغائب/في إجازة يظهر بشارة «غائب» وبطاقته
                 // معطلة — لا كتابة تقرير ولا نشر لمن لم يحضر.
-                if (reportAccessFor(d.attendance?.status) === 'absent') {
+                if (state === 'absent') {
                   return (
                     <Card
                       key={d.child.id}
@@ -341,64 +627,124 @@ export function ReportsPage() {
                     </Card>
                   )
                 }
+                if (state === 'notWritten' || !report) {
+                  return (
+                    <Card
+                      key={d.child.id}
+                      className="flex items-center justify-between py-3 cursor-pointer"
+                      onClick={() => openEditor(d.child.id, d.child.full_name)}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Avatar name={d.child.full_name} />
+                        <span className="type-body">{d.child.full_name}</span>
+                      </span>
+                      <span className="type-badge text-accent-text font-semibold">
+                        {t('reports.writeReport')}
+                      </span>
+                    </Card>
+                  )
+                }
+                const lunchAte =
+                  (report.meals.find((m) => m.meal === 'lunch')
+                    ?.ate as AteAmount) ?? 'all'
+                const napValue = report.nap_slept
+                  ? report.nap_from && report.nap_to
+                    ? `${report.nap_from.slice(0, 5)} – ${report.nap_to.slice(0, 5)}`
+                    : t('reports.napSlept')
+                  : t('reports.quickNoSleep')
+                const childPhotos = photosByChild.get(d.child.id) ?? []
+                const tiles: { icon: ReactNode; value: string; label: string }[] = [
+                  {
+                    icon: <UtensilsCrossed size={17} />,
+                    value: ateLabel(lunchAte),
+                    label: t('reports.tileMeals'),
+                  },
+                  {
+                    icon: <Moon size={17} />,
+                    value: napValue,
+                    label: t('reports.nap'),
+                  },
+                  {
+                    icon: <Shapes size={17} />,
+                    value: report.activities[0] ?? '—',
+                    label:
+                      report.activities.length > 1
+                        ? `${t('reports.activities')} ${t('reports.moreActivities', { count: report.activities.length - 1 })}`
+                        : t('reports.activities'),
+                  },
+                  {
+                    icon: <Smile size={17} />,
+                    value: report.mood ? moodLabel(report.mood) : '—',
+                    label: t('reports.mood'),
+                  },
+                ]
                 return (
-                <Card
-                  key={d.child.id}
-                  className="flex items-center justify-between py-3 cursor-pointer"
-                  onClick={() => {
-                    const existing = report
-                    setEditDraft(
-                      existing
-                        ? {
-                            meals: {
-                              breakfast:
-                                (existing.meals.find((m) => m.meal === 'breakfast')
-                                  ?.ate as AteAmount) ?? 'all',
-                              snack:
-                                (existing.meals.find((m) => m.meal === 'snack')
-                                  ?.ate as AteAmount) ?? 'all',
-                              lunch:
-                                (existing.meals.find((m) => m.meal === 'lunch')
-                                  ?.ate as AteAmount) ?? 'all',
-                            },
-                            source:
-                              (existing.meals[0]?.source as 'home' | 'nursery') ??
-                              'home',
-                            napFrom: existing.nap_from?.slice(0, 5) ?? '',
-                            napTo: existing.nap_to?.slice(0, 5) ?? '',
-                            napSlept: existing.nap_slept ?? true,
-                            activities: existing.activities.join(t('format.listSep')),
-                            mood: existing.mood ?? 'happy',
-                            note: existing.note ?? '',
-                          }
-                        : bulk,
-                    )
-                    setEditChild({ id: d.child.id, name: d.child.full_name })
-                  }}
-                >
-                  <span className="flex items-center gap-2">
-                    <Avatar name={d.child.full_name} />
-                    <span className="type-body">{d.child.full_name}</span>
-                  </span>
-                  <span
-                    className={`type-badge rounded-full px-2 py-1 ${
-                      report?.published_at
-                        ? 'text-good-text bg-good-soft'
-                        : report
-                          ? 'text-muted bg-soft'
-                          : 'text-bad-text bg-bad-soft'
-                    }`}
+                  <Card
+                    key={d.child.id}
+                    className="flex flex-col gap-3 cursor-pointer"
+                    onClick={() => openEditor(d.child.id, d.child.full_name)}
                   >
-                    {report?.published_at
-                      ? t('reports.publishedBadge')
-                      : report
-                        ? t('reports.draftBadge')
-                        : t('reports.missingCount', { count: 1 })}
-                  </span>
-                </Card>
-              )
-            })}
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <Avatar name={d.child.full_name} />
+                        <span className="type-body font-semibold">{d.child.full_name}</span>
+                      </span>
+                      <span
+                        className={`type-badge rounded-full px-2 py-1 ${
+                          state === 'sent'
+                            ? 'text-good-text bg-good-soft'
+                            : 'text-muted bg-soft'
+                        }`}
+                      >
+                        {state === 'sent'
+                          ? t('reports.publishedBadge')
+                          : t('reports.draftBadge')}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {tiles.map((tile, i) => (
+                        <div
+                          key={i}
+                          className="bg-soft rounded-xl px-1 py-2 text-center flex flex-col items-center gap-0.5 min-w-0"
+                        >
+                          <span className="text-primary">{tile.icon}</span>
+                          <span className="type-badge font-semibold truncate max-w-full">
+                            {tile.value}
+                          </span>
+                          <span className="type-badge text-muted truncate max-w-full">
+                            {tile.label}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    {childPhotos.length > 0 && (
+                      <div className="flex gap-2 overflow-x-auto">
+                        {childPhotos.slice(0, 6).map((p) =>
+                          p.url ? (
+                            <img
+                              key={p.id}
+                              src={p.url}
+                              alt={p.caption ?? ''}
+                              className="w-14 h-14 rounded-2xl object-cover shrink-0"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div key={p.id} className="w-14 h-14 rounded-2xl bg-soft shrink-0" />
+                          ),
+                        )}
+                      </div>
+                    )}
+                  </Card>
+                )
+              })
+            )}
           </section>
+
+          {queued > 0 && (
+            <span className="type-badge text-bad-text bg-bad-soft rounded-full px-2 py-1 self-start">
+              {t('reports.syncPending', { count: queued })}
+            </span>
+          )}
 
           {canReports && unpublishedCount > 0 && (
             <Button full onClick={() => setPublishOpen(true)}>
@@ -426,6 +772,7 @@ export function ReportsPage() {
         onClose={() => setEditChild(null)}
         title={editChild ? t('reports.editChild', { name: editChild.name }) : ''}
         footer={
+          <div className="flex gap-2">
           <Button
             full
             disabled={saveReport.isPending}
@@ -437,17 +784,71 @@ export function ReportsPage() {
               } catch (err) {
                 // X2 (3A-378): الورقة اتفتحت والطفل حاضر، واتسجّل غايب
                 // أثناء التعديل — الرفض برسالة واضحة بدل صمت.
-                showToast(
-                  err instanceof Error && err.message === 'report_for_absent_child'
-                    ? t('reports.reportAbsentBlocked')
-                    : t('common.errorGeneric'),
-                  'error',
-                )
+                if (err instanceof Error && err.message === 'queued_offline') {
+                  showToast(t('reports.savedOffline'))
+                  setEditChild(null)
+                } else {
+                  showToast(
+                    err instanceof Error && err.message === 'report_for_absent_child'
+                      ? t('reports.reportAbsentBlocked')
+                      : t('common.errorGeneric'),
+                    'error',
+                  )
+                }
               }
             }}
           >
             {t('common.save')}
           </Button>
+          <Button
+            variant="soft"
+            onClick={() => {
+              if (!editChild || nursery.status !== 'ready') return
+              const mealRows = (Object.keys(editDraft.meals) as MealKind[]).map(
+                (m) => ({
+                  label: mealLabel(m),
+                  value: ateLabel(editDraft.meals[m]),
+                }),
+              )
+              const opened = openPrintDocument({
+                nurseryName: nursery.nursery.name,
+                logoUrl: nursery.nursery.logo_url,
+                brandColor: nursery.nursery.brand_color,
+                title: t('reports.printTitle', { name: editChild.name }),
+                meta: date,
+                sections: [
+                  {
+                    type: 'kv',
+                    rows: [
+                      ...mealRows,
+                      {
+                        label: t('reports.nap'),
+                        value: editDraft.napSlept
+                          ? t('reports.quickSlept')
+                          : t('reports.quickNoSleep'),
+                      },
+                      {
+                        label: t('reports.mood'),
+                        value: editDraft.mood ? moodLabel(editDraft.mood) : '—',
+                      },
+                    ],
+                  },
+                  ...(editDraft.activities.trim()
+                    ? [{ type: 'text' as const, text: editDraft.activities.trim() }]
+                    : []),
+                  ...(editDraft.note.trim()
+                    ? [{ type: 'text' as const, text: editDraft.note.trim() }]
+                    : []),
+                ],
+                footerNote: t('pub.poweredBy'),
+              })
+              if (!opened) showToast(t('common.errorGeneric'), 'error')
+            }}
+          >
+            <Printer size={16} />
+            {t('reports.printReport')}
+          </Button>
+          </div>
         }
       >
         {draftForm(editDraft, setEditDraft)}
@@ -503,11 +904,13 @@ function PhotosSection({
   const t = useT()
   const showToast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
+  const uploadStopRef = useRef<StopFlag>(makeStopFlag())
   const [files, setFiles] = useState<File[]>([])
   const [tagged, setTagged] = useState<Set<string>>(new Set())
   const [caption, setCaption] = useState('')
   const [uploading, setUploading] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<(typeof photos)[number] | null>(null)
+  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(new Set())
 
   async function handleUpload() {
     if (files.length === 0) return
@@ -555,16 +958,69 @@ function PhotosSection({
       setTagged(new Set())
       setCaption('')
       onChanged()
+    } catch (err) {
+      const offline =
+        !navigator.onLine ||
+        (err instanceof Error && /failed to fetch|network/i.test(err.message))
+      if (offline) {
+        for (const f of files) {
+          await enqueuePhoto({
+            nurseryId,
+            classDayId,
+            childIds: [...tagged],
+            caption: caption.trim() || null,
+            actorId,
+            blob: f,
+          })
+        }
+        showToast(t('reports.savedOffline'))
+        setFiles([])
+        setTagged(new Set())
+        setCaption('')
+        onChanged()
+      } else {
+        showToast(t('common.errorGeneric'), 'error')
+      }
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const [exporting, setExporting] = useState(false)
+
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const { blob, count } = await api.downloadDayPhotosZip(classDayId)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `nounou-photos-${classDayId.slice(0, 8)}.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+      showToast(t('reports.exportedPhotos', { count }))
     } catch {
       showToast(t('common.errorGeneric'), 'error')
     } finally {
-      setUploading(false)
+      setExporting(false)
     }
   }
 
   return (
     <section>
       <h2 className="type-section mb-2">{t('reports.photos')}</h2>
+      {photos.length > 0 && (
+        <Button
+          variant="soft"
+          full
+          className="mb-3"
+          disabled={exporting}
+          onClick={() => void handleExport()}
+        >
+          <Download size={18} />
+          {exporting ? t('reports.exportingPhotos') : t('reports.exportPhotos')}
+        </Button>
+      )}
       {canPhotos && (
         <Card className="mb-3">
           <p className="type-badge text-muted mb-2">{t('reports.addPhotosHint')}</p>
@@ -610,9 +1066,16 @@ function PhotosSection({
                   onChange={(e) => setCaption(e.target.value)}
                 />
               </Field>
-              <Button onClick={handleUpload} disabled={uploading} full>
-                {uploading ? t('reports.uploading') : t('reports.uploadNow')}
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={handleUpload} disabled={uploading} full>
+                  {uploading ? t('reports.uploading') : t('reports.uploadNow')}
+                </Button>
+                {uploading && (
+                  <Button variant="soft" onClick={() => uploadStopRef.current.stop()}>
+                    {t('common.stop')}
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </Card>
@@ -625,15 +1088,22 @@ function PhotosSection({
         <div className="grid grid-cols-3 gap-2">
           {photos.map((p) => (
             <div key={p.id} className="relative">
-              {p.url ? (
+              {p.url && !failedPhotos.has(p.id) ? (
                 <img
                   src={p.url}
                   alt={p.caption ?? ''}
-                  className="w-full aspect-square object-cover rounded-xl"
+                  className="w-full aspect-square object-cover rounded-2xl"
                   loading="lazy"
+                  onError={() =>
+                    setFailedPhotos((prev) => new Set(prev).add(p.id))
+                  }
                 />
               ) : (
-                <div className="w-full aspect-square rounded-xl bg-soft" />
+                <div className="w-full aspect-square rounded-2xl bg-soft flex items-center justify-center px-2">
+                  <span className="type-badge text-muted text-center">
+                    {t('reports.photoLoadFailed')}
+                  </span>
+                </div>
               )}
               {canPhotos && (
                 <button

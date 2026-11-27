@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Archive, Link2, Plus, Trash2 } from 'lucide-react'
+import { Archive, BookOpen, Link2, Plus, Trash2, TriangleAlert } from 'lucide-react'
+import { openPrintDocument } from '../../lib/printDoc'
 import { Avatar } from '../../components/ui/Avatar'
 import { Button } from '../../components/ui/Button'
 import { Card } from '../../components/ui/Card'
@@ -11,7 +12,7 @@ import { ErrorState, LoadingState } from '../../components/ui/states'
 import { Sheet } from '../../components/ui/Sheet'
 import { useToast } from '../../components/ui/toast'
 import { useT } from '../../i18n'
-import { ageLabel, formatClock12, waLink } from '../../lib/format'
+import { ageLabel, formatClock12, todayISO, waLink } from '../../lib/format'
 import { useCurrentNursery } from '../../hooks/useCurrentNursery'
 import { useClasses } from '../classes/hooks'
 import { useChildAttendance } from '../classday/hooks'
@@ -52,8 +53,11 @@ export function ChildDetailPage() {
   const [pickupOpen, setPickupOpen] = useState(false)
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [freshLink, setFreshLink] = useState<string | null>(null)
+  const [growthBusy, setGrowthBusy] = useState(false)
 
-  const attendance = useChildAttendance(tab === 'attendance' ? childId : undefined)
+  // الحضور يُجلب دائمًا (مش بس في تبويبه): شارة حالة اليوم في الترويسة
+  // بتقرأ صف النهارده منه — نفس الاستعلام المخزّن بنفس المفتاح.
+  const attendance = useChildAttendance(childId)
   const photos = useQuery({
     queryKey: ['child-photos', childId],
     enabled: Boolean(childId && tab === 'photos'),
@@ -84,6 +88,8 @@ export function ChildDetailPage() {
     (tk) => !tk.revoked_at && new Date(tk.expires_at) > new Date(),
   )
 
+  const todayRow = (attendance.data ?? []).find((a) => a.day_date === todayISO())
+
   const relationLabel = (r: PickupRelation): string =>
     r === 'father'
       ? t('children.relFather')
@@ -98,33 +104,150 @@ export function ChildDetailPage() {
   return (
     <div className="flex flex-col gap-4">
       <Card>
-        <div className="flex items-center gap-3">
-          <Avatar name={child.full_name} size={56} />
-          <div className="min-w-0">
-            <div className="type-title truncate">{child.full_name}</div>
-            <div className="type-secondary text-muted">
-              {[ageLabel(child.birth_date) ?? '', classRow?.name ?? t('children.noClass'), `#${child.public_code}`]
-                .filter(Boolean)
-                .join(' • ')}
-            </div>
-            <div className="type-badge text-muted">
-              {child.photo_consent
-                ? `📷 ${t('children.photoConsent')}`
-                : `🚫 ${t('children.photoConsent')}`}
-            </div>
+        <div className="flex flex-col items-center text-center gap-1">
+          <Avatar name={child.full_name} size={72} />
+          <div className="type-title">{child.full_name}</div>
+          <div className="type-secondary text-muted">
+            {[classRow?.name ?? t('children.noClass'), ageLabel(child.birth_date) ?? '', `#${child.public_code}`]
+              .filter(Boolean)
+              .join(' • ')}
           </div>
+          <div className="type-badge text-muted">
+            {child.photo_consent
+              ? `📷 ${t('children.photoConsent')}`
+              : `🚫 ${t('children.photoConsent')}`}
+          </div>
+          {attendance.data &&
+            (todayRow?.status === 'absent' ? (
+              <span className="type-badge rounded-full bg-bad-soft text-bad-text px-3 py-1 mt-1">
+                {t('children.todayAbsent')}
+              </span>
+            ) : todayRow?.status === 'leave' ? (
+              <span className="type-badge rounded-full bg-warn-soft text-warn-text px-3 py-1 mt-1">
+                {t('children.todayLeave')}
+              </span>
+            ) : todayRow ? (
+              <span className="type-badge rounded-full bg-ok-soft text-ok-text px-3 py-1 mt-1">
+                {t('children.todayPresent')}
+                {todayRow.picked_up_at
+                  ? ` • ${t('children.todayPickedUp', { time: formatClock12(todayRow.picked_up_at) })}`
+                  : todayRow.arrived_at
+                    ? ` • ${formatClock12(todayRow.arrived_at)}`
+                    : ''}
+              </span>
+            ) : (
+              <span className="type-badge rounded-full bg-soft text-muted px-3 py-1 mt-1">
+                {t('children.todayNotYet')}
+              </span>
+            ))}
+        </div>
+        <div className="mt-3">
+          <Button
+            variant="soft"
+            size="sm"
+            disabled={growthBusy}
+            onClick={async () => {
+              if (nursery.status !== 'ready') return
+              setGrowthBusy(true)
+              try {
+                const [childPhotos, childReports] = await Promise.all([
+                  child.photo_consent
+                    ? reportsApi.listChildPhotos(child.id, 24)
+                    : Promise.resolve([]),
+                  reportsApi.listChildReports(child.id, 12),
+                ])
+                const moodText = (m: string | null): string =>
+                  m === 'happy'
+                    ? t('reports.moodHappy')
+                    : m === 'calm'
+                      ? t('reports.moodCalm')
+                      : m === 'sad'
+                        ? t('reports.moodSad')
+                        : m === 'tired'
+                          ? t('reports.moodTired')
+                          : '—'
+                const opened = openPrintDocument({
+                  nurseryName: nursery.nursery.name,
+                  logoUrl: nursery.nursery.logo_url,
+                  brandColor: nursery.nursery.brand_color,
+                  title: t('children.growthTitle', { name: child.full_name }),
+                  sections: [
+                    {
+                      type: 'kv',
+                      rows: [
+                        { label: t('children.class'), value: classRow?.name ?? t('children.noClass') },
+                        { label: t('children.growthCode'), value: '#' + child.public_code },
+                        { label: t('children.growthPhotos'), value: String(childPhotos.length) },
+                        { label: t('children.growthReports'), value: String(childReports.length) },
+                      ],
+                    },
+                    ...(childPhotos.length > 0
+                      ? [
+                          {
+                            type: 'images' as const,
+                            urls: childPhotos
+                              .map((ph) => ph.url)
+                              .filter((u): u is string => Boolean(u)),
+                          },
+                        ]
+                      : []),
+                    ...(childReports.length > 0
+                      ? [
+                          {
+                            type: 'table' as const,
+                            head: [
+                              t('children.growthDate'),
+                              t('reports.mood'),
+                              t('reports.nap'),
+                              t('children.growthNote'),
+                            ],
+                            rows: childReports.map((r) => [
+                              r.date,
+                              moodText(r.mood),
+                              r.nap_slept ? t('reports.quickSlept') : t('reports.quickNoSleep'),
+                              (r.note ?? '') ||
+                                (Array.isArray(r.activities)
+                                  ? r.activities.join(', ')
+                                  : (r.activities ?? '')),
+                            ]),
+                          },
+                        ]
+                      : []),
+                  ],
+                  footerNote: t('pub.poweredBy'),
+                })
+                if (!opened) showToast(t('common.errorGeneric'), 'error')
+              } catch {
+                showToast(t('common.errorGeneric'), 'error')
+              } finally {
+                setGrowthBusy(false)
+              }
+            }}
+          >
+            <BookOpen size={16} />
+            {t('children.growthFile')}
+          </Button>
         </div>
         {canManage && (
           <div className="flex gap-2 mt-3 flex-wrap">
             <Field label={t('children.class')}>
               <Select
                 value={enrollment?.class_id ?? ''}
-                onChange={(e) =>
-                  void mutations.moveClass.mutateAsync({
-                    childId: child.id,
-                    classId: e.target.value || null,
-                  })
-                }
+                onChange={async (e) => {
+                  try {
+                    await mutations.moveClass.mutateAsync({
+                      childId: child.id,
+                      classId: e.target.value || null,
+                    })
+                  } catch (err) {
+                    showToast(
+                      err instanceof Error && err.message === 'class_full'
+                        ? t('children.classFull')
+                        : t('common.errorGeneric'),
+                      'error',
+                    )
+                  }
+                }}
               >
                 <option value="">{t('children.noClass')}</option>
                 {(classes.data ?? []).map((c) => (
@@ -155,6 +278,27 @@ export function ChildDetailPage() {
           </div>
         )}
       </Card>
+
+      {health && (health.allergies.length > 0 || health.emergency_notes) && (
+        <Card className="border-e-4 border-bad-text">
+          <div className="flex items-center gap-2 text-bad-text">
+            <TriangleAlert size={18} />
+            <span className="type-section">{t('children.allergyTitle')}</span>
+          </div>
+          <div className="flex flex-col gap-1 mt-2">
+            {health.allergies.map((a, i) => (
+              <p key={i} className="type-body">
+                {a.name}
+                {a.severity ? ` — ${a.severity}` : ''}
+                {a.notes ? ` — ${a.notes}` : ''}
+              </p>
+            ))}
+            {health.emergency_notes && (
+              <p className="type-body">{health.emergency_notes}</p>
+            )}
+          </div>
+        </Card>
+      )}
 
       <ChipRow>
         <Chip active={tab === 'overview'} onClick={() => setTab('overview')}>
@@ -378,11 +522,11 @@ export function ChildDetailPage() {
                   key={p.id}
                   src={p.url}
                   alt={p.caption ?? ''}
-                  className="w-full aspect-square object-cover rounded-xl"
+                  className="w-full aspect-square object-cover rounded-2xl"
                   loading="lazy"
                 />
               ) : (
-                <div key={p.id} className="w-full aspect-square rounded-xl bg-soft" />
+                <div key={p.id} className="w-full aspect-square rounded-2xl bg-soft" />
               ),
             )}
           </div>

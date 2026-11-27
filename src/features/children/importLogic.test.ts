@@ -81,4 +81,41 @@ describe('parseImportRows — استيراد الأطفال', () => {
     expect(parseImportRows([HEADER_AR], CLASSES)).toEqual({ rows: [], errors: [] })
     expect(parseImportRows([], CLASSES)).toEqual({ rows: [], errors: [] })
   })
+
+  it('سعة الفصل (420-T2): الصف الذي يتجاوز السعة يُرفض overCapacity بموضعه', () => {
+    const limits = new Map([
+      ['KG1', { capacity: 2, enrolled: 1 }],
+      ['KG2', { capacity: null, enrolled: 0 }],
+    ])
+    const { rows, errors } = parseImportRows(
+      [
+        HEADER_AR,
+        ['طفل أول', '2022-01-01', 'KG1', 'ولي أ', '01001234567'],
+        ['طفل ثانٍ', '2022-01-01', 'KG1', 'ولي ب', '01001234568'],
+        ['طفل ثالث', '2022-01-01', 'KG2', 'ولي ج', '01001234569'],
+      ],
+      CLASSES,
+      limits,
+    )
+    // KG1: مسجّل 1 + سعة 2 → أول صف يدخل، الثاني يتجاوز فيُرفض (سطر 3)
+    expect(rows.map((r) => r.full_name)).toEqual(['طفل أول', 'طفل ثالث'])
+    expect(errors).toEqual([{ rowNumber: 3, code: 'overCapacity' }])
+  })
+
+  it('سعة الفصل (420-T2): فصل ممتلئ أصلاً يرفض الكل، وبلا حدود لا رفض', () => {
+    const full = new Map([['KG1', { capacity: 20, enrolled: 20 }]])
+    const r1 = parseImportRows(
+      [HEADER_AR, ['طفل', '2022-01-01', 'KG1', 'ولي', '01001234567']],
+      CLASSES,
+      full,
+    )
+    expect(r1.rows).toEqual([])
+    expect(r1.errors).toEqual([{ rowNumber: 2, code: 'overCapacity' }])
+    const r2 = parseImportRows(
+      [HEADER_AR, ['طفل', '2022-01-01', 'KG1', 'ولي', '01001234567']],
+      CLASSES,
+    )
+    expect(r2.rows).toHaveLength(1)
+    expect(r2.errors).toEqual([])
+  })
 })

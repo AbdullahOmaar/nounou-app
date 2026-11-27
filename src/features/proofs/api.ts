@@ -1,5 +1,6 @@
 import { requireSupabase } from '../../lib/supabase'
 import type { PaymentRow } from '../../types/database'
+import { logActivity } from '../settings/api'
 
 export interface ProofItem extends PaymentRow {
   childName: string
@@ -90,7 +91,7 @@ export async function proofSignedUrl(path: string): Promise<string | null> {
  * رقم الإيصال أُسند أصلاً عند إدراج الدفعة عبر مشغّل القاعدة (هجرة
  * 0013) فلا يُلمس هنا. الرفض بسبب ظاهر لولي الأمر في بوابته.
  */
-export async function approveProof(
+export async function approveProofInternal(
   actorId: string | null,
   proof: PaymentRow,
 ): Promise<void> {
@@ -119,6 +120,14 @@ export async function approveProof(
     .eq('id', proof.id)
     .eq('proof_status', 'pending')
   if (error) throw error
+  await logActivity(
+    proof.nursery_id,
+    actorId,
+    'proof_approved',
+    `${proof.amount} — ${proof.method}`,
+    'payment',
+    proof.id,
+  )
 }
 
 export async function rejectProof(
@@ -127,6 +136,11 @@ export async function rejectProof(
   reason: string,
 ): Promise<void> {
   const db = requireSupabase()
+  const { data: pay } = await db
+    .from('payments')
+    .select('nursery_id, amount, method')
+    .eq('id', proofId)
+    .maybeSingle()
   const { error } = await db
     .from('payments')
     .update({
@@ -138,4 +152,51 @@ export async function rejectProof(
     .eq('id', proofId)
     .eq('proof_status', 'pending')
   if (error) throw error
+  const p = pay as { nursery_id: string; amount: number; method: string } | null
+  if (p) {
+    await logActivity(
+      p.nursery_id,
+      actorId,
+      'proof_rejected',
+      `${p.amount} — ${p.method}: ${reason}`,
+      'payment',
+      proofId,
+    )
+  }
+}
+
+/**
+ * بوابة الاعتماد الثاني (1.5): اعتماد إثبات فوق الحد لا يُنفَّذ —
+ * يُحفظ طلباً معلّقاً (ولا يتكرر إن وُجد طلب معلّق لنفس الدفعة).
+ */
+export async function approveProof(
+  actorId: string | null,
+  proof: PaymentRow,
+): Promise<'done' | 'pending'> {
+  const { PROOF_APPROVAL_LIMIT, requestApproval } = await import(
+    '../approvals/api'
+  )
+  if (Number(proof.amount) > PROOF_APPROVAL_LIMIT) {
+    const db = requireSupabase()
+    const { data } = await db
+      .from('pending_approvals')
+      .select('id')
+      .eq('nursery_id', proof.nursery_id)
+      .eq('action_kind', 'proof_approve')
+      .eq('status', 'pending')
+      .filter('payload->>paymentId', 'eq', proof.id)
+      .limit(1)
+    if (!data || data.length === 0) {
+      await requestApproval(
+        proof.nursery_id,
+        actorId,
+        'proof_approve',
+        { paymentId: proof.id },
+        `proof — ${proof.amount}`,
+      )
+    }
+    return 'pending'
+  }
+  await approveProofInternal(actorId, proof)
+  return 'done'
 }

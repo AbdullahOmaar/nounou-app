@@ -35,7 +35,16 @@ export const attendance = {
   dayClosedBanner: 'يوم النهارده مغلق — التعديل متاح للمالك بس',
   notYetArrived: 'لم يصل بعد',
   searchPlaceholder: 'دوّر باسم الطفل…',
-  allMarked: 'كل الأطفال اتسجلوا 🎉',
   historyTitle: 'سجل حضور {name}',
   noHistory: 'لا سجل حضور لسه',
-} as const
+  sendCodeWhatsapp: 'إرسال كود اليوم للوصيّ (واتساب)',
+  codeQueued: 'الكود جاهز — إرسال واتساب الفعلي لسه ما اتطلقش، واتسجلت المحاولة',
+  codeBlocked: 'الكود ما اتبعتش — إرسال واتساب لسه مش جاهز (راجع بوابات واتساب في الإعدادات)، واتسجلت المحاولة',
+  pickupLogTitle: 'سجل استلام اليوم',
+  pickupLogCodeUsed: 'بالكود',
+  // هوية نونو — الموجة 1: بطاقة تقدّم + زر QR كهرماني + زر إقفال اليوم
+  progressTitle: 'تقدّم التسجيل',
+  progressRemaining: 'فاضل {count} أطفال — دوس الحالة على طول، من غير ما تفتح كل طفل لوحده',
+  scanQrCta: 'مسح QR للحضور السريع',
+  sendReportsCta: 'إرسال تقارير اليوم',
+}

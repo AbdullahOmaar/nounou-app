@@ -384,6 +384,14 @@ async function portalBalance(portalPage) {
   return Number(m[1].replaceAll(',', ''));
 }
 
+async function selectPortalChild(portalPage, name) {
+  // البوابة تفتح على أول طفل بترتيب الاسم في الـRPC (مريم قبل يوسف) —
+  // والتدفقات مقصود بها طفل بعينه: اختره صراحةً من صف الشارات بدل
+  // افتراض الترتيب (درس فحص 0.1 — فيز 2، 2026-11-24: رصيد مريم −100
+  // أخفى بطاقة الرصيد فأسقط 07/08/11 وهمياً)
+  await clickByText(portalPage, name);
+}
+
 /* ---------------------------------- جلسة الديمو ---------------------------------- */
 
 async function demoLogin(page) {
@@ -497,11 +505,13 @@ const tests = [
       let before = 0;
       try {
         await waitBodyText(portalPage, 'يوسف تجريبي');
+        await selectPortalChild(portalPage, 'يوسف تجريبي');
         await waitBodyText(portalPage, 'ادفع بتحويل');
         before = await portalBalance(portalPage);
         assert(before > 0, 'رصيد الطفل صفر قبل الدفع — الإصدار لم ينشئ فاتورة مفتوحة');
-        // مبلغ جزئي (300) حتى يبقى رصيد للتدفق 08
-        await portalPage.type('input[type="number"]', '300');
+        // مبلغ جزئي (حتى 300) حتى يبقى رصيد للتدفق 08
+        var payAmt = Math.min(300, before);
+        await portalPage.type('input[type="number"]', String(payAmt));
         const fileInput = await portalPage.$('input[type="file"]');
         assert(fileInput, 'لا حقل ملف إثبات في البوابة');
         await fileInput.uploadFile(writeTestPng());
@@ -523,8 +533,9 @@ const tests = [
       const { page: portalPage2 } = await openPortalPage(ctx, link2);
       try {
         await waitBodyText(portalPage2, 'يوسف تجريبي');
+        await selectPortalChild(portalPage2, 'يوسف تجريبي');
         const after = await portalBalance(portalPage2);
-        assert(after === before - 300, `الرصيد لم ينزل كما المتوقع: ${before} ← ${after}`);
+        assert(after === before - payAmt, `الرصيد لم ينزل كما المتوقع: ${before} ← ${after}`);
       } finally {
         await portalPage2.close().catch(() => {});
       }
@@ -534,16 +545,18 @@ const tests = [
     id: '08-proof-reject',
     title: 'دورة الإثباتات (رفض): دفع ثانٍ من البوابة ← رفض بسبب ← ظهور السبب في البوابة',
     async run(page, ctx) {
-      // يعتمد على رصيد متبقٍّ من 07 (1000 − 300 معتمد = 700)
+      // يعتمد على رصيد متبقٍّ من 07 (يوسف مختار صراحةً في البوابة)
+      let before = 0;
       await ensureSession(page);
       const link = await issuePortalLink(page);
       const { page: portalPage } = await openPortalPage(ctx, link);
       try {
         await waitBodyText(portalPage, 'يوسف تجريبي');
+        await selectPortalChild(portalPage, 'يوسف تجريبي');
         await waitBodyText(portalPage, 'ادفع بتحويل');
-        const before = await portalBalance(portalPage);
+        before = await portalBalance(portalPage);
         assert(before > 0, 'لا رصيد متبقٍّ للدفع — هل نُفذ 07 قبله؟');
-        await portalPage.type('input[type="number"]', '300');
+        await portalPage.type('input[type="number"]', String(Math.min(300, before)));
         const fileInput = await portalPage.$('input[type="file"]');
         assert(fileInput, 'لا حقل ملف إثبات في البوابة');
         await fileInput.uploadFile(writeTestPng());
@@ -575,6 +588,7 @@ const tests = [
       const { page: portalPage2 } = await openPortalPage(ctx, link2);
       try {
         await waitBodyText(portalPage2, 'يوسف تجريبي');
+        await selectPortalChild(portalPage2, 'يوسف تجريبي');
         await waitBodyText(portalPage2, 'الإثبات اترفض: الصورة مش واضحة');
         const after = await portalBalance(portalPage2);
         assert(after === before, `الرصيد تغيّر بعد رفض الإثبات: ${before} ← ${after}`);
@@ -626,6 +640,17 @@ const tests = [
         { timeout: 45_000 },
       );
       await page.reload({ waitUntil: 'domcontentloaded', timeout: NAV_TIMEOUT });
+      // العدّ قبل اكتمال رسم الصفحة سباق كامن: بعد reload قد لا تكون
+      // الأزرار رُسمت أصلاً فيُقرأ صفر (ظهر عند إصلاح 09 في فحص 0.1)
+      await page
+        .waitForFunction(
+          () =>
+            [...document.querySelectorAll('button')].some(
+              (b) => b.innerText && b.innerText.replace('✓', '').trim() === 'وصل',
+            ),
+          { timeout: WAIT_TIMEOUT },
+        )
+          .catch(() => {});
       const after = await countArrivedButtons();
       assert(after === before - 1, `عدد أزرار «وصل» لم ينقص واحداً بعد المزامنة: ${before} ← ${after}`);
       const txt = await bodyText(page);
@@ -679,6 +704,8 @@ const tests = [
       const link = await issuePortalLink(page);
       const { page: portalPage } = await openPortalPage(ctx, link);
       try {
+        await waitBodyText(portalPage, 'يوسف تجريبي');
+        await selectPortalChild(portalPage, 'يوسف تجريبي');
         await waitBodyText(portalPage, 'صور اليوم');
         const imgs = await portalPage.$$eval('img', (els) => els.length);
         assert(imgs > 0, 'قسم «صور اليوم» بلا أي صورة في البوابة');
@@ -706,6 +733,7 @@ const tests = [
       const { page: portalPage2 } = await openPortalPage(ctx, link2);
       try {
         await waitBodyText(portalPage2, 'يوسف تجريبي');
+        await selectPortalChild(portalPage2, 'يوسف تجريبي');
         const txt = await bodyText(portalPage2);
         assert(!txt.includes('صور اليوم'), 'صور اليوم ما زالت ظاهرة بعد سحب الموافقة');
       } finally {

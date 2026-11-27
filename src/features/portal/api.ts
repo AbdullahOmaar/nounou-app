@@ -1,5 +1,6 @@
 import { requireSupabase } from '../../lib/supabase'
 import type { GuardianAccessTokenRow, PaymentMethod } from '../../types/database'
+import type { PortalBusLive } from './busLive'
 
 /* ------------------------------------------------------------------ */
 /* إدارة الروابط (طاقم الحضانة)                                        */
@@ -67,6 +68,25 @@ export async function issueToken(
   return portalUrl(raw)
 }
 
+/** إصدار رابط مشاهدة للعائلة الممتدة (2.7): لا يلغي الرابط الأساسي أبداً */
+export async function issueViewToken(
+  nurseryId: string,
+  guardianId: string,
+  childId: string | null,
+): Promise<string> {
+  const db = requireSupabase()
+  const raw = generateRawToken()
+  const hash = await hashToken(raw)
+  const { error } = await db.rpc('issue_guardian_view_token', {
+    p_nursery: nurseryId,
+    p_guardian: guardianId,
+    p_child: childId,
+    p_token_hash: hash,
+  })
+  if (error) throw error
+  return portalUrl(raw)
+}
+
 export async function revokeToken(tokenId: string): Promise<void> {
   const db = requireSupabase()
   const { error } = await db
@@ -91,7 +111,8 @@ export interface PortalChild {
 }
 
 export interface PortalOverview {
-  nursery: { name: string; phone: string | null }
+  access_scope?: 'full' | 'view'
+  nursery: { name: string; phone: string | null; logo_url?: string | null; brand_color?: string | null }
   guardian: { full_name: string }
   children: PortalChild[]
   announcements: { id: string; title: string; body: string; published_at: string }[]
@@ -136,6 +157,14 @@ export interface PortalChildDay {
     rejection_reason: string | null
     created_at: string
   }[]
+  /** دفعات صالحة برقم الإيصال (1.6 — هجرة 0028) */
+  payments: {
+    id: string
+    amount: number
+    method: string
+    paid_at: string
+    receipt_no: number | null
+  }[]
   pickup_code: string | null
 }
 
@@ -146,6 +175,16 @@ export async function fetchPortalOverview(token: string): Promise<PortalOverview
   })
   if (error) throw error
   return data as PortalOverview
+}
+
+/** موقع الباص الحي لولي الأمر (3A-414): استطلاع RPC محروس بالتوكن */
+export async function fetchPortalBusLive(token: string): Promise<PortalBusLive> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('portal_bus_live', {
+    p_token: token,
+  })
+  if (error) throw error
+  return data as PortalBusLive
 }
 
 export async function fetchPortalChildDay(
@@ -251,3 +290,215 @@ async function cancelUnconfirmedPayment(
   })
   if (error) console.error('portal payment cleanup: cancel failed', error)
 }
+
+export interface PortalNotification {
+  id: string
+  kind: 'report' | 'proof_approved' | 'proof_rejected' | 'invoice' | 'announcement' | 'message' | 'qa' | 'qa'
+  meta: Record<string, unknown>
+  child_id: string | null
+  created_at: string
+  read_at: string | null
+}
+
+export interface PortalInbox {
+  unread: number
+  items: PortalNotification[]
+}
+
+/** صندوق إشعارات الوصيّ (2.1 — جرس البوابة) */
+export async function fetchPortalNotifications(
+  token: string,
+): Promise<PortalInbox> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('nursery_portal_notifications_by_token', {
+    p_token: token,
+  })
+  if (error) throw error
+  return data as PortalInbox
+}
+
+export async function markPortalNotificationsRead(token: string): Promise<void> {
+  const db = requireSupabase()
+  const { error } = await db.rpc('nursery_portal_notifications_mark_read', {
+    p_token: token,
+  })
+  if (error) throw error
+}
+
+export interface PortalMessage {
+  id: string
+  sender: 'guardian' | 'staff'
+  body: string
+  created_at: string
+}
+
+export async function fetchPortalMessages(
+  token: string,
+): Promise<PortalMessage[]> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('nursery_portal_messages_by_token', {
+    p_token: token,
+  })
+  if (error) throw error
+  return ((data as { items?: PortalMessage[] })?.items ?? []) as PortalMessage[]
+}
+
+export async function sendPortalMessage(
+  token: string,
+  body: string,
+): Promise<void> {
+  const db = requireSupabase()
+  const { error } = await db.rpc('nursery_portal_send_message_by_token', {
+    p_token: token,
+    p_body: body,
+  })
+  if (error) throw error
+}
+
+/* ------------------------------------------------------------------ */
+/* جلسات الأسئلة (2.8)                                                 */
+/* ------------------------------------------------------------------ */
+
+export interface PortalQaQuestion {
+  id: string
+  body: string
+  answer: string | null
+  answered_at?: string | null
+  created_at?: string
+}
+
+export interface PortalQaSession {
+  id: string
+  title: string
+  starts_at: string
+  status: 'scheduled' | 'live' | 'ended'
+  published: PortalQaQuestion[]
+  mine: PortalQaQuestion[]
+}
+
+export async function fetchPortalQa(token: string): Promise<PortalQaSession[]> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('nursery_portal_qa_by_token', {
+    p_token: token,
+  })
+  if (error) throw error
+  const parsed = data as { sessions?: PortalQaSession[] } | null
+  return parsed?.sessions ?? []
+}
+
+export async function askPortalQuestion(
+  token: string,
+  sessionId: string,
+  body: string,
+): Promise<void> {
+  const db = requireSupabase()
+  const { error } = await db.rpc('nursery_portal_ask_by_token', {
+    p_token: token,
+    p_session: sessionId,
+    p_body: body,
+  })
+  if (error) throw error
+}
+
+export interface PortalCircular {
+  id: string
+  title: string
+  body: string
+  published_at: string
+  wants_rsvp: boolean
+  read: boolean
+  my_rsvp: { attending: boolean; guests: number } | null
+}
+
+export async function fetchCirculars(
+  token: string,
+): Promise<PortalCircular[]> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('nursery_portal_circulars_by_token', {
+    p_token: token,
+  })
+  if (error) throw error
+  const res = data as { items?: PortalCircular[] }
+  return res.items ?? []
+}
+
+export async function markCircularRead(
+  token: string,
+  announcementId: string,
+): Promise<void> {
+  const db = requireSupabase()
+  await db.rpc('nursery_portal_mark_circular_read', {
+    p_token: token,
+    p_announcement_id: announcementId,
+  })
+}
+
+export async function circularRsvp(
+  token: string,
+  announcementId: string,
+  attending: boolean,
+  guests: number,
+): Promise<{ status: string }> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('nursery_portal_circular_rsvp', {
+    p_token: token,
+    p_announcement_id: announcementId,
+    p_attending: attending,
+    p_guests: guests,
+  })
+  if (error) throw error
+  return data as { status: string }
+}
+
+export interface PortalDataRequest {
+  kind: 'export' | 'deletion'
+  status: 'pending' | 'done' | 'rejected'
+  created_at: string
+}
+
+export async function fetchMyDataRequests(
+  token: string,
+): Promise<PortalDataRequest[]> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc(
+    'nursery_portal_my_data_requests_by_token',
+    { p_token: token },
+  )
+  if (error) throw error
+  const res = data as { requests?: PortalDataRequest[] }
+  return res.requests ?? []
+}
+
+export async function createDataRequest(
+  token: string,
+  kind: 'export' | 'deletion',
+): Promise<string> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc('nursery_portal_data_request_by_token', {
+    p_token: token,
+    p_kind: kind,
+  })
+  if (error) throw error
+  return (data as { status?: string }).status ?? 'error'
+}
+
+export interface PortalPhotoView {
+  viewer_kind: 'guardian' | 'staff'
+  is_self: boolean
+  created_at: string
+  child_name: string
+}
+
+export async function fetchPhotoViews(
+  token: string,
+): Promise<PortalPhotoView[]> {
+  const db = requireSupabase()
+  const { data, error } = await db.rpc(
+    'nursery_portal_photo_views_by_token',
+    { p_token: token },
+  )
+  if (error) throw error
+  const res = data as { views?: PortalPhotoView[] }
+  return res.views ?? []
+}
+

@@ -41,15 +41,130 @@ export async function updateNurserySettings(
     .update(patch)
     .eq('nursery_id', nurseryId)
   if (error) throw error
+  await logActivityAuto(nurseryId, 'settings_updated', Object.keys(patch).join(', '))
 }
 
 export async function updateNurseryProfile(
   nurseryId: string,
-  patch: Partial<Pick<NurseryRow, 'name' | 'phone' | 'address'>>,
+  patch: Partial<Pick<NurseryRow, 'name' | 'phone' | 'address' | 'logo_url' | 'brand_color'>>,
 ): Promise<void> {
   const db = requireSupabase()
   const { error } = await db.from('nurseries').update(patch).eq('id', nurseryId)
   if (error) throw error
+}
+
+export async function getPublicPageSettings(nurseryId: string) {
+  const db = requireSupabase()
+  const { data, error } = await db
+    .from('nurseries')
+    .select('public_slug, public_enabled, public_about, public_license_no, public_instapay, public_vodafone, public_bank, banner_key, sticker_key')
+    .eq('id', nurseryId)
+    .single()
+  if (error) throw error
+  return data as Pick<
+    NurseryRow,
+    | 'public_slug'
+    | 'public_enabled'
+    | 'public_about'
+    | 'public_license_no'
+    | 'public_instapay'
+    | 'public_vodafone'
+    | 'public_bank'
+    | 'banner_key'
+    | 'sticker_key'
+  >
+}
+
+export async function updatePublicPageSettings(
+  nurseryId: string,
+  patch: Partial<
+    Pick<
+      NurseryRow,
+      | 'public_slug'
+      | 'public_enabled'
+      | 'public_about'
+      | 'public_license_no'
+      | 'public_instapay'
+      | 'public_vodafone'
+      | 'public_bank'
+      | 'banner_key'
+      | 'sticker_key'
+    >
+  >,
+): Promise<void> {
+  const db = requireSupabase()
+  const { error } = await db.from('nurseries').update(patch).eq('id', nurseryId)
+  if (error) throw error
+  await logActivityAuto(nurseryId, 'settings_updated', 'public_page')
+}
+
+/** قمع الاكتشاف (3A-891): مشاهدة ← نقرة واتساب ← حجز جولة ← التحاق. */
+export interface DiscoveryFunnel {
+  views: number
+  clicks: number
+  tours: number
+  converted: number
+}
+
+/** تجميع نقي لصفوف الأحداث والجولات — الالتحاق من حالة converted نفسها (0041). */
+export function summarizeFunnel(
+  events: Array<{ kind: string }>,
+  tours: Array<{ status: string }>,
+): DiscoveryFunnel {
+  const funnel: DiscoveryFunnel = { views: 0, clicks: 0, tours: 0, converted: 0 }
+  for (const r of events) {
+    if (r.kind === 'view') funnel.views++
+    else if (r.kind === 'whatsapp_click') funnel.clicks++
+  }
+  for (const r of tours) {
+    funnel.tours++
+    if (r.status === 'converted') funnel.converted++
+  }
+  return funnel
+}
+
+/** نسبة مئوية صحيحة — صفر عند غياب الأساس بدل قسمة على صفر. */
+export function pct(part: number, whole: number): number {
+  return whole <= 0 ? 0 : Math.round((part / whole) * 100)
+}
+
+export async function getDiscoveryFunnel(
+  nurseryId: string,
+): Promise<DiscoveryFunnel> {
+  const db = requireSupabase()
+  const since = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString()
+  const events = await db
+    .from('public_page_events')
+    .select('kind')
+    .eq('nursery_id', nurseryId)
+    .gte('created_at', since)
+    .limit(5000)
+  if (events.error) throw events.error
+  const tours = await db
+    .from('tour_requests')
+    .select('status')
+    .eq('nursery_id', nurseryId)
+    .gte('created_at', since)
+    .limit(5000)
+  if (tours.error) throw tours.error
+  return summarizeFunnel(
+    (events.data ?? []) as Array<{ kind: string }>,
+    (tours.data ?? []) as Array<{ status: string }>,
+  )
+}
+
+export async function uploadNurseryLogo(
+  nurseryId: string,
+  file: File,
+): Promise<string> {
+  const db = requireSupabase()
+  const path = `${nurseryId}/logo.jpg`
+  const { error } = await db.storage
+    .from('nursery-logos')
+    .upload(path, file, { upsert: true, contentType: 'image/jpeg' })
+  if (error) throw error
+  const { data } = db.storage.from('nursery-logos').getPublicUrl(path)
+  return `${data.publicUrl}?v=${Date.now()}`
 }
 
 export interface MemberListItem extends NurseryMemberRow {
@@ -100,6 +215,34 @@ export async function inviteMember(
     status: 'invited',
   })
   if (error) throw error
+  await logActivityAuto(nurseryId, 'member_invited', email.trim().toLowerCase(), 'member')
+}
+
+export type InviteEmailStatus = 'sent' | 'not_configured' | 'failed'
+
+/**
+ * إرسال بريد الدعوة عبر دالة send-invite-email (Brevo — 0.7). لا يرمي أبداً:
+ * الدعوة محفوظة أصلاً، والإيميل طبقة إشعار — نتيجته تُعرض للمالك كتوست.
+ */
+export async function sendInviteEmail(
+  nurseryId: string,
+  email: string,
+): Promise<InviteEmailStatus> {
+  const db = requireSupabase()
+  try {
+    const { data, error } = await db.functions.invoke('send-invite-email', {
+      body: { nurseryId, email: email.trim().toLowerCase() },
+    })
+    if (error) {
+      // خطأ HTTP من الدالة (503 غير مهيأة / 502 فشل إرسال) يصل هنا كخطأ عام
+      const ctx = (error as { context?: Response }).context
+      if (ctx && ctx.status === 503) return 'not_configured'
+      return 'failed'
+    }
+    return (data as { sent?: boolean } | null)?.sent ? 'sent' : 'failed'
+  } catch {
+    return 'failed'
+  }
 }
 
 export async function updateMember(
@@ -111,10 +254,11 @@ export async function updateMember(
   if (error) throw error
 }
 
-export async function removeMember(memberId: string): Promise<void> {
+export async function removeMember(nurseryId: string, memberId: string): Promise<void> {
   const db = requireSupabase()
   const { error } = await db.from('nursery_members').delete().eq('id', memberId)
   if (error) throw error
+  await logActivityAuto(nurseryId, 'member_removed', '', 'member', memberId)
 }
 
 export async function logActivity(
@@ -135,4 +279,17 @@ export async function logActivity(
     entity_type: entityType ?? null,
     entity_id: entityId ?? null,
   })
+}
+
+/** logActivity بفاعل = المستخدم الحالي (420-U1: توصيل سجل النشاط بالأحداث) */
+export async function logActivityAuto(
+  nurseryId: string,
+  kind: string,
+  summary: string,
+  entityType?: string,
+  entityId?: string,
+): Promise<void> {
+  const db = requireSupabase()
+  const { data } = await db.auth.getUser()
+  await logActivity(nurseryId, data.user?.id ?? null, kind, summary, entityType, entityId)
 }

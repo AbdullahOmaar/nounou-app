@@ -6,6 +6,7 @@ export const home = {
   notPickedUpYet: 'Not picked up yet',
   absentToday: 'Absent today',
   reportsMissing: 'Missing reports',
+  reportsUnpublished: 'Unpublished reports',
   overdueTotal: 'Overdue amounts due',
   pendingProofs: 'Proofs awaiting review',
   quickActions: 'Quick actions',
@@ -22,4 +23,12 @@ export const home = {
   dayClosed: 'Day closed',
   childrenRegistered: 'Registered children',
   staffCount: 'Staff members',
+  // Nouna identity — Wave 1: day hero + one primary action + 3 quick actions
+  heroTitle: '{weekday} at our nursery',
+  heroSubtitle: '{classes} classes · {count} children enrolled today',
+  startDay: 'Start today’s check-in',
+  quickActionsNote: '3 only — the rest lives in “More”',
+  actionChildren: 'Children',
+  classesOpened: '✓ Opened',
+  classesNotOpened: 'Not yet',
 }

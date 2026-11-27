@@ -61,6 +61,16 @@ export interface NurseryRow {
   created_by: string
   created_at: string
   updated_at: string
+  public_slug: string | null
+  public_enabled: boolean
+  public_about: string | null
+  public_license_no: string | null
+  public_instapay: string | null
+  public_vodafone: string | null
+  public_bank: string | null
+  brand_color: string | null
+  banner_key: string | null
+  sticker_key: string | null
 }
 
 export interface NurseryMemberRow {
@@ -226,6 +236,117 @@ export interface PaymentRow {
   guardian_id: string | null
   created_at: string
   updated_at: string
+}
+
+export type ExpenseCategory =
+  | 'salaries'
+  | 'rent'
+  | 'food'
+  | 'transport'
+  | 'supplies'
+  | 'maintenance'
+  | 'other'
+
+/** صف ‏nursery_expenses (419 — مهمة 1.2؛ مالك فقط بـRLS) */
+export interface NurseryExpenseRow {
+  id: string
+  nursery_id: string
+  period: string
+  expense_date: string
+  category: ExpenseCategory
+  title: string
+  amount: number
+  note: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export type CashboxKind = 'purchase' | 'sale' | 'misc_in' | 'misc_out'
+
+/** صف ‏cashbox_entries (مهمة 1.3؛ مالك فقط بـRLS) */
+export interface CashboxEntryRow {
+  id: string
+  nursery_id: string
+  entry_date: string
+  direction: 'in' | 'out'
+  kind: CashboxKind
+  title: string
+  amount: number
+  ref_type: string | null
+  ref_id: string | null
+  created_by: string | null
+  created_at: string
+}
+
+/** صف ‏cashbox_closes (إقفال وردية — وثيقة تسليم) */
+export interface CashboxCloseRow {
+  id: string
+  nursery_id: string
+  shift_date: string
+  expected_total: number
+  counted_total: number
+  difference: number
+  handover_to: string
+  note: string | null
+  closed_by: string | null
+  created_at: string
+}
+
+/** صف ‏suppliers (مهمة 1.4؛ مالك فقط بـRLS) */
+export interface SupplierRow {
+  id: string
+  nursery_id: string
+  name: string
+  phone: string | null
+  credit_days: number
+  note: string | null
+  created_by: string | null
+  created_at: string
+}
+
+/** صف ‏purchase_orders */
+export interface PurchaseOrderRow {
+  id: string
+  nursery_id: string
+  supplier_id: string
+  title: string
+  total_amount: number
+  order_date: string
+  due_date: string
+  created_by: string | null
+  created_at: string
+}
+
+/** صف ‏supplier_payments */
+export interface SupplierPaymentRow {
+  id: string
+  nursery_id: string
+  order_id: string
+  amount: number
+  paid_date: string
+  cashbox_entry_id: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export type ApprovalKind =
+  | 'proof_approve'
+  | 'cashbox_close_diff'
+  | 'invoice_cancel_paid'
+  | 'expense_large'
+
+/** صف ‏pending_approvals (مهمة 1.5؛ مالك فقط بـRLS) */
+export interface PendingApprovalRow {
+  id: string
+  nursery_id: string
+  action_kind: ApprovalKind
+  payload: Record<string, unknown>
+  summary: string
+  requested_by: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  decided_by: string | null
+  decided_at: string | null
+  created_at: string
 }
 
 /** صف view ‏invoice_balances */
@@ -417,6 +538,7 @@ export interface AnnouncementRow {
   audience: AnnouncementAudience
   class_id: string | null
   published_at: string | null
+  wants_rsvp: boolean
   created_by: string | null
   created_at: string
   updated_at: string
@@ -433,5 +555,35 @@ export interface GuardianAccessTokenRow {
   revoked_at: string | null
   last_used_at: string | null
   created_by: string | null
+  created_at: string
+  access_scope: 'full' | 'view'
+}
+
+export interface StaffProfileRow {
+  id: string
+  nursery_id: string
+  member_id: string
+  monthly_salary: number
+  job_title: string | null
+  created_at: string
+}
+
+export interface StaffAttendanceRow {
+  id: string
+  nursery_id: string
+  member_id: string
+  day: string
+  status: 'present' | 'absent' | 'late' | 'leave'
+  created_at: string
+}
+
+export interface StaffPayrollRow {
+  id: string
+  nursery_id: string
+  member_id: string
+  period: string
+  amount: number
+  absent_days: number
+  expense_id: string | null
   created_at: string
 }

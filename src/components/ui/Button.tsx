@@ -1,15 +1,23 @@
 import type { ButtonHTMLAttributes } from 'react'
 
-type Variant = 'primary' | 'ghost' | 'danger' | 'soft'
+type Variant = 'primary' | 'ghost' | 'danger' | 'soft' | 'accent' | 'ok' | 'dangerGhost'
 type Size = 'md' | 'sm'
 
 const variants: Record<Variant, string> = {
   // نص الزر الأساسي عبر توكن --on-primary: أبيض في الفاتح، داكن في الداكن
-  // (الأبيض على أساسي الداكن #8B85F7 كان 3.09:1 — الداكن عليه 5.58:1)
+  // (الأبيض على أساسي الداكن #9DB8E8 كان 2.01:1 — الداكن عليه 8.59:1)
   primary: 'bg-primary text-on-primary hover:bg-primary-d',
   ghost: 'bg-transparent border border-border-interactive text-text hover:bg-soft',
   danger: 'bg-bad text-white hover:opacity-90',
   soft: 'bg-soft text-primary hover:opacity-90',
+  // كهرماني (هوية نونو — الموجة 1): الزر الوحيد بلون التمييز في الشاشة
+  // (زر QR للحضور + زر الدخول) — نص داكن #4A2E00 عليه (6.16:1، §2.1.1)
+  accent: 'bg-accent text-on-accent hover:opacity-90',
+  // اعتماد مالي (هوية نونو — الموجة 4): أخضر الحالة بحشوة كاملة ونص عبر
+  // توكن --on-ok (أبيض على #166B4D = 6.47:1 فاتح؛ داكن على #34D399 داكن)
+  ok: 'bg-ok text-on-ok hover:opacity-90',
+  // رفض مالي: حدّ ونصّ بلون الخطر على شفاف — أهدى من الحشوة الكاملة
+  dangerGhost: 'bg-transparent border border-bad text-bad-text hover:bg-bad-soft',
 }
 
 // سلم أحجام موحّد (3A-317 — تدقيق الأزرار): md هو الأساس (هدف لمس 48px)،

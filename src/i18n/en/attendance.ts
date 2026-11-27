@@ -35,7 +35,17 @@ export const attendance = {
   dayClosedBanner: 'Today is closed — only the owner can edit',
   notYetArrived: 'Not arrived yet',
   searchPlaceholder: 'Search by child name…',
-  allMarked: 'All children are marked 🎉',
   historyTitle: 'Attendance history for {name}',
   noHistory: 'No attendance history yet',
+  sendCodeWhatsapp: 'Send the code of today to the guardian (WhatsApp)',
+  codeQueued: 'The code is ready — actual WhatsApp sending is not launched yet; the attempt was logged',
+  codeBlocked: 'The code was not sent — WhatsApp sending is not ready yet (check the WhatsApp gates in Settings); the attempt was logged',
+  pickupLogTitle: 'Pickup log of today',
+  pickupLogCodeUsed: 'with code',
+  // Nouna identity — Wave 1: progress card + amber QR button + day-close button
+  progressTitle: 'Check-in progress',
+  progressRemaining:
+    '{count} children left — tap a status right here, no need to open each child',
+  scanQrCta: 'Scan QR for quick check-in',
+  sendReportsCta: 'Send today’s reports',
 }

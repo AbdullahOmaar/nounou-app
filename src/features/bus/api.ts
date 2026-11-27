@@ -1,4 +1,5 @@
 import { requireSupabase } from '../../lib/supabase'
+import { logActivityAuto } from '../settings/api'
 import type {
   BusDayEntryRow,
   BusDayListRow,
@@ -205,6 +206,19 @@ export async function setEntryStatus(
     })
     .eq('id', entryId)
   if (error) throw error
+}
+
+/**
+ * 420-S2: إغلاق رحلة الباص — يُستدعى فقط بعد تسوية كل طفل (لا pending)،
+ * ويُسجَّل في سجل النشاط بالعدّادات. لا حالة «مغلقة» تُخزَّن: الإغلاق
+ * واقعة مدققة، والقائمة نفسها تُبنى من الاشتراكات كل يوم.
+ */
+export async function closeBusTrip(
+  nurseryId: string,
+  listId: string,
+  summary: string,
+): Promise<void> {
+  await logActivityAuto(nurseryId, 'bus_trip_closed', summary, 'bus_day_list', listId)
 }
 
 export async function listAllChildren(nurseryId: string): Promise<ChildRow[]> {

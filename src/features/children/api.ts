@@ -1,5 +1,6 @@
 import { requireSupabase } from '../../lib/supabase'
 import { normalizeEgyptianPhone } from '../../lib/phone'
+import { logActivityAuto } from '../settings/api'
 
 /** تطبيع موبايل مصري لصيغة التخزين — سقوط آمن للنص المقصوص عند التعذر */
 function normalizePhone(raw: string): string {
@@ -165,6 +166,8 @@ export async function createChild(
   input: ChildInput,
 ): Promise<string> {
   const db = requireSupabase()
+  // فحص السعة أولاً — رفض الفصل الممتلئ لا يترك طفلاً يتيمًا بلا تسجيل
+  if (input.class_id) await assertClassHasRoom(db, nurseryId, input.class_id)
   const { data: child, error } = await db
     .from('children')
     .insert({
@@ -242,6 +245,35 @@ export async function archiveChild(nurseryId: string, childId: string): Promise<
     .eq('nursery_id', nurseryId)
     .eq('id', childId)
   if (error) throw error
+  await logActivityAuto(nurseryId, 'child_archived', '', 'child', childId)
+}
+
+/**
+ * 420-T2: إنفاذ سعة الفصل عند الكتابة — فصل بسعة معلنة ممتلئ يرفض أي
+ * تسجيل جديد بخطأ 'class_full' (الواجهة تترجمه لرسالة واضحة).
+ */
+export async function assertClassHasRoom(
+  db: ReturnType<typeof requireSupabase>,
+  nurseryId: string,
+  classId: string,
+): Promise<void> {
+  const { data: cls, error: cErr } = await db
+    .from('classes')
+    .select('capacity')
+    .eq('nursery_id', nurseryId)
+    .eq('id', classId)
+    .maybeSingle()
+  if (cErr) throw cErr
+  const capacity = (cls as { capacity: number | null } | null)?.capacity ?? null
+  if (capacity === null) return
+  const { count, error: nErr } = await db
+    .from('enrollments')
+    .select('id', { count: 'exact', head: true })
+    .eq('nursery_id', nurseryId)
+    .eq('class_id', classId)
+    .eq('status', 'active')
+  if (nErr) throw nErr
+  if ((count ?? 0) >= capacity) throw new Error('class_full')
 }
 
 /** نقل طفل لفصل: إنهاء التسجيل النشط + تسجيل جديد */
@@ -251,6 +283,8 @@ export async function moveChildClass(
   classId: string | null,
 ): Promise<void> {
   const db = requireSupabase()
+  // فحص السعة قبل إنهاء التسجيل الحالي — رفض النقل لا يترك الطفل بلا فصل
+  if (classId) await assertClassHasRoom(db, nurseryId, classId)
   const { error: endErr } = await db
     .from('enrollments')
     .update({ status: 'left', ends_on: new Date().toISOString().slice(0, 10) })

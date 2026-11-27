@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ageLabel,
   currentPeriod,
+  fmtWeekday,
+  fmtWeekdayDate,
+  formatClock12,
   formatMoney,
   shiftISODate,
   todayISO,
@@ -51,6 +54,18 @@ describe('تواريخ ISO وفترات', () => {
   })
 })
 
+describe('fmtWeekday — اسم يوم الأسبوع مثبّت على القاهرة', () => {
+  it('2026-11-25 أربعاء مهما كان توقيت المتصفح', () => {
+    // التاريخ يُبنى ظهراً فلا يتأثر بإزاحة UTC؛ والتثبيت على القاهرة
+    // يمنع انزلاق اليوم قرب منتصف الليل
+    expect(fmtWeekday('2026-11-25')).toBe('الأربعاء')
+    expect(fmtWeekday('2026-11-24')).toBe('الثلاثاء')
+  })
+  it('تاريخ فارغ: سلسلة فارغة', () => {
+    expect(fmtWeekday('')).toBe('')
+  })
+})
+
 describe('waLink — روابط واتساب آمنة', () => {
   it('يبني رابطاً من رقم مصري محلي ويشفر النص', () => {
     expect(waLink('01001234567')).toBe('https://wa.me/201001234567')
@@ -62,5 +77,15 @@ describe('waLink — روابط واتساب آمنة', () => {
     expect(waLink('+201001234567')).toBe('https://wa.me/201001234567')
     expect(waLink('123')).toBeNull()
     expect(waLink(null)).toBeNull()
+  })
+})
+
+describe('تثبيت توقيت القاهرة — عيبا الفحص الحي 1+2 (2026-11-25)', () => {
+  it('وصول منتصف الليل UTC يظهر 2:00 ص بتوقيت القاهرة مهما كانت منطقة الجهاز', () => {
+    expect(formatClock12('2026-11-25T00:00:31.124Z')).toBe('2:00 ص')
+  })
+  it('يوم 25 نوفمبر 2026 = الأربعاء (لا الثلاثاء) بتوقيت القاهرة', () => {
+    expect(fmtWeekdayDate('2026-11-25')).toContain('الأربعاء')
+    expect(fmtWeekdayDate('2026-11-25')).toContain('25 نوفمبر 2026')
   })
 })

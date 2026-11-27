@@ -8,6 +8,7 @@ import type {
   PaymentRow,
 } from '../../types/database'
 import { planMonthlyIssue, type IssueChildInput, type PlannedLine } from './issuePlan'
+import { logActivity } from '../settings/api'
 
 export interface InvoiceListItem extends InvoiceRow {
   childName: string
@@ -113,7 +114,14 @@ export async function issueMonthlyInvoices(
   period: string,
   dueDate: string | null,
   actorId: string | null,
-): Promise<{ issued: number; skipped: number; noPrice: string[] }> {
+  shouldStop?: () => boolean,
+): Promise<{
+  issued: number
+  skipped: number
+  noPrice: string[]
+  stopped: boolean
+  planned: number
+}> {
   const db = requireSupabase()
   const [settingsRes, enrollRes, subsRes, linksRes, existingRes] = await Promise.all([
     db
@@ -188,7 +196,13 @@ export async function issueMonthlyInvoices(
   const already = new Set((existingRes.data ?? []).map((i) => i.child_id as string))
   const { plans, skipped, noPrice } = planMonthlyIssue(inputs, discount, already)
 
+  let issuedCount = 0
+  let stoppedEarly = false
   for (const plan of plans) {
+    if (shouldStop?.()) {
+      stoppedEarly = true
+      break
+    }
     const { data: inv, error } = await db
       .from('invoices')
       .insert({
@@ -213,8 +227,23 @@ export async function issueMonthlyInvoices(
       })),
     )
     if (linesErr) throw linesErr
+    issuedCount += 1
   }
-  return { issued: plans.length, skipped: skipped.length, noPrice }
+  if (plans.length > 0) {
+    await logActivity(
+      nurseryId,
+      actorId,
+      'invoice_issued',
+      `${period} × ${plans.length}`,
+    )
+  }
+  return {
+    issued: issuedCount,
+    skipped: skipped.length,
+    noPrice,
+    stopped: stoppedEarly,
+    planned: plans.length,
+  }
 }
 
 export async function addInvoiceLine(
@@ -237,13 +266,29 @@ export async function deleteInvoiceLine(lineId: string): Promise<void> {
   if (error) throw error
 }
 
-export async function cancelInvoice(invoiceId: string): Promise<void> {
+export async function cancelInvoiceInternal(invoiceId: string): Promise<void> {
   const db = requireSupabase()
   const { error } = await db
     .from('invoices')
     .update({ status: 'cancelled' })
     .eq('id', invoiceId)
   if (error) throw error
+}
+
+/**
+ * إلغاء فاتورة: بلا بوابة اعتماد — مشغّل 0013-V1 يرفض أصلاً إلغاء أي
+ * فاتورة فيها دفعة فعّالة (سلامة مال)، فالمسار الصحيح: عكس الدفعات
+ * أولاً ثم الإلغاء. الفواتير بلا دفعات تُلغى مباشرة.
+ */
+export async function cancelInvoice(
+  nurseryId: string,
+  actorId: string | null,
+  invoiceId: string,
+): Promise<'done'> {
+  void nurseryId
+  void actorId
+  await cancelInvoiceInternal(invoiceId)
+  return 'done'
 }
 
 export interface RecordPaymentInput {
@@ -292,6 +337,14 @@ export async function recordPayment(
     source: 'admin',
   })
   if (error) throw error
+  await logActivity(
+    nurseryId,
+    actorId,
+    'payment_recorded',
+    `${input.amount} — ${input.method}`,
+    'payment',
+    paymentId,
+  )
 }
 
 /** عكس دفعة: سطر مقابل + وسم الأصل — لا حذف أبداً */
@@ -322,6 +375,14 @@ export async function reversePayment(
     .update({ reversed_by_id: (reversal as { id: string }).id })
     .eq('id', payment.id)
   if (markErr) throw markErr
+  await logActivity(
+    nurseryId,
+    actorId,
+    'payment_reversed',
+    `${payment.amount} — ${payment.method}`,
+    'payment',
+    payment.id,
+  )
 }
 
 /** مدفوعات طفل (تبويب ملف الطفل — للمالك فقط بحكم RLS) */

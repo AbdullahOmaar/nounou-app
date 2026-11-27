@@ -8,9 +8,10 @@ export interface HomeSummary {
   absentToday: number
   notPickedUp: number
   reportsMissing: number
+  reportsUnpublished: number
   overdueTotal: number | null // null = ليس مالكاً (لا يرى المالية)
   pendingProofs: number | null
-  classes: { id: string; name: string; present: number; total: number }[]
+  classes: { id: string; name: string; present: number; total: number; opened: boolean }[]
 }
 
 /** ملخص الرئيسية: عدّادات اليوم الحية + حالة كل فصل */
@@ -64,6 +65,7 @@ export async function fetchHomeSummary(
   let absent = 0
   let notPicked = 0
   let reportsMissing = 0
+  let reportsUnpublished = 0
   const presentByClass = new Map<string, number>()
 
   if (dayIds.length > 0) {
@@ -102,6 +104,11 @@ export async function fetchHomeSummary(
         (reports ?? []).filter((r) => r.published_at).map((r) => r.child_id as string),
       )
       reportsMissing = presentChildIds.filter((id) => !published.has(id)).length
+      // 420-T3: مكتوبة بلا نشر (حاضرون فقط — نفس استثناء النشر الجماعي)
+      const presentSet = new Set(presentChildIds)
+      reportsUnpublished = (reports ?? []).filter(
+        (r) => !r.published_at && presentSet.has(r.child_id as string),
+      ).length
     }
   }
 
@@ -131,6 +138,7 @@ export async function fetchHomeSummary(
     absentToday: absent,
     notPickedUp: notPicked,
     reportsMissing,
+    reportsUnpublished,
     overdueTotal,
     pendingProofs,
     classes: (classesRes.data ?? []).map((c) => ({
@@ -138,6 +146,8 @@ export async function fetchHomeSummary(
       name: c.name as string,
       present: presentByClass.get(c.id as string) ?? 0,
       total: totalsByClass.get(c.id as string) ?? 0,
+      // «اتفتح»: صف يوم موجود للفصل النهارده (هوية نونو — الموجة 1)
+      opened: dayIdByClass.has(c.id as string),
     })),
   }
 }

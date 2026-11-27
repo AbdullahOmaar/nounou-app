@@ -1,0 +1,16 @@
+export const assistant = {
+  title: "Supervisor assistant",
+  offTitle: "Assistant is off",
+  offHint: "Enabled per nursery by an explicit platform decision (feature flag).",
+  summaryTitle: "Day summary",
+  summaryBody: "Instant read: active children, total outstanding, pending payment proofs.",
+  remindTitle: "Fee reminders",
+  remindBody: "Passes the WhatsApp gates and budget cap — every attempt is logged, no repeat within 7 days.",
+  run: "Run",
+  confirmTitle: "Confirm execution",
+  confirmBody: "The assistant will run fee reminders now. You can stop it at any moment while it runs.",
+  remindersDone: "Reminders executed",
+  sumChildren: "Active children",
+  sumOutstanding: "Outstanding",
+  sumProofs: "Pending proofs",
+} as const

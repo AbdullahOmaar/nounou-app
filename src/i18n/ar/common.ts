@@ -9,6 +9,8 @@ export const common = {
   back: 'رجوع',
   search: 'بحث',
   loading: 'جارٍ التحميل…',
+  version: "الإصدار",
+  publishedAt: "نُشر",
   retry: 'حاول تاني',
   confirm: 'تأكيد',
   yes: 'أيوه',
@@ -76,4 +78,7 @@ export const common = {
   notFoundHint: 'يمكن الرابط اتغيّر أو اتنقل.',
   notFoundHome: 'ارجع للرئيسية',
   offline: 'مفيش نت — شغلك محفوظ على الجهاز ويرتفع تلقائياً عند عودة الاتصال',
-} as const
+  aiGenerated: "مولّد بالذكاء الاصطناعي",
+  stop: "إيقاف",
+  bulkStopped: "اتنفذ {done} من {total} — الباقي اتوقف",
+}

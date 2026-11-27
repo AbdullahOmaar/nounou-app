@@ -1,0 +1,16 @@
+export const tours = {
+  title: "Tour requests",
+  empty: "No tour requests yet",
+  emptyHint: "Tour bookings from your public site appear here",
+  preferred: "Preferred time",
+  call: "Call",
+  markContacted: "Contacted",
+  markDone: "Done",
+  convert: "Convert to enrolment",
+  convertConfirm: "Create child, guardian and enrolment",
+  convertHint: "The child and their guardian are created from the request data; pick a class now or later.",
+  classLabel: "Class (optional)",
+  noClass: "No class yet",
+  convertedOk: "Child enrolled successfully",
+  status: { new: "New", contacted: "Contacted", done: "Done", converted: "Enrolled" },
+}

@@ -14,4 +14,14 @@ export const announcements = {
   emptyTitle: 'لا إعلانات لسه',
   emptyBody: 'انشر أول إعلان — هيوصل لكل الأهالي في بوابتهم بدل زحمة الجروبات',
   deleteConfirm: 'حذف الإعلان ده؟',
-} as const
+  rsvpLabel: "طلب تأكيد حضور (RSVP)",
+  rsvpYes: "أيوه — اطلب تأكيد",
+  rsvpNo: "لا",
+  readBy: "قرأه {count} ولي أمر",
+  rsvpSummary: "هيحضر {attending} (+{guests} مرافق) • اعتذر {declined}",
+  draftsTitle: 'مسودات',
+  latestTitle: 'أحدث الإعلانات',
+  newBadge: 'جديد',
+  archiveTitle: 'الأرشيف',
+  classAudience: 'لفصل {name}',
+}

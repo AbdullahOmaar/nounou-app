@@ -7,11 +7,29 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#3B3FA3" />
+    <meta name="theme-color" content="#2E4A7A" />
     <meta
       name="description"
       content="نونو — نظام إدارة الحضانات: تقرير يومي وصور خاصة لكل طفل، رسوم وإثباتات دفع، وحضور واستلام آمن."
     />
+    <!-- أساس SEO وبطاقات المشاركة (الاكتشاف 3A-891) — الصفحات العامة تستبدلها وقت التشغيل ببيانات الحضانة -->
+    <link rel="canonical" href="https://nounou-app-psi.vercel.app/" /> <!-- nosemgrep: html.security.audit.missing-integrity.missing-integrity — canonical links are never fetched as subresources; SRI does not apply -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="نونو" />
+    <meta property="og:title" content="نونو — إدارة الحضانات" />
+    <meta
+      property="og:description"
+      content="نونو — نظام إدارة الحضانات: تقرير يومي وصور خاصة لكل طفل، رسوم وإثباتات دفع، وحضور واستلام آمن."
+    />
+    <meta property="og:url" content="https://nounou-app-psi.vercel.app/" />
+    <meta property="og:image" content="https://nounou-app-psi.vercel.app/og-card.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="نونو — إدارة الحضانات" />
+    <meta
+      name="twitter:description"
+      content="نونو — نظام إدارة الحضانات: تقرير يومي وصور خاصة لكل طفل، رسوم وإثباتات دفع، وحضور واستلام آمن."
+    />
+    <meta name="twitter:image" content="https://nounou-app-psi.vercel.app/og-card.png" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -33,20 +51,15 @@
   <body>
     <div id="root">
       <div id="boot-splash">
-        <svg id="boot-mark" width="92" height="92" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          <circle cx="32" cy="32" r="30" fill="#3B3FA3" />
-          <path d="M32 46c0-10 0-16 0-22" stroke="#00D2FF" stroke-width="4" stroke-linecap="round" />
-          <path d="M32 28c-7 1-11-3-12-10 7-1 11 3 12 10Z" fill="#FFA726" />
-          <path d="M32 24c1-7 6-10 12-10 0 7-4 11-12 10Z" fill="#00D2FF" />
-        </svg>
+        <img id="boot-mark" src="/logo.svg" width="92" height="92" alt="" />
         <div class="boot-name">نونو</div>
       </div>
       <style>
-        #boot-splash { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: #f7f8fc; }
-        :root[data-theme="dark"] #boot-splash { background: #0e1120; }
+        #boot-splash { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: #fff8ee; }
+        :root[data-theme="dark"] #boot-splash { background: #141a28; }
         #boot-mark { animation: boot-bounce 1.2s ease-in-out infinite; }
-        .boot-name { font-family: "IBM Plex Sans Arabic", system-ui, sans-serif; font-weight: 800; font-size: 24px; color: #141a2e; }
-        :root[data-theme="dark"] .boot-name { color: #f2f4fa; }
+        .boot-name { font-family: "Baloo Bhaijaan 2", "IBM Plex Sans Arabic", system-ui, sans-serif; font-weight: 800; font-size: 24px; color: #2f2a26; }
+        :root[data-theme="dark"] .boot-name { color: #f5ede0; }
         @keyframes boot-bounce {
           0%, 100% { transform: translateY(0) scale(1, 1); }
           30% { transform: translateY(-10px) scale(0.98, 1.03); }

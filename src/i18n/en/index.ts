@@ -14,8 +14,23 @@ import { reports } from './reports'
 import { bus } from './bus'
 import { announcements } from './announcements'
 import { notifications } from './notifications'
+import { iso } from './iso'
+import { ops } from './ops'
+import { assistant } from './assistant'
+import { branches } from './branches'
+import { dataRights } from './dataRights'
+import { licensing } from './licensing'
+import { staff } from './staff'
+import { licensingTrack } from './licensingTrack'
 import { settings } from './settings'
 import { activity } from './activity'
+import { finance } from './finance'
+import { suppliers } from './suppliers'
+import { messages } from './messages'
+import { qa } from './qa'
+import { pub } from './pub'
+import { tours } from './tours'
+import { events } from './events'
 import type { Dict } from '../dict'
 
 /**
@@ -43,5 +58,20 @@ export const en: Dict = {
   announcements,
   notifications,
   settings,
+  licensing,
+  iso,
+  ops,
+  assistant,
+  branches,
+  dataRights,
+  staff,
+  licensingTrack,
   activity,
+  finance,
+  suppliers,
+  messages,
+  qa,
+  pub,
+  tours,
+  events,
 }
