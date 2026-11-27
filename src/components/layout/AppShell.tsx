@@ -24,6 +24,28 @@ import { VersionLine } from '../ui/VersionLine'
 import { Mascot } from '../mascot/Mascot'
 import { useT, type I18nKey } from '../../i18n'
 import { useLocale } from '../../i18n/locale'
+import {
+  onPushToken,
+  registerPushTokenServerSide,
+  storedPushToken,
+} from '../../lib/push'
+
+/**
+ * ربط توكن الدفع خادمياً (3A-412 خطوة خادمية): عندما تتحدد الحضانة
+ * النشطة، نسجّل التوكن المحفوظ (إن وجد) عبر RPC، ونشترك في وصول
+ * توكن جديد لاحقاً. على الويب لا شيء (الدوال نفسها تتحقق).
+ */
+function PushTokenEffect({ nurseryId }: { nurseryId: string | null }) {
+  useEffect(() => {
+    if (!nurseryId) return
+    const stored = storedPushToken()
+    if (stored) void registerPushTokenServerSide(nurseryId, stored)
+    return onPushToken((token) => {
+      void registerPushTokenServerSide(nurseryId, token)
+    })
+  }, [nurseryId])
+  return null
+}
 
 type TabKey = 'home' | 'children' | 'today' | 'invoices' | 'more'
 
@@ -134,6 +156,11 @@ export function AppShell() {
 
   return (
     <div className="min-h-dvh bg-bg text-text">
+      <PushTokenEffect
+        nurseryId={
+          nurseryRes.status === 'ready' ? nurseryRes.nurseryId : null
+        }
+      />
       <header className="sticky top-0 z-20 bg-bg/95 backdrop-blur border-b border-border">
         <div className={`mx-auto ${containerCls} flex items-center gap-1 px-2 h-14`}>
           {!isRoot ? (

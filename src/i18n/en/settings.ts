@@ -72,6 +72,12 @@ export const settings = {
   exportOwnerOnly: 'Owner only',
   lastExport: 'Last export {date}',
   installTitle: 'Install Nounou',
+  push: {
+    title: 'Staff push notifications',
+    body: 'Instant alerts on staff phones (the native Nounou app) for important events — enabled per nursery, and sending needs the Firebase account set up from the dashboard.',
+    enabledLabel: 'Enable push notifications for this nursery',
+    eventsHint: 'Events sent: a new payment proof submitted by a guardian, and a new tour request from the public page.',
+  },
   wa: {
     title: 'WhatsApp (optional)',
     body: 'WhatsApp sending is optional and needs a Meta-approved number registered to the nursery. These gates prepare everything before it — no message leaves before all of them pass.',
